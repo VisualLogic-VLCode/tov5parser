@@ -58,6 +58,9 @@ curl '<downloadUrl>' -o v5case.json
 中转数据在桶 `vl-case-json-converter` 的 `transfer/` 前缀下，由生命周期规则自动清理。
 另有兜底：内联请求的转换结果若超 6MB，会自动落桶并返回 `downloadUrl`（而非报 10004）。
 
+AWS 运维手册（凭证配置、查日志、回滚、一次性搭建命令记录、权限边界）见
+[docs/aws-ops-runbook.md](docs/aws-ops-runbook.md)。
+
 ## 线上环境（2026-07-08 已部署）
 
 - 分区/区域：AWS 中国区 `aws-cn` / `cn-northwest-1`（宁夏），账号 `587849590304`
