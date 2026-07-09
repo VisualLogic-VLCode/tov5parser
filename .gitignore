@@ -1,0 +1,10 @@
+node_modules/
+archive.runtime-*.zip
+.DS_Store
+
+# 本地案例转换工作区：案例 JSON 不入库，仅跟踪 README
+localCases/*
+!localCases/README.md
+
+# 管理员提供的 AWS 访问凭证，绝不入库
+vl-case-json-converter-aws-cn-access/
