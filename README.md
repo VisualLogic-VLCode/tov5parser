@@ -73,10 +73,15 @@ AWS 运维手册（凭证配置、查日志、回滚、一次性搭建命令记�
 - S3 桶：`vl-case-json-converter`（管理员创建）——`lambda-packages/` 放部署包、
   `transfer/in|out/` 大 JSON 中转（配生命周期自动过期）；执行角色已挂该桶读写
   内联策略 `s3-transfer-rw`
+- 桶 CORS（2026-07-09 管理员配置）：`AllowedOrigins:*` / `AllowedMethods:PUT,GET` /
+  `AllowedHeaders:*` / `MaxAgeSeconds:3600`——网页端 fetch 直连预签名地址（上传/下载）
+  的预检与实际请求实测均放行，S3 通道对浏览器可用；部署账号无
+  `s3:GetBucketCORS`/`PutBucketCORS` 权限，调整规则找管理员
 - 资源命名范围：管理员按 `vl-case-json-converter*` 前缀授权（实测边界见
   [docs/aws-ops-runbook.md](docs/aws-ops-runbook.md) 第 3 节）
 
-调用示例：
+面向调用方的完整指引（curl 与网页 fetch、大 JSON 通道、错误码）见
+[docs/api-calling-guide.md](docs/api-calling-guide.md)，可直接转发。调用示例：
 
 ```bash
 curl -X POST 'https://ui9kfbjiwd.execute-api.cn-northwest-1.amazonaws.com.cn/' \
