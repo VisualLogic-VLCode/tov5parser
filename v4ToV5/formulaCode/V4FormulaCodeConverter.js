@@ -1647,10 +1647,16 @@ export default class V4FormulaCodeConverter {
     }
     this.walkCustomExprParsed({ parsed, context })
     let { jsFnArgs, vList } = context
+    // 与编辑器公式编辑器保存 bind 的产物一致：jsfn 外层包 var（表达式值包装）
     return {
-      op: 'jsfn',
-      val: [new ExprAstToString({ ast: parsed }).exec(), ...vList],
-      args: jsFnArgs
+      op: 'var',
+      args: [
+        {
+          op: 'jsfn',
+          val: [new ExprAstToString({ ast: parsed }).exec(), ...vList],
+          args: jsFnArgs
+        }
+      ]
     }
   }
   walkCustomExprParsed = ({ parsed, context }) => {
@@ -1795,7 +1801,16 @@ export default class V4FormulaCodeConverter {
       case 'UnaryExpression': {
         // eg: !phone.match(/^1[3-9]\d{9}$/)
         let { argument } = parsed || {}
-        this.walkCustomExprParsed({ parsed: argument, context })
+        let ast = this.processParsedTree({
+          parsed: argument,
+          customExprContext: context
+        })
+        if (this.isGetAST({ ast })) {
+          this.genReplacement({ context, ast, parsed: argument })
+        } else {
+          // 不能转为getAst，继续递归处理
+          this.walkCustomExprParsed({ parsed: argument, context })
+        }
         break
       }
       case 'TemplateLiteral': {
