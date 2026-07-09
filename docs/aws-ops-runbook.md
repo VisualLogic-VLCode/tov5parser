@@ -23,7 +23,7 @@ aws sts get-caller-identity --profile vl-case-json-converter-cn
 ```
 
 注意：中国区与全球区凭证不通用；该 IAM 用户仅有 CLI 访问，无控制台密码；
-权限按 `vl-case-json-converter*` 资源名前缀限定（详见 deployer-iam-policy.json）。
+权限按 `vl-case-json-converter*` 资源名前缀限定（边界详见本文第 3 节）。
 
 以下命令统一省略 `--profile vl-case-json-converter-cn --region cn-northwest-1`，
 实际执行时补上（或 `export AWS_PROFILE=vl-case-json-converter-cn`）。
@@ -102,7 +102,12 @@ aws lambda add-permission --function-name vl-case-json-converter --qualifier pro
 
 ## 3. 已知权限边界（实测）
 
-- 部署用户无 `s3:CreateBucket`、`s3:ListAllMyBuckets`、`iam:ListRoles`、
+- **已验证可用**：指定桶的读写（ListBucket/GetObject/PutObject）、指定角色的
+  创建/挂策略/PassRole 给 Lambda、指定函数的全套管理（建/传码/改配置/发版本/
+  别名/invoke/add-permission）、API Gateway 管理（本文第 2 节的命令即完整清单）；
+- **确认没有**：`s3:CreateBucket`、`s3:ListAllMyBuckets`、`iam:ListRoles`、
   `iam:GetRolePolicy`（对角色可写内联策略但读不回）——超出边界的操作找管理员；
 - 资源名必须落在 `vl-case-json-converter*` 前缀内，其他名字一律 AccessDenied；
-- 函数名是 `vl-case-json-converter`（无 -prod 后缀，prod 是别名不是函数名的一部分）。
+- 函数名是 `vl-case-json-converter`（无 -prod 后缀，prod 是别名不是函数名的一部分）；
+- 管理员的真实授权策略在 IAM 侧，本仓库不留副本（曾有一份按探测重构的
+  deployer-iam-policy.json，因非权威且易失真已删除）。

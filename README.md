@@ -73,8 +73,8 @@ AWS 运维手册（凭证配置、查日志、回滚、一次性搭建命令记�
 - S3 桶：`vl-case-json-converter`（管理员创建）——`lambda-packages/` 放部署包、
   `transfer/in|out/` 大 JSON 中转（配生命周期自动过期）；执行角色已挂该桶读写
   内联策略 `s3-transfer-rw`
-- 资源命名范围：管理员按 `vl-case-json-converter*` 前缀授权（权限参考见
-  [docs/deployer-iam-policy.json](docs/deployer-iam-policy.json)）
+- 资源命名范围：管理员按 `vl-case-json-converter*` 前缀授权（实测边界见
+  [docs/aws-ops-runbook.md](docs/aws-ops-runbook.md) 第 3 节）
 
 调用示例：
 
