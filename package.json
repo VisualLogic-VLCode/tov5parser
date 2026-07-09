@@ -1,6 +1,6 @@
 {
   "name": "@visuallogic-vlcode/tov5parser",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Convert VisualLogic 4.x case JSON to 5.x case JSON. Ported from the 4.1 editor's ConvertV4ToV5.",
   "main": "index.js",
@@ -17,6 +17,7 @@
   "files": [
     "index.js",
     "lambdaIndex.js",
+    "s3Transfer.js",
     "localServer.js",
     "ivxMap.txt",
     "legacyMaps/",
@@ -39,5 +40,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0"
   }
 }

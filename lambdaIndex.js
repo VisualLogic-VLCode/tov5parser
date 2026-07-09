@@ -5,12 +5,26 @@
 //   返回:      { statusCode: 200, body: '{"code":0,"message":"success","data":{...}}' }
 //
 // actions:
-//   version       → { code:0, data:{ packageName, packageVersion } }
-//   convertV4ToV5 → { code:0, data:{ v5CaseJson } }
+//   version         → { code:0, data:{ packageName, packageVersion } }
+//   convertV4ToV5   → 传 v4CaseJson（内联，≤6MB）返回 { v5CaseJson }；
+//                     传 v4CaseJsonS3Key（大 JSON 走 S3 通道）返回
+//                     { v5CaseJsonS3Key, downloadUrl }
+//   getTransferUrls → 大 JSON 通道第一步：返回预签名上传地址
+//                     { uploadUrl, v4CaseJsonS3Key }
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
 import { convertV4CaseJsonToV5CaseJson, loadRuntimeMaps } from './index.js';
+import {
+  PRESIGN_EXPIRES_SECONDS,
+  makeTransferKeys,
+  isTransferInKey,
+  deriveOutKey,
+  presignUpload,
+  presignDownload,
+  getJsonObject,
+  putJsonObject,
+} from './s3Transfer.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -36,7 +50,59 @@ function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function handleConvertV4ToV5({ body }) {
+async function handleConvertV4ToV5({ body }) {
+  // 大 JSON 通道：v4CaseJsonS3Key 从中转桶读入，结果写回桶并返回下载地址
+  const s3Key = body?.v4CaseJsonS3Key;
+  if (s3Key != null) {
+    if (!isTransferInKey(s3Key)) {
+      return {
+        code: 10001,
+        message: 'v4CaseJsonS3Key must be a key under transfer/in/',
+      };
+    }
+    let v4CaseJsonFromS3;
+    try {
+      v4CaseJsonFromS3 = await getJsonObject(s3Key);
+    } catch (error) {
+      return {
+        code: 10006,
+        message: 'failed to read v4CaseJsonS3Key from transfer bucket',
+        data: { errorMessage: error?.message || String(error) },
+      };
+    }
+    if (!isPlainObject(v4CaseJsonFromS3)) {
+      return {
+        code: 10001,
+        message: 'object at v4CaseJsonS3Key must be a JSON object',
+      };
+    }
+    try {
+      const v5CaseJson = convertV4CaseJsonToV5CaseJson({
+        v4CaseJson: v4CaseJsonFromS3,
+        ntype: body?.ntype,
+      });
+      const outKey = deriveOutKey(s3Key);
+      await putJsonObject(outKey, v5CaseJson);
+      const downloadUrl = await presignDownload(outKey);
+      return {
+        code: 0,
+        message: 'success',
+        data: {
+          v5CaseJsonS3Key: outKey,
+          downloadUrl,
+          expiresInSeconds: PRESIGN_EXPIRES_SECONDS,
+        },
+      };
+    } catch (error) {
+      return {
+        code: 10003,
+        message: 'v4 to v5 conversion failed',
+        data: { errorMessage: error?.message || String(error) },
+      };
+    }
+  }
+
+  // 内联路径（≤6MB）
   const v4CaseJson = body?.v4CaseJson;
   if (!isPlainObject(v4CaseJson)) {
     return {
@@ -65,6 +131,30 @@ function handleConvertV4ToV5({ body }) {
   }
 }
 
+// 大 JSON 通道第一步：签发上传地址。
+// 用法：PUT 大 JSON 到 uploadUrl → 调 convertV4ToV5 传回 v4CaseJsonS3Key。
+async function handleGetTransferUrls() {
+  try {
+    const { inKey } = makeTransferKeys();
+    const uploadUrl = await presignUpload(inKey);
+    return {
+      code: 0,
+      message: 'success',
+      data: {
+        uploadUrl,
+        v4CaseJsonS3Key: inKey,
+        expiresInSeconds: PRESIGN_EXPIRES_SECONDS,
+      },
+    };
+  } catch (error) {
+    return {
+      code: 10006,
+      message: 's3 transfer channel unavailable',
+      data: { errorMessage: error?.message || String(error) },
+    };
+  }
+}
+
 export const handler = async (event) => {
   const { headers } = event || {};
   const { origin } = headers || {};
@@ -86,7 +176,11 @@ export const handler = async (event) => {
       break;
     }
     case 'convertV4ToV5': {
-      output = handleConvertV4ToV5({ body });
+      output = await handleConvertV4ToV5({ body });
+      break;
+    }
+    case 'getTransferUrls': {
+      output = await handleGetTransferUrls();
       break;
     }
     default: {
@@ -110,15 +204,46 @@ export const handler = async (event) => {
   let responseBody = JSON.stringify(output);
   const responseBytes = Buffer.byteLength(responseBody, 'utf8');
   if (responseBytes > INLINE_RESPONSE_LIMIT_BYTES) {
-    responseBody = JSON.stringify({
-      code: 10004,
-      message: 'response too large for inline lambda response',
-      data: {
-        action,
-        estimatedBytes: responseBytes,
-        limitBytes: INLINE_RESPONSE_LIMIT_BYTES,
-      },
-    });
+    // 内联结果超限兜底：转换成功的结果落 S3 中转桶，改返回下载指针
+    if (output?.code === 0 && output?.data?.v5CaseJson) {
+      try {
+        const { outKey } = makeTransferKeys();
+        await putJsonObject(outKey, output.data.v5CaseJson);
+        const downloadUrl = await presignDownload(outKey);
+        responseBody = JSON.stringify({
+          code: 0,
+          message:
+            'success (result too large for inline response; stored to transfer bucket)',
+          data: {
+            v5CaseJsonS3Key: outKey,
+            downloadUrl,
+            expiresInSeconds: PRESIGN_EXPIRES_SECONDS,
+            estimatedBytes: responseBytes,
+          },
+        });
+      } catch (error) {
+        responseBody = JSON.stringify({
+          code: 10004,
+          message: 'response too large for inline lambda response',
+          data: {
+            action,
+            estimatedBytes: responseBytes,
+            limitBytes: INLINE_RESPONSE_LIMIT_BYTES,
+            s3FallbackError: error?.message || String(error),
+          },
+        });
+      }
+    } else {
+      responseBody = JSON.stringify({
+        code: 10004,
+        message: 'response too large for inline lambda response',
+        data: {
+          action,
+          estimatedBytes: responseBytes,
+          limitBytes: INLINE_RESPONSE_LIMIT_BYTES,
+        },
+      });
+    }
   }
 
   return { statusCode: 200, headers: outHeaders, body: responseBody };

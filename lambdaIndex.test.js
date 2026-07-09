@@ -74,3 +74,17 @@ test('handler supports direct-invoke event shape', async () => {
   assert.equal(payload.data.v5CaseJson.case.uis.name, 'LambdaCase_5.0');
 });
 
+test('handler validates s3 transfer key without touching network', async () => {
+  const badKey = await invoke({
+    action: 'convertV4ToV5',
+    v4CaseJsonS3Key: 'lambda-packages/latest.zip',
+  });
+  assert.equal(badKey.code, 10001);
+  assert.match(badKey.message, /transfer\/in\//);
+
+  const traversal = await invoke({
+    action: 'convertV4ToV5',
+    v4CaseJsonS3Key: 'transfer/in/../x.json',
+  });
+  assert.equal(traversal.code, 10001);
+});
