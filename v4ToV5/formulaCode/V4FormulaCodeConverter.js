@@ -1333,6 +1333,7 @@ export default class V4FormulaCodeConverter {
         }
         break
       }
+      case '!=':
       case '!==': {
         if (this.scope === 'server') {
           operator = 'sysop'
