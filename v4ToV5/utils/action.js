@@ -1,4 +1,5 @@
 import { convertEditorValue } from './formula.js'
+import { setDiagExtra, clearDiagExtra } from './convertDiag.js'
 import {
   METHODS_HAS_SUB_PARAMS,
   METHODS_AS_GLOBAL_FUNCS,
@@ -240,6 +241,8 @@ function convertActionParamValue({
 }) {
   let result = { op: 'val' }
 
+  // 动作参数名仅通过诊断通道记录（不传 paramName，避免影响 $curValue 的 ctx 行为）
+  setDiagExtra({ actionParamName: param?.name })
   if (!isEmptyParamValue({ param })) {
     switch (param.type) {
       case propType.Formula:
@@ -353,6 +356,7 @@ function convertActionParamValue({
     result.key = param.name
   }
 
+  clearDiagExtra()
   return result
 }
 

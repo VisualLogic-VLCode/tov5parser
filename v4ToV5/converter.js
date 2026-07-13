@@ -6,6 +6,7 @@ import {
 } from './env.js'
 import { convertBlockCons, genForEachConObj, convertIfCons } from './utils/con.js'
 import { convertEditorValue } from './utils/formula.js'
+import { setDiagExtra, clearDiagExtra } from './utils/convertDiag.js'
 import {
   convertActionParamValue,
   checkIsGlobalFunc,
@@ -174,10 +175,14 @@ export default class ConvertV4ToV5 {
     let _binds = {}
     Object.keys(binds).forEach(name => {
       let value = binds[name]
+      // 绑定转换不传 paramName（避免影响 $curValue 的 ctx 行为），
+      // 属性名仅通过诊断通道记录
+      setDiagExtra({ bindName: name })
       let ast = convertEditorValue({
         value,
         nodeId
       })
+      clearDiagExtra()
       _binds[name] = ast
     })
 

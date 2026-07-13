@@ -5,6 +5,7 @@ import {
   isServerRootNode,
   getNodeType
 } from '../env.js'
+import { pushDiagContext, popDiagContext } from './convertDiag.js'
 
 function convertEditorValue({
   value,
@@ -32,11 +33,17 @@ function convertEditorValue({
   let node = getNodeById(nodeId)
   let nodeInServer = isServerRootNode(node)
 
-  return new V4FormulaCodeConverter({
-    str: value.code,
-    getCtx: wrapCtx,
-    scope: nodeInServer ? 'server' : 'stage'
-  }).exec()
+  let scope = nodeInServer ? 'server' : 'stage'
+  pushDiagContext({ nodeId, blockId, paramName, cloneChildId, scope, code: value.code })
+  try {
+    return new V4FormulaCodeConverter({
+      str: value.code,
+      getCtx: wrapCtx,
+      scope
+    }).exec()
+  } finally {
+    popDiagContext()
+  }
 }
 
 // 事件数块类型

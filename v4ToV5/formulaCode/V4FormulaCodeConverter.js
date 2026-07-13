@@ -1,6 +1,7 @@
 import jsep from 'jsep'
 import ParseError from './ParseError.js'
 import ExprAstToString from './ExprAstToString.js'
+import { reportDiagError } from '../utils/convertDiag.js'
 // 原 4.1 编辑器内的 formulaCode/MapCreator 是 vlparser utils/MapCreator 的同源阉割版
 // （从 window 读映射），移植后直接使用 vlparser 完整版（支持 Node 的 global 读取）
 import MapCreator from '../../utils/MapCreator.js'
@@ -55,6 +56,7 @@ export default class V4FormulaCodeConverter {
       parsed = jsep(str)
     } catch (e) {
       console.log('parse error:', e)
+      reportDiagError({ phase: 'jsep-parse', error: e })
     }
     this.log('parsed:', JSON.stringify(parsed, null, 2))
     let ast
@@ -63,6 +65,7 @@ export default class V4FormulaCodeConverter {
     } catch (e) {
       ast = { op: 'val' }
       console.log(e)
+      reportDiagError({ phase: 'ast-convert', error: e })
     }
     return ast
   }
@@ -178,6 +181,7 @@ export default class V4FormulaCodeConverter {
           }
           e.source = parsed.exprStr
           console.log(e)
+          reportDiagError({ phase: 'custom-expr-fallback', error: e })
           return this.processCustomExpr({ parsed })
         } else if (customExprContext) {
           this.walkCustomExprParsed({ parsed, context: customExprContext })
