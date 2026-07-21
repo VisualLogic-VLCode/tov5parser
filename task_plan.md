@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 6.3（提交并推送本轮全部修改）
+Phase 6.3 complete（本轮全部修改已提交并推送；未来工作不属于当前任务）
 
 ## Phases
 
@@ -76,9 +76,9 @@ Phase 6.3（提交并推送本轮全部修改）
 
 ### Phase 6.3: Git 提交与推送
 - [x] 核对全部改动、远程地址和敏感信息
-- [ ] 提交当前工作区中的本轮全部修改
-- [ ] 推送当前 `main` 分支并验证远程状态
-- **Status:** in_progress
+- [x] 提交当前工作区中的本轮全部修改
+- [x] 推送当前 `main` 分支并验证远程状态
+- **Status:** complete
 
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。

@@ -155,3 +155,5 @@
 - `package.json` 预设仓库为 `VisualLogic-VLCode/tov5parser`；GitHub CLI 已登录 `Liang-visuallogic` 且具备 `repo` 权限，17 个待提交文件的常见凭证模式扫描为 0。
 - 预设仓库的 SSH `ls-remote` 返回 `Repository not found`；提交前继续确认仓库是否尚未创建或账号无权访问。
 - GitHub API 确认目标仓库尚不存在；同组织的 `vlparser` 为 PRIVATE 且当前账号有 WRITE 权限。全部改动已暂存，准备创建本地提交。
+- 已创建主提交 `68180ac`（修复 v4 转 v5 真实案例兼容问题）。
+- 已在 `VisualLogic-VLCode` 下创建 PRIVATE 仓库 `tov5parser`，配置 `origin`，并成功把本地 `main` 推送为 `origin/main`。
