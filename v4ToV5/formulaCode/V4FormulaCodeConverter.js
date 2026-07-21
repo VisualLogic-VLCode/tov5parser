@@ -1,4 +1,6 @@
-import jsep from 'jsep'
+import jsep from './jsepWrap.js'
+import { parseExpressionAt } from 'acorn'
+import { generate } from 'astring'
 import ParseError from './ParseError.js'
 import ExprAstToString from './ExprAstToString.js'
 import { reportDiagError } from '../utils/convertDiag.js'
@@ -53,10 +55,29 @@ export default class V4FormulaCodeConverter {
     let parsed = {}
     try {
       str = this.replaceSFParamPrompt({ str })
+      if (this.shouldUseFullJsParser({ str })) {
+        const ast = this.processFullJsExpression({ str })
+        reportDiagError({
+          phase: 'custom-expr-fallback',
+          error: new ParseError({
+            message: 'full JavaScript expression fallback',
+            type: 'FullJsExpression'
+          })
+        })
+        return ast
+      }
       parsed = jsep(str)
     } catch (e) {
-      console.log('parse error:', e)
-      reportDiagError({ phase: 'jsep-parse', error: e })
+      // jsep 只解析表达式子集，块体箭头函数、IIFE 与赋值表达式交给
+      // 完整 ESTree 解析器，再沿用 jsfn 的 v4 引用参数化逻辑。
+      try {
+        const ast = this.processFullJsExpression({ str })
+        reportDiagError({ phase: 'custom-expr-fallback', error: e })
+        return ast
+      } catch (fullJsError) {
+        console.log('parse error:', e)
+        reportDiagError({ phase: 'jsep-parse', error: e })
+      }
     }
     this.log('parsed:', JSON.stringify(parsed, null, 2))
     let ast
@@ -68,6 +89,37 @@ export default class V4FormulaCodeConverter {
       reportDiagError({ phase: 'ast-convert', error: e })
     }
     return ast
+  }
+  shouldUseFullJsParser = ({ str }) => {
+    return (
+      /=>\s*\{/.test(str) ||
+      /\bfunction\s*\(/.test(str) ||
+      /\btypeof\b/.test(str) ||
+      /(?:\+=|-=|\*=|\/=|%=)/.test(str)
+    )
+  }
+  processFullJsExpression = ({ str }) => {
+    const parsed = parseExpressionAt(str, 0, { ecmaVersion: 'latest' })
+    if (str.slice(parsed.end).trim()) {
+      throw new Error('Unexpected trailing JavaScript tokens')
+    }
+    const context = {
+      num: 0,
+      vList: [],
+      jsFnArgs: [],
+      fullJsMode: true
+    }
+    this.walkCustomExprParsed({ parsed, context })
+    return {
+      op: 'var',
+      args: [
+        {
+          op: 'jsfn',
+          val: [generate(parsed), ...context.vList],
+          args: context.jsFnArgs
+        }
+      ]
+    }
   }
   getCtx = (...params) => {
     if (
@@ -184,7 +236,8 @@ export default class V4FormulaCodeConverter {
           reportDiagError({ phase: 'custom-expr-fallback', error: e })
           return this.processCustomExpr({ parsed })
         } else if (customExprContext) {
-          this.walkCustomExprParsed({ parsed, context: customExprContext })
+          // custom-expression walker 的调用方会负责继续递归。这里若再次递归，
+          // 复合节点会被局部替换两次，可能留下 `.includes(...)` 或空箭头体。
           return
         } else {
           throw e
@@ -1698,15 +1751,22 @@ export default class V4FormulaCodeConverter {
       case 'MemberExpression':
         {
           let { object, property } = parsed || {}
-          let ast = this.processParsedTree({
-            parsed: object,
-            customExprContext: context
-          })
-          if (this.isGetAST({ ast })) {
-            parsed.object = this.genReplacement({ context, ast })
-          } else {
-            // 不能转为getAst，继续递归处理
+          if (
+            context.fullJsMode &&
+            this.containsFunctionExpression({ parsed: object })
+          ) {
             this.walkCustomExprParsed({ parsed: object, context })
+          } else {
+            let ast = this.processParsedTree({
+              parsed: object,
+              customExprContext: context
+            })
+            if (this.isGetAST({ ast })) {
+              parsed.object = this.genReplacement({ context, ast })
+            } else {
+              // 不能转为getAst，继续递归处理
+              this.walkCustomExprParsed({ parsed: object, context })
+            }
           }
           let ast2 = this.processParsedTree({
             parsed: property,
@@ -1759,45 +1819,35 @@ export default class V4FormulaCodeConverter {
       case 'ObjectExpression':
         {
           let { properties } = parsed || {}
-          parsed.properties = properties.map(item => {
-            let ast = this.processParsedTree({
-              parsed: item,
-              customExprContext: context
-            })
-            if (this.isGetAST({ ast })) {
-              return this.genReplacement({ context, ast })
-            } else {
-              return item
-            }
+          properties.forEach(item => {
+            this.walkCustomExprParsed({ parsed: item, context })
           })
         }
         break
-      case 'BinaryExpression': {
-        // eg: param.pageX-$curObj.m__elOffsetLeft()-$refs.c3tf99na3j50000ar3s0.p_value/2
-        let { left, right } = parsed || {}
-        let ast = this.processParsedTree({
-          parsed: left,
-          customExprContext: context
-        })
-        // 先判断是否可以转为getAst
-        if (this.isGetAST({ ast })) {
-          parsed.left = this.genReplacement({ context, ast })
-        } else {
-          // 不能转为getAst，继续递归处理
-          this.walkCustomExprParsed({ parsed: left, context })
+      case 'Property': {
+        if (parsed.computed) {
+          this.walkOrReplaceCustomExpr({ parsed: parsed.key, context })
         }
-        let ast2 = this.processParsedTree({
-          parsed: right,
-          customExprContext: context
-        })
-        if (this.isGetAST({ ast: ast2 })) {
-          parsed.right = this.genReplacement({ context, ast: ast2 })
-        } else {
-          this.walkCustomExprParsed({ parsed: right, context })
-        }
+        this.walkOrReplaceCustomExpr({ parsed: parsed.value, context })
         break
       }
-      case 'ArrowFunctionExpression': {
+      case 'BinaryExpression':
+      case 'LogicalExpression':
+      case 'AssignmentExpression': {
+        // eg: param.pageX-$curObj.m__elOffsetLeft()-$refs.c3tf99na3j50000ar3s0.p_value/2
+        let { left, right } = parsed || {}
+        if (type === 'AssignmentExpression') {
+          // 赋值左侧只替换其对象部分，保留最后一级属性写入语义。
+          this.walkCustomExprParsed({ parsed: left, context })
+        } else {
+          this.walkOrReplaceCustomExpr({ parsed: left, context })
+        }
+        this.walkOrReplaceCustomExpr({ parsed: right, context })
+        break
+      }
+      case 'ArrowFunctionExpression':
+      case 'FunctionExpression':
+      case 'FunctionDeclaration': {
         let { body } = parsed || {}
         this.walkCustomExprParsed({ parsed: body, context })
         break
@@ -1850,11 +1900,92 @@ export default class V4FormulaCodeConverter {
         })
         break
       }
+      case 'BlockStatement':
+      case 'Program': {
+        for (const item of parsed.body || []) {
+          this.walkCustomExprParsed({ parsed: item, context })
+        }
+        break
+      }
+      case 'ExpressionStatement':
+        this.walkOrReplaceCustomExpr({ parsed: parsed.expression, context })
+        break
+      case 'ReturnStatement':
+      case 'ThrowStatement':
+      case 'AwaitExpression':
+      case 'YieldExpression':
+        this.walkOrReplaceCustomExpr({ parsed: parsed.argument, context })
+        break
+      case 'VariableDeclaration':
+        for (const declaration of parsed.declarations || []) {
+          this.walkCustomExprParsed({ parsed: declaration, context })
+        }
+        break
+      case 'VariableDeclarator':
+        this.walkOrReplaceCustomExpr({ parsed: parsed.init, context })
+        break
+      case 'IfStatement':
+        this.walkOrReplaceCustomExpr({ parsed: parsed.test, context })
+        this.walkCustomExprParsed({ parsed: parsed.consequent, context })
+        this.walkCustomExprParsed({ parsed: parsed.alternate, context })
+        break
+      case 'SequenceExpression':
+        for (const expression of parsed.expressions || []) {
+          this.walkOrReplaceCustomExpr({ parsed: expression, context })
+        }
+        break
+      case 'UpdateExpression':
+        this.walkCustomExprParsed({ parsed: parsed.argument, context })
+        break
+      case 'ChainExpression':
+        this.walkCustomExprParsed({ parsed: parsed.expression, context })
+        break
       default: {
         // 其他类型的表达式，TODO...
         break
       }
     }
+  }
+  walkOrReplaceCustomExpr = ({ parsed, context }) => {
+    if (!parsed) return
+    // 完整 JavaScript 中带回调的调用必须保留为 JS 子树；若把整个子树
+    // 折叠成一个原生 AST 参数，其内部失败的 custom expression 会被旧打印器
+    // 单独序列化，容易丢失 receiver 或 block body。
+    if (
+      context.fullJsMode &&
+      this.containsFunctionExpression({ parsed })
+    ) {
+      this.walkCustomExprParsed({ parsed, context })
+      return
+    }
+    const ast = this.processParsedTree({
+      parsed,
+      customExprContext: context
+    })
+    if (this.isGetAST({ ast })) {
+      this.genReplacement({ context, ast, parsed })
+    } else {
+      this.walkCustomExprParsed({ parsed, context })
+    }
+  }
+  containsFunctionExpression = ({ parsed }) => {
+    if (!parsed || typeof parsed !== 'object') return false
+    if (
+      ['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'].includes(
+        parsed.type
+      )
+    ) {
+      return true
+    }
+    return Object.entries(parsed).some(([key, value]) => {
+      if (['exprStr', 'start', 'end', 'loc'].includes(key)) return false
+      if (Array.isArray(value)) {
+        return value.some(item =>
+          this.containsFunctionExpression({ parsed: item })
+        )
+      }
+      return this.containsFunctionExpression({ parsed: value })
+    })
   }
   genReplacement = ({ context, ast, parsed }) => {
     let { vList, jsFnArgs } = context || {}

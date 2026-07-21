@@ -22,7 +22,7 @@ function convertEditorValue({
     return { op: 'val', val: value }
   }
 
-  if (value.code === '' || value.code === null) {
+  if (value.code === '' || value.code === null || value.code === undefined) {
     return { op: 'val' }
   }
 

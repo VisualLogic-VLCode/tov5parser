@@ -230,6 +230,41 @@ function isEmptyParamValue({ param }) {
   )
 }
 
+// v4 公式编辑器会把部分本质为文本的动作参数也保存成 { code, str }。
+// 这里只处理有明确参数语义且不可能是合法 JS 表达式的三类值，避免把真正的
+// 公式解析错误一概吞成字符串。
+function getLegacyFormulaTextValue({ param, paramName }) {
+  const code = param?.value?.code
+  if (typeof code !== 'string') return undefined
+
+  const name = paramName || param?.name
+  const trimmed = code.trim()
+  if (
+    name === 'path' &&
+    /^(?:\.[\p{L}\p{N}_$]+)+$/u.test(trimmed)
+  ) {
+    return trimmed
+  }
+  if (
+    name === 'paddingRight' &&
+    /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|rpx|em|rem|%|vh|vw|vmin|vmax)$/i.test(
+      trimmed
+    )
+  ) {
+    return trimmed
+  }
+  if (
+    name === 'info' &&
+    (trimmed === 'typeof' ||
+      /^\d+\p{Script=Han}[\p{L}\p{N}_-]*$/u.test(trimmed) ||
+      /^[\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)+$/u.test(trimmed) ||
+      /^[\p{L}\p{N}_-]+(?:\s*,\s*[\p{L}\p{N}_-]+)+$/u.test(trimmed))
+  ) {
+    return trimmed
+  }
+  return undefined
+}
+
 function convertActionParamValue({
   param,
   paramsAsObj = false,
@@ -244,6 +279,11 @@ function convertActionParamValue({
   // 动作参数名仅通过诊断通道记录（不传 paramName，避免影响 $curValue 的 ctx 行为）
   setDiagExtra({ actionParamName: param?.name })
   if (!isEmptyParamValue({ param })) {
+    const legacyTextValue = getLegacyFormulaTextValue({ param, paramName })
+    if (legacyTextValue !== undefined) {
+      clearDiagExtra()
+      return { op: 'val', val: legacyTextValue }
+    }
     switch (param.type) {
       case propType.Formula:
       case propType.FormulaColor:
@@ -883,6 +923,7 @@ export {
   genActionObjRef,
   isEmptyParamValue,
   convertActionParamValue,
+  getLegacyFormulaTextValue,
   checkMethodHasSubParams,
   checkIsGlobalFunc,
   checkGlobalStatic,

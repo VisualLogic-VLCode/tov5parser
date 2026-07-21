@@ -132,7 +132,9 @@ function createV4ConvertEnv({ v4CaseJson, ntype } = {}) {
       if (classId === undefined || classId === null) continue;
       // 小模块内容的前后台归属由类自身的 isModServer 决定
       const classScope = classNode?.props?.isModServer ? 'server' : scopeKey;
-      classNodeMaps[classId] = {};
+      // 同一个小模块的前台/后台定义共用 classId，但各自包含不同节点。
+      // 必须合并两棵树；重新赋空对象会在处理 server 时覆盖 stage 节点。
+      classNodeMaps[classId] ||= {};
       // 类根节点同时进主索引：rootId 的查询（isServerRootNode）不带 classId
       mainNodeMap[classNode.id] = classNode;
       walkTree({

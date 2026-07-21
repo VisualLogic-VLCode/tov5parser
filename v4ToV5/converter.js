@@ -76,6 +76,15 @@ export default class ConvertV4ToV5 {
                   node: classNode,
                   scope: key
                 })
+                // v5 编辑器会用云端小模块的 modEdtVer 与案例版本比较。
+                // v4 云端小模块没有该字段；内容转成 v5 后需补 2，否则编辑器
+                // 会把它判为 v4 扩展组件并禁止展开。已有版本标记原样保留。
+                const isCloudModule = !!(
+                  _classNode?.props?.widgetId || _classNode?.uis?.registerID
+                )
+                if (isCloudModule && _classNode.props.modEdtVer == null) {
+                  _classNode.props.modEdtVer = 2
+                }
                 if (key === 'server') {
                   let modDbServiceMap = this.modDbServiceMap[classId]
                   if (

@@ -234,7 +234,8 @@ for (const name of targets) {
     const ntype = cliNtype ?? raw.ntype;
     if (diag) enableConvertDiag();
     const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson, ntype });
-    fs.writeFileSync(outPath, JSON.stringify(v5CaseJson, null, 2));
+    // 案例产物可能很大，统一输出紧凑 JSON；诊断报告仍保留美化格式便于阅读。
+    fs.writeFileSync(outPath, JSON.stringify(v5CaseJson));
     const kb = (fs.statSync(outPath).size / 1024).toFixed(1);
     console.log(`✔ ${name} → localCases/v5/${path.basename(outPath)} (${kb} KB, ${Date.now() - started}ms)`);
     if (diag) {

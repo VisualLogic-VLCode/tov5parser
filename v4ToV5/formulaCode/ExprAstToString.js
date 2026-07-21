@@ -136,10 +136,14 @@ export default class ExprAstToString {
       case 'ArrowFunctionExpression': {
         let { params, body } = ast
         params = params || []
+        let bodyStr = this.visit({ ast: body })
+        if (body?.type === 'ObjectExpression') {
+          bodyStr = `(${bodyStr})`
+        }
         // 处理箭头函数表达式
         return `(${params
           .map(item => this.visit({ ast: item }))
-          .join(', ')}) => ${this.visit({ ast: body })}`
+          .join(', ')}) => ${bodyStr}`
       }
       case 'NewExpression':
         // 处理 new 表达式

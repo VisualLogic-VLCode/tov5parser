@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createV4ConvertEnv, getWidgetMethodMap } from './env.js';
 import { convertV4CaseJsonToV5CaseJson } from './index.js';
 import { loadRuntimeMaps } from '../index.js';
+import { getLegacyFormulaTextValue } from './utils/action.js';
 
 // 将包内 ivxMap.txt / legacyIvxMap.txt 载入运行时全局（VxWidgetMap/VxJaMap 等）
 function ensureIvxMapNodeEnv() {
@@ -90,6 +91,25 @@ function buildV4CaseJson() {
           children: [],
         },
       ],
+      classes: [
+        {
+          id: 'cls1',
+          type: 'data-modClass',
+          rootId: 'cls1',
+          uis: {},
+          props: { classId: 'clsA', isModServer: true },
+          children: [
+            {
+              id: 'clsServerChild1',
+              type: 'data-service',
+              rootId: 'cls1',
+              uis: {},
+              props: {},
+              children: [],
+            },
+          ],
+        },
+      ],
     },
   };
 }
@@ -105,8 +125,14 @@ test('createV4ConvertEnv indexes nodes across main and class scopes', () => {
   // 类内容需带 classId（或已切换活动 classId）才能命中
   assert.equal(env.getNodeById('clsChild1'), undefined);
   assert.equal(env.getNodeById('clsChild1', 'clsA').type, 'data-var');
+  // 同一 classId 的前台/后台节点必须合并，后建的 server class 不能覆盖 stage。
+  assert.equal(
+    env.getNodeById('clsServerChild1', 'clsA').type,
+    'data-service',
+  );
   env.setClassId('clsA');
   assert.equal(env.getNodeById('clsChild1').type, 'data-var');
+  assert.equal(env.getNodeById('clsServerChild1').type, 'data-service');
   env.setClassId(false);
 });
 
@@ -131,6 +157,10 @@ test('createV4ConvertEnv resolves server scope by tree position', () => {
   // isModServer 的小模块类内容归属后台
   assert.equal(
     env.isServerRootNode(env.getNodeById('clsChild1', 'clsA')),
+    true,
+  );
+  assert.equal(
+    env.isServerRootNode(env.getNodeById('clsServerChild1', 'clsA')),
     true,
   );
   // 后台系统伪对象
@@ -173,6 +203,38 @@ test('convertV4CaseJsonToV5CaseJson converts structure without touching input', 
   assert.deepEqual(svcNode.props.outParams, [{ name: 'q1', type: 'JsonVal' }]);
   // 小模块类完成转换
   assert.equal(v5CaseJson.stage.classes.length, 1);
+});
+
+test('converted cloud module classes are marked editable in v5', () => {
+  const v4CaseJson = buildV4CaseJson();
+  const stageCloudClass = v4CaseJson.stage.classes[0];
+  const serverCloudClass = v4CaseJson.server.classes[0];
+
+  stageCloudClass.props.widgetId = 12345;
+  serverCloudClass.uis.registerID = 67890;
+  v4CaseJson.stage.classes.push({
+    id: 'localCls',
+    type: 'data-modClass',
+    rootId: 'localCls',
+    uis: {},
+    props: { classId: 'localClsA' },
+    children: [],
+  });
+  v4CaseJson.server.classes.push({
+    id: 'futureCls',
+    type: 'data-modClass',
+    rootId: 'futureCls',
+    uis: {},
+    props: { classId: 'futureClsA', widgetId: 24680, modEdtVer: 3 },
+    children: [],
+  });
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+
+  assert.equal(v5CaseJson.stage.classes[0].props.modEdtVer, 2);
+  assert.equal(v5CaseJson.server.classes[0].props.modEdtVer, 2);
+  assert.equal(v5CaseJson.stage.classes[1].props.modEdtVer, undefined);
+  assert.equal(v5CaseJson.server.classes[1].props.modEdtVer, 3);
 });
 
 test('getWidgetMethodMap resolves methods from runtime maps', (t) => {
@@ -224,5 +286,62 @@ test('convertV4CaseJsonToV5CaseJson rejects invalid input', () => {
   assert.throws(
     () => convertV4CaseJsonToV5CaseJson({ v4CaseJson: null }),
     /non-null object/,
+  );
+});
+
+test('legacy text-like formula parameters stay literal without hiding real formulas', () => {
+  const formulaParam = (name, code) => ({
+    name,
+    type: 'Formula',
+    value: { code },
+  });
+
+  assert.equal(
+    getLegacyFormulaTextValue({ param: formulaParam('path', '.style') }),
+    '.style',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('paddingRight', '10px'),
+      paramName: 'paddingRight',
+    }),
+    '10px',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('info', '4新路径'),
+    }),
+    '4新路径',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('info', 'wy 量体部门'),
+    }),
+    'wy 量体部门',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('info', 'session,key'),
+    }),
+    'session,key',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('info', 'typeof'),
+    }),
+    'typeof',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('value', '$refs.node.p_value'),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('paddingRight', '10 + offset'),
+      paramName: 'paddingRight',
+    }),
+    undefined,
   );
 });

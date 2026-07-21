@@ -22,7 +22,7 @@ jq -n --slurpfile c localCases/v4/demo.json \
 
 ```bash
 curl -s -X POST http://localhost:3457/ -H 'Content-Type: application/json' \
-  -d @localCases/v4/demo.json | jq '.data.v5CaseJson' > localCases/v5/demo.v5.json
+  -d @localCases/v4/demo.json | jq -c '.data.v5CaseJson' > localCases/v5/demo.v5.json
 ```
 
 转换失败时响应为 `{ "code": 10003, "message": ... }`（参数错误 10001），
@@ -37,6 +37,7 @@ npm run convert:local -- demo --ntype 5     # 显式指定案例类型（缺省�
 ```
 
 裸案例 JSON 与完整请求体两种输入都支持。
+`*.v5.json` 统一使用无缩进的压缩 JSON；使用本地服务时也请保留上例中的 `jq -c`。
 
 ---
 
