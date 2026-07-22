@@ -1,9 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createV4ConvertEnv, getWidgetMethodMap } from './env.js';
+import {
+  clearActiveEnv,
+  createV4ConvertEnv,
+  getWidgetMethodMap,
+  setActiveEnv,
+} from './env.js';
 import { convertV4CaseJsonToV5CaseJson } from './index.js';
 import { loadRuntimeMaps } from '../index.js';
 import { getLegacyFormulaTextValue } from './utils/action.js';
+import { genConObj, getLegacyConditionTextValue } from './utils/con.js';
 
 // 将包内 ivxMap.txt / legacyIvxMap.txt 载入运行时全局（VxWidgetMap/VxJaMap 等）
 function ensureIvxMapNodeEnv() {
@@ -333,6 +339,30 @@ test('legacy text-like formula parameters stay literal without hiding real formu
   );
   assert.equal(
     getLegacyFormulaTextValue({
+      param: formulaParam('url', 'https://pricing.ivx.cn/'),
+    }),
+    'https://pricing.ivx.cn/',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('url', 'ftp://files.ivx.cn/release.zip'),
+    }),
+    'ftp://files.ivx.cn/release.zip',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('url', 'window.open("https://pricing.ivx.cn/")'),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('url', '"https://www.ivx.cn/" + path'),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
       param: formulaParam('value', '$refs.node.p_value'),
     }),
     undefined,
@@ -344,4 +374,119 @@ test('legacy text-like formula parameters stay literal without hiding real formu
     }),
     undefined,
   );
+});
+
+test('legacy condition text values stay literal without hiding formulas', () => {
+  const textValue = (code, str = [
+    { type: 'str', obj: code },
+  ]) => ({ code, str });
+
+  assert.equal(
+    getLegacyConditionTextValue({
+      value: textValue('domain not registered', [
+        { type: 'str', obj: 'domain' },
+        { type: 'str', obj: ' ' },
+        { type: 'str', obj: 'not' },
+        { type: 'str', obj: ' ' },
+        { type: 'str', obj: 'registered' },
+      ]),
+      operator: 'equal',
+    }),
+    'domain not registered',
+  );
+  assert.equal(
+    getLegacyConditionTextValue({
+      value: textValue('www.ivx.cn', [
+        { type: 'str', obj: 'www' },
+        { type: 'str', obj: '.' },
+        { type: 'str', obj: 'ivx' },
+        { type: 'str', obj: '.' },
+        { type: 'str', obj: 'cn' },
+      ]),
+      operator: 'include',
+    }),
+    'www.ivx.cn',
+  );
+  assert.equal(
+    getLegacyConditionTextValue({
+      value: textValue('window.location.href'),
+      operator: 'include',
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyConditionTextValue({
+      value: {
+        code: 'param.value',
+        str: [null, { type: 'param', obj: 'value' }],
+      },
+      operator: 'equal',
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyConditionTextValue({
+      value: textValue('domain not registered'),
+      operator: 'greater',
+    }),
+    undefined,
+  );
+});
+
+test('legacy application system conditions keep the original receiver and method args', () => {
+  const v4CaseJson = buildV4CaseJson();
+  const systemNodeId = 'cbx1ewka3j50000c35vg';
+  v4CaseJson.stage.children.push({
+    id: systemNodeId,
+    type: 'ih5-system',
+    rootId: 'stage1',
+    uis: { name: '应用系统' },
+    props: {},
+    children: [],
+  });
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  try {
+    const conditionAst = genConObj({
+      conItem: {
+        value1: {
+          code: `$refs.${systemNodeId}.f__appEnv('appType')`,
+          str: [
+            {
+              type: 'obj',
+              obj: '应用系统',
+              nodeId: systemNodeId,
+              props: ['获取应用环境|环境', '环境类型'],
+            },
+          ],
+        },
+        operator: 'equal',
+        value2: { code: '"PC"', str: [{ type: 'str', obj: '"PC"' }] },
+      },
+      scope: 'stage',
+      nodeId: systemNodeId,
+      blockId: 'system-condition',
+    });
+
+    assert.deepEqual(conditionAst.args[0], {
+      op: 'var',
+      args: [
+        {
+          op: 'get',
+          args: [
+            { op: 'ref', val: ['var', systemNodeId] },
+            {
+              op: 'method',
+              val: '_appEnv',
+              args: [{ op: 'val', val: 'appType' }],
+            },
+          ],
+          _blockType: '$refs',
+        },
+      ],
+    });
+    assert.deepEqual(conditionAst.args[1], { op: 'val', val: 'PC' });
+  } finally {
+    clearActiveEnv();
+  }
 });

@@ -157,3 +157,68 @@
 - GitHub API 确认目标仓库尚不存在；同组织的 `vlparser` 为 PRIVATE 且当前账号有 WRITE 权限。全部改动已暂存，准备创建本地提交。
 - 已创建主提交 `68180ac`（修复 v4 转 v5 真实案例兼容问题）。
 - 已在 `VisualLogic-VLCode` 下创建 PRIVATE 仓库 `tov5parser`，配置 `origin`，并成功把本地 `main` 推送为 `origin/main`。
+
+## 2026-07-21 Lambda redeployment
+
+- Started deployment audit: checked repository state and located deployment-related files.
+- Confirmed the standard production deployment script and target resources; prepared Phase 7 tracking.
+- Production dry-run passed: AWS identity matched, tests were 36/36, and packaging validation succeeded (1.9 MB).
+- Recorded pre-deployment rollback point: `prod` → version `4`.
+- Uploaded the rebuilt package through S3, published Lambda version `5`, switched `prod`, and passed the direct alias smoke test.
+- Verified final alias/function state and the public API Gateway endpoint; Phase 7 is complete. Rollback remains version `4`.
+## 2026-07-22 workspace-my 转换与错误分析
+
+- 用户要求将 `localCases/v4/workspace-my` 用当前项目转换为 5.x JSON，并像 `frp-pad` 一样输出错误列表及根因归类。
+- 已确认案例 README：编辑器版本 4.1，`ntype=1`；输入 `app.json` 为 26,000,842 bytes。
+- 已确认现有 v5 目录只有 2026-07-09 的旧 `app.v5.json`；本轮先诊断和生成产物，不修改转换函数。
+- 已以 `ntype=1 --diag` 转换成功，生成平铺产物 `localCases/v5/app.v5.json`（4,039.5 KB）和 JSON/Markdown 诊断报告。
+- 初始诊断：301 次（去重 288）；dropped 2、custom-expression 299。控制台错误栈很大但不影响转换完成，后续以结构化报告分析。
+- 已完成第一层统计：299 条为预期 jsfn fallback；两条 dropped 分别是 URL 文本误判（转换器缺口）和复杂 `lazyLoad` 公式括号不匹配（疑似源数据错误）。
+- 已审计新产物 290 个 jsfn：289 个可编译，参数 arity 全匹配，v4 专有引用残留 0；发现 1 个空代码 jsfn，源自 `domain not registered` 文本误判，虽报告标为 custom-expression 实际不可运行。
+- 已从源条件确认另一个语义错误：`www.ivx.cn` 是 include 操作的纯文本右值，却被生成零参数 jsfn；文本误判根因分别落在 action 参数和条件值转换入口。
+- 已将紧凑 v5 产物和两份逐条诊断报告归位到 `localCases/v5/workspace-my/`；JSON 解析校验通过。
+- 已输出 `app.convert-errors.analysis.md`：301 次诊断收敛为 297 次可靠 jsfn fallback、3 个转换器文本识别缺口、1 个源公式右括号错误。
+- 结构审计：3,140/3,140 个源节点保留，2,263/2,263 个源动作有 v5 落点，3/3 个云端 class 根均带 `modEdtVer=2`。
+- 项目全量测试 36/36 通过。本轮未修改转换函数、未提交 Git。
+- **Phase 8 Status:** complete。
+
+## 2026-07-22 workspace-my 文本识别修复
+
+- 用户确认进行下一步；本轮将修复归类报告定位的 3 个纯文本误判，补回归测试并重跑真实案例。
+- 已恢复上一阶段上下文并确认工作区只有 `findings.md`、`progress.md`、`task_plan.md` 的分析记录改动；尚未修改转换代码。
+- 已确定最小落点：动作 URL 规则放在 `getLegacyFormulaTextValue()`；条件文本规则放在 `genConObj()` 的 value2 转换前，且不能只凭 `str` token 粗判。
+- 已修改 `v4ToV5/utils/action.js`、`v4ToV5/utils/con.js` 和 `v4ToV5/v4ToV5.test.js`，覆盖三个目标文本值及公式反例。
+- 定向测试 `node --test v4ToV5/v4ToV5.test.js` 11/11 通过。
+- 全量测试 37/37 通过，代码差异空白检查通过。
+- 已重跑 `workspace-my`：诊断 298，dropped 1，custom-expression 297，去重 285；转换器造成的三个文本问题清零。
+- 产物 jsfn 审计：288/288 可编译，无参数不匹配，无 `$refs/fParam/cbParams/_loop/$P_` 残留；三项目标 AST 均为正确文本值。
+- 已归位修复后的紧凑 v5 产物与两份逐条诊断报告，并更新 `app.convert-errors.analysis.md` 的修复前后对比。
+- 最终结构回归通过，`git diff --check` 通过；本轮未提交 Git，等待用户确认是否创建提交。
+- **Phase 9 Status:** complete。
+
+## 2026-07-22 frp-pad 环境变量条件修复
+
+- 用户报告条件块 `cthg4tka3j500003t8gg` 被错误转换为普通变量 `cbx1ewka3j50000c35vg._appEnv`，正确语义应为系统基础对象 `_appEnv('appType')`。
+- 会话恢复确认工作区已有未提交的 Phase 9 文本识别修复；本轮保留这些改动并做增量修复。
+- 已提取目标数据：源公式为 `$refs.<ih5-system>.f__appEnv('appType')`，当前转换错误地按普通 var receiver 输出并丢失 `appType` 参数；目标 v5 switch 条件位置已确认。
+- 已定位 receiver 根因：通用 `$refs` 路径不查询节点类型，`genRefsAST()` 默认总是生成普通 var；接下来重放公式，独立确认参数丢失行为。
+- 最小公式重放确认参数稳定丢失；代码审计定位为 `propertyAST` 未承接 `genRefsCompPropertyAST()` 返回值，导致统一的 `appendFuncArgs()` 无目标。
+- 已确定最小实现与回归路径：system 节点上下文映射 + propertyAST 承接修复，并用 `genConObj()` 覆盖用户给出的完整条件结构。
+- 首版定向测试 11/12：失败由测试夹具的 7 位组件 ID 引起；转换器按 v4 结构只把 20 位 `$refs` ID 识别为组件属性链。夹具已改用真实案例 ID，准备重试。
+- 修正夹具后定向测试 12/12 通过；全量测试增至 38/38 通过。
+- 实现已同时修复 system receiver 与 method 参数承接；下一步重跑真实 `frp-pad` 并读取目标 switch 条件。
+- 已用新转换器重跑 `frp-pad` 并将紧凑产物归位到 `localCases/v5/frp-pad/app.v5.json`（约 29,075.5 KB）；转换成功，控制台仍有既有公式 fallback 日志。
+- 初版曾从真实产物得到 `sobj/base._appEnv('appType')`；该 receiver 改写随后按用户确认撤销，不能作为最终结论。
+- 真实产物保持压缩格式（0 个换行）；53/53 个云端小模块仍带 `modEdtVer=2`，本轮修复未影响此前兼容性处理。
+- 最终全量测试 38/38 通过，`git diff --check` 通过。
+- 已重建 `archive.runtime-tov5.zip`（1.9 MB），压缩包逐项完整性检查通过，修复后的转换代码已进入运行制品。
+- **Phase 10 Status:** complete。
+
+## 2026-07-22 frp-pad 条件修复范围调整
+
+- 用户确认原 `ih5-system` receiver 处理正确，不应改写为 `sobj/base`；本轮撤销该映射，只保留 `$refsComp` 分支承接 method AST 的修复。
+- 回归预期调整为 `ref ['var', systemNodeId] → method _appEnv(args:[val appType])`。
+- 定向测试 12/12、全量测试 38/38 通过。
+- 已重跑真实 `frp-pad`；目标条件逐字段匹配原 receiver + 完整方法参数，右值仍为 `PC`。
+- 最终 `app.v5.json` 为 29,772,875 bytes、0 个换行，保持压缩格式。
+- **Phase 10.1 Status:** complete。

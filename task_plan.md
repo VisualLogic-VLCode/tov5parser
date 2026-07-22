@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 6.3 complete（本轮全部修改已提交并推送；未来工作不属于当前任务）
+Phase 10.1（按确认保留 system receiver，仅修复方法参数）— complete
 
 ## Phases
 
@@ -80,6 +80,45 @@ Phase 6.3 complete（本轮全部修改已提交并推送；未来工作不属�
 - [x] 推送当前 `main` 分支并验证远程状态
 - **Status:** complete
 
+### Phase 7: Lambda 重新部署（2026-07-21）
+- [x] 确认仓库、目标账号/区域、函数名和 `prod` 别名
+- [x] 运行测试、重新生成并校验部署包
+- [x] 发布新 Lambda 版本并切换 `prod` 别名
+- [x] 冒烟验证别名实际执行新版本，并记录回滚版本
+- **Status:** complete
+
+### Phase 8: workspace-my 真实案例转换与错误分析（2026-07-22）
+- [x] 使用 `ntype=1` 和 `--diag` 重新转换 `localCases/v4/workspace-my/app.json`
+- [x] 将扁平输出归位到 `localCases/v5/workspace-my/`，保留紧凑 JSON
+- [x] 校验 v5 JSON 可解析、体积与顶层结构
+- [x] 按 outcome / phase / message / 公式特征统计并归类错误
+- [x] 输出 `app.convert-errors.analysis.md`，映射到可共同修复的转换函数
+- [x] 运行必要的结构审计，确认是否存在报告外的转换残留
+- **Status:** complete
+
+### Phase 9: workspace-my 文本识别修复（2026-07-22）
+- [x] 为 Formula `url` 参数增加裸协议 URL 的窄范围文本识别
+- [x] 为条件 `value2` 增加基于 operator 与 v4 `str` token 的纯文本识别
+- [x] 覆盖裸 URL、URL 公式、英文短语、域名、真实条件公式的回归测试
+- [x] 运行全量测试并检查代码差异
+- [x] 重新转换 `workspace-my`，更新 v5 产物与诊断报告
+- [x] 复核 dropped / invalid jsfn / unresolved jsfn / v4 引用残留
+- [x] 更新错误分析报告与修复后指标
+- **Status:** complete
+
+### Phase 10: frp-pad 环境变量条件转换（2026-07-22）
+- [x] 提取 `bid=cthg4tka3j500003t8gg` 的 v4 源条件与当前 v5 AST
+- [x] 定位 `_appEnv` receiver/参数丢失的转换根因
+- [x] 实施最小修复并补回归测试
+- [x] 重跑 `frp-pad`，核验目标条件与全量测试
+- **Status:** complete
+
+### Phase 10.1: 收窄 frp-pad 条件修复（2026-07-22）
+- [x] 撤销 `ih5-system → sobj/base` receiver 改写
+- [x] 仅保留 `$refsComp` 方法 AST 承接修复
+- [x] 更新回归断言并重跑真实案例
+- **Status:** complete
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -100,3 +139,6 @@ Phase 6.3 complete（本轮全部修改已提交并推送；未来工作不属�
 | 直接读取会话 `019f8417...` 返回 invalid arguments | 1 | 先用任务列表解析该会话的 hostId，再按 threadId + hostId 读取 |
 | 带 threadId 查询参数列任务同样返回 invalid arguments | 1 | 按桌面端说明改用无过滤的近期任务列表，再从结果匹配 ID |
 | 已解析 hostId 后读取目标会话仍返回 invalid arguments | 1 | 三次 API 读取均失败，改为只读检索本机 Codex 会话存档，不再重试任务读取 API |
+| `workspace-my` 转换时控制台输出约 10 万 token 的 ParseError 栈 | 1 | 转换本身成功；后续直接读取结构化诊断 JSON 做完整统计，不依赖截断的控制台输出 |
+| system 条件首版测试落入 sysutil/jsfn fallback | 1 | 测试夹具使用了非 20 位伪节点 ID，而旧公式判型严格要求组件 ID 长度为 20；改用真实案例 ID 后重试，生产实现不变 |
+| 同步更新三份规划文件时补丁上下文格式错误 | 1 | 拆分为标准多文件 patch 后成功，不重复原补丁 |

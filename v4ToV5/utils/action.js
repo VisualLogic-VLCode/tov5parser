@@ -231,7 +231,7 @@ function isEmptyParamValue({ param }) {
 }
 
 // v4 公式编辑器会把部分本质为文本的动作参数也保存成 { code, str }。
-// 这里只处理有明确参数语义且不可能是合法 JS 表达式的三类值，避免把真正的
+// 这里只处理有明确参数语义且不可能是合法 JS 表达式的少量值，避免把真正的
 // 公式解析错误一概吞成字符串。
 function getLegacyFormulaTextValue({ param, paramName }) {
   const code = param?.value?.code
@@ -259,6 +259,12 @@ function getLegacyFormulaTextValue({ param, paramName }) {
       /^\d+\p{Script=Han}[\p{L}\p{N}_-]*$/u.test(trimmed) ||
       /^[\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)+$/u.test(trimmed) ||
       /^[\p{L}\p{N}_-]+(?:\s*,\s*[\p{L}\p{N}_-]+)+$/u.test(trimmed))
+  ) {
+    return trimmed
+  }
+  if (
+    name === 'url' &&
+    /^(?:https?|ftp):\/\/[^\s]+$/i.test(trimmed)
   ) {
     return trimmed
   }

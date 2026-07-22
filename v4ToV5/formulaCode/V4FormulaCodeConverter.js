@@ -380,7 +380,7 @@ export default class V4FormulaCodeConverter {
         // eg: $refs.cwszty3a3j50000bnsg0.f__windowWidth()
         // eg: $refs.cs63nyfa3j500002r1y0.m__currentWidth()
         ast = this.processParsedTree({ parsed: object })
-        this.genRefsCompPropertyAST({ property, compAst: ast })
+        propertyAST = this.genRefsCompPropertyAST({ property, compAst: ast })
         break
       case 'Object': // 对象方法，eg: Object.parse(_item.distance)
         return this.genObjectMethodPropertyAST({ property, args })
