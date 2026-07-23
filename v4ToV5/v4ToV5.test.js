@@ -243,6 +243,83 @@ test('converted cloud module classes are marked editable in v5', () => {
   assert.equal(v5CaseJson.server.classes[1].props.modEdtVer, 3);
 });
 
+test('infinite data-animate play actions are skipped to avoid awaiting forever', (t) => {
+  if (!ensureIvxMapNodeEnv()) {
+    t.skip('missing optional fixture: ivxMap.txt');
+    return;
+  }
+
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push(
+    {
+      id: 'infinite-animate',
+      type: 'data-animate',
+      rootId: 'stage1',
+      uis: { name: '无限动画' },
+      props: { infinite: true },
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'finite-animate',
+      type: 'data-animate',
+      rootId: 'stage1',
+      uis: { name: '有限动画' },
+      props: { infinite: false },
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'animate-controller',
+      type: 'ih5-text',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      children: [],
+      events: {
+        list: [
+          {
+            tree: {
+              bid: 'animate-root',
+              type: 'root',
+              trigger: { name: 'click' },
+              children: [
+                {
+                  bid: 'infinite-play',
+                  type: 'action',
+                  object: 'infinite-animate',
+                  action: { name: 'play', callback: true, params: [] },
+                  children: [],
+                },
+                {
+                  bid: 'finite-play',
+                  type: 'action',
+                  object: 'finite-animate',
+                  action: { name: 'play', callback: true, params: [] },
+                  children: [],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  );
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const controller = v5CaseJson.stage.children.find(
+    (node) => node.id === 'animate-controller',
+  );
+  const actionAsts = controller.events.list[0].ast.args;
+  const infinitePlay = actionAsts.find((ast) => ast.ln === 'infinite-play');
+  const finitePlay = actionAsts.find((ast) => ast.ln === 'finite-play');
+
+  assert.equal(infinitePlay.op, 'let');
+  assert.equal(infinitePlay.skip, true);
+  assert.equal(finitePlay.op, 'let');
+  assert.equal(finitePlay.skip, undefined);
+});
+
 test('getWidgetMethodMap resolves methods from runtime maps', (t) => {
   if (!ensureIvxMapNodeEnv()) {
     t.skip('missing optional fixture: ivxMap.txt');

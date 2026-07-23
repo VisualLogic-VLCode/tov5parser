@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 14（full-js jsfn 单行输出兼容修复）— complete
+Phase 17（无限动画 play 动作自动跳过）— complete
 
 ## Phases
 
@@ -150,6 +150,30 @@ Phase 14（full-js jsfn 单行输出兼容修复）— complete
 - [x] 检查最终差异并更新任务记录
 - **Status:** complete
 
+### Phase 15: 重新下载并转换修正后的 frp-pad v4 案例（2026-07-23）
+- [x] 按 `raw/中文服完整案例JSON导出.md` 调接口下载最新 v4 JSON
+- [x] 核对案例元数据、结构及表头 `authData` 可见表达式已更新
+- [x] 用当前转换器生成压缩 v5 JSON和诊断报告
+- [x] 验证表头绑定、6 个正文公式、全部 jsfn与云端模块标记
+- [x] 检查最终文件并更新任务记录
+- **Status:** complete
+
+### Phase 16: 款式信息文件请求卡住诊断（2026-07-23）
+- [x] 在 Chrome 中分别复现 v4/v5 点击文件图标后的页面与网络差异
+- [x] 从 DOM/案例 JSON 定位“款式信息”列图标节点 ID 及事件入口
+- [x] 对比 v4/v5 JSON 中对应事件动作链、参数和服务引用
+- [x] 定位“进入加载但未发请求”的首个语义分叉点
+- [x] 给出根因、影响范围和转换函数修复建议
+- **Status:** complete
+
+### Phase 17: 无限动画 play 动作自动跳过（2026-07-23）
+- [x] 核对真实阻塞动作、data-animate 引用及 infinite 属性
+- [x] 转换时识别 `data-animate.play + props.infinite=true`
+- [x] 将命中的 v5 动作 AST 标记为 `skip`
+- [x] 补充无限/非无限动画回归测试
+- [x] 运行全量测试并重转 frp-pad 验证目标 BID
+- **Status:** complete
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -174,3 +198,10 @@ Phase 14（full-js jsfn 单行输出兼容修复）— complete
 | system 条件首版测试落入 sysutil/jsfn fallback | 1 | 测试夹具使用了非 20 位伪节点 ID，而旧公式判型严格要求组件 ID 长度为 20；改用真实案例 ID 后重试，生产实现不变 |
 | 同步更新三份规划文件时补丁上下文格式错误 | 1 | 拆分为标准多文件 patch 后成功，不重复原补丁 |
 | 用临时日志抑制 frp-pad 大量既有转换日志时命令被安全策略拒绝 | 1 | 不再删除临时文件；改为直接运行转换并限制返回输出 |
+| 查询最新 work_id 时本机没有 `mysql` CLI | 1 | SSH 隧道正常；改用交接包支持的 Python `pymysql` 只读连接查询 |
+| Python 查询缺少 `pymysql` 模块 | 1 | 不重复安装尝试；先查找本机现有 MariaDB/MySQL CLI 或 Node 数据库驱动 |
+| 同时读取两个大型运行页 DOM 快照超时并重置浏览器控制会话 | 1 | 重新连接 Chrome，改为逐页、定向 DOM 读取，不再并行拉取完整快照 |
+| v4 页面遍历全部 DOM 搜索“款式信息”仍超时 | 2 | 停止浏览器宽范围搜索；先从本地 v4/v5 JSON定位精确节点 ID，再按 ID回到页面定向读取 |
+| Chrome 开发日志按页过滤读取仍超时 | 3 | 改用隔离诊断浏览器，预置 sessionStorage，并只监听本次点击产生的控制台日志和请求 |
+| 隔离复现首次点击时初始化遮罩尚未消失 | 1 | 以页面输出“加载成功”为就绪信号，再点击文件图标 |
+| frp-pad 内存重转输出大量既有公式 fallback 日志 | 1 | 限制工具输出，只读取转换完成后的目标 AST；目标 BID 验证不依赖日志内容 |

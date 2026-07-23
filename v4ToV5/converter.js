@@ -928,12 +928,20 @@ export default class ConvertV4ToV5 {
     // 应用系统等伪对象
     let isFakeNode = checkIsFakeNode({ object: block.object })
     let isDbStageMethod = false // 是否是前台直接调用后台数据库方法
+    let skipInfiniteAnimatePlay = false
     // 前台直接调后台用户数据库组件的发起微信公众号登录(wxLogin_stage)方法，需要在前面额外加一个动作块获取code参数
     let { action, relatedBid } = block
     if (action) {
       let objNode = ConvertV4ToV5.getNodeById(actionObject)
       let isLoopObj = actionObject.startsWith('_loopObj')
       let actionName = action.name
+      // v4 的组件动作使用回调模型；v5 转为 async/await 后，等待 infinite
+      // 动画的 play 永远不会结束。此类案例本身已由 infinite 属性启动循环，
+      // 转换时跳过重复的 play 动作，避免阻塞后续动作链。
+      skipInfiniteAnimatePlay =
+        objNode?.type === 'data-animate' &&
+        actionName === 'play' &&
+        objNode.props?.infinite === true
       isDbStageMethod =
         ['data-db', 'data-user'].includes(objNode?.type) &&
         actionName?.endsWith('_stage') // 是否是前台直接调用后台数据库方法
@@ -1285,7 +1293,7 @@ export default class ConvertV4ToV5 {
         isFakeNode
       })
     }
-    if (block.enable === false) {
+    if (block.enable === false || skipInfiniteAnimatePlay) {
       _block.skip = true
     }
     // 当前触发对象
@@ -1300,7 +1308,7 @@ export default class ConvertV4ToV5 {
       scope,
       extra: {
         associatedActionBid: block.bid,
-        actionSkip: !block.enable,
+        actionSkip: block.enable === false || skipInfiniteAnimatePlay,
         isDbStageMethod
       }
     })

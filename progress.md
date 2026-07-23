@@ -270,3 +270,49 @@
 - 6/6 个“量体部门”绑定均为完整单行 `map(item => {...}).join("、")`，回调内容与 7 个参数均保留。
 - 新 `app.v5.json` 为 29,870,203 bytes，文件换行 0，SHA-256 `6875abefa6af31aaac6fbfa54b307ac1ade4c4e297e71414c21318d7176d1a1e`。
 - **Phase 14 Status:** complete。
+
+## 2026-07-23 重新下载并转换修正后的 frp-pad
+
+- 用户已在 v4 案例中修正表头可见条件：旧表达式在 `authData` 为空时依赖异常被忽略，v5 的可选链语义则返回 false；现在需要重新获取源案例并转换。
+- 本轮将按 `raw/` 内部文档调用中文服接口，覆盖本地 v4/v5 案例产物，并做表头与正文定向审计。
+- 已完整读取导出文档，确认必须先查询当前 work_id，再调用只读 `/work/load` 二进制接口并校验三个顶层分段。
+- 中文服 SSH 隧道已在本机 `127.0.0.1:13306` 可用；首次用 mysql CLI 查询失败，因为本机未安装该命令，改用 Python 只读客户端。
+- Python 路径也缺少 `pymysql`；下一步优先复用本机已有数据库客户端/Node 驱动，避免无必要安装全局依赖。
+- 本机未发现其他数据库客户端，已把 pymysql 临时安装到 `/tmp` 后完成只读查询；最新 work_id 为 `cbt1eskpeu4lef3h2330-2920`，较本地旧源的 `-2919` 更新。
+- 最新二进制案例下载与解码成功，完整性检查通过；新旧节点数一致，authData 相关字符串增加 1 条，正在定位用户修正的具体表达式。
+- 已确认目标表头节点的新可见条件增加 `authData.length===0 || ...`，源修复命中且 token 元数据完整；可以安全覆盖本地 v4 输入并开始转换。
+- 已覆盖本地 v4、更新案例 README，并重新生成/归位压缩 v5 与诊断报告。
+- 定向审计通过：表头 visible AST 包含空数组放行分支；6 个正文目标健康；全部 2,589 个 jsfn 单行且可编译；53 个云端模块标记完整。
+- 表头 jsfn 四组语义用例全部通过：空 authData 时可见；有权限时可见；无权限时隐藏；行本身 show=0 时隐藏。
+- 项目全量测试 39/39 通过；Phase 15 完成。
+- **Phase 15 Status:** complete。
+
+## 2026-07-23 款式信息文件请求卡住诊断
+
+- 用户报告“款式信息”列文件图标：v4 会发起请求服务并显示弹窗，v5 进入加载状态后不发请求。
+- 本轮先诊断不修改转换程序；将复现运行时差异，并从节点 ID 回查事件动作链。
+- 如需刷新 Chrome 页面，将在刷新后立即恢复用户提供的 sessionStorage 会话值。
+- Chrome 已识别并接管两个目标运行页；首次并行读取两个大型 DOM 快照超时，后续改为逐页定向读取，页面未刷新。
+- v4 页面即使单页遍历全部元素仍超时；已停止宽范围浏览器检索，先用案例 JSON定位“款式信息”节点和事件 ID，再回到页面做精确读取。
+- 定位到图片节点 `cm1wxsqa3j500009jj8g`（名称“款式信息”），点击事件入口 `cm21x4ma3j5000036wrg`；外层动作会设置当前订单，再调用模块实例 `cv891cna3j500009qnw0` 的公开动作组 `cv7jynaa3j50000bt49g`“获取款式信息”。
+- v4/v5 的节点、外层事件链、当前订单参数以及三个后端服务引用均存在；服务转换或注册不是首个故障点。
+- 隔离运行复现：v4 点击后依次输出“获取款式信息→显示提示语→加载中→当前订单→款式信息…”并发出三个服务请求；v5 只输出到“加载中”，新增请求为 0。
+- 首个语义分叉为动作 `cv7jynaa3j50000bt4b0`：v4 以 `undefined` 回调调用“显示提示语”并立即执行下一动作，v5 却生成 `op: let` 等待该动作组返回；而“加载中”分支只有 showLoading，没有输出参数和 funcResult，因此动作链永久停住。
+- 根因位于 `v4ToV5/converter.js`：转换器仅依据 `action.callback` 能力标记生成 `let`，没有判断该动作实例是否真的挂载 status 回调子块。修复应以实际存在 `type: status` 的 child 为准；无 status child 时生成直接 `get` 调用。
+- frp-pad 中有 4,190 个 `action.callback=true` 动作，其中 2,752 个没有 status child（2,327 个为 fireFuncGroup）；这是潜在同类语义风险，但并不代表每一处都会出现可见卡死。
+- 本轮仅完成诊断，没有修改转换程序。
+- **Phase 16 Status:** complete。
+
+## 2026-07-23 无限动画 play 动作自动跳过
+
+- 用户复核确认真实阻塞 BID 为 `cv7jynaa3j50000btc9g`：调用 `data-animate` 节点 `cv7jynaa3j50000btc40` 的 `play` 方法；该节点 `props.infinite=true`。
+- V5 将带回调的 play 转为 `op: let` 后会等待动画完成，而无限动画不会完成；按案例迁移规则，这类动作需在转换后自动标记 `skip`。
+- `v4ToV5/converter.js` 已在动作转换阶段解析目标节点：仅当节点类型为 `data-animate`、方法为 `play` 且 `props.infinite===true` 时设置动作 AST `skip=true`；同一标记也传递给可能存在的回调子块。
+- 新增回归测试同时覆盖无限动画和有限动画：二者均保留 `op: let`，只有无限动画 play 被跳过。
+- 定向测试 13/13、项目全量测试 40/40 通过，`git diff --check` 通过。
+- frp-pad 内存重转验证：`cv7jynaa3j50000btc9g` 输出为 `op:"let"` 且 `skip:true`，目标对象仍为 `cv7jynaa3j50000btc40.play`。
+- 全量静态扫描 frp-pad：共有 22 个 `data-animate.play` 动作，其中 11 个目标节点 `props.infinite=true`；除当前 BID 外还有 10 个同类动作（9 个启用、1 个原本已禁用），均会被本次规则自动标记 skip。其余 11 个非 infinite play 不受影响。
+- 已按用户要求用最新 v4 源重新生成紧凑格式 `localCases/v5/frp-pad/app.v5.json`：29,870,582 bytes、0 个换行，SHA-256 `c8fffcd4b278c6b163c6e32548ff4661a1d7acf9400f187959b6c9ad582af45f`。
+- 成品核验：源案例 11 个 infinite animate play BID 在 v5 中全部存在且全部 `skip:true`；目标 `cv7jynaa3j50000btc9g` 为 `op:"let"`、方法 `play`、`skip:true`。
+- 当前修改未提交、未推送。
+- **Phase 17 Status:** complete。
