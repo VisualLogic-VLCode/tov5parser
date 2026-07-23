@@ -419,3 +419,30 @@
 - V5 保存后处理除入参检查外还对 `callTimerService` 和 `callTransaction` 做专用包装。当前实现已覆盖 timer；transaction 需要从 AST 中收集实际数据库组件 ID 后生成 `txBegin/txCommit` 包装，不能简单省略，否则未来转换含事务组件的案例会得到已注册但语义不完整的 `_code`。
 - transaction 的正式 DB ID 计算依赖案例 nid/uid/gid/eid、数据库 scope 和编辑器 widget 元数据；独立转换接口目前只接收 case JSON/ntype，不保证具备完整工作区身份上下文。盲目复刻会产生错误前缀。
 - 因此本轮不扩展 transaction 编译语义；应保持与 VLangModProcessor 的通用 AST 编译一致，仅添加目标服务所必需且可由节点自身完整确定的入参包装。timer 包装同样只依赖事件名，可安全保留。
+- tov5parser Phase 22 已提交并推送：`8859dea fix: compile v5 server service code`，本地 `main` 与 `origin/main` 一致。
+- VxEditor41 当前分支为 `master`；已有用户修改为 `.gitignore`、`src/stores/event.js` 及多组未跟踪组件目录，本轮必须仅触碰 `src/utils/convertV4ToV5/`。
+- VxEditor41 已有 `src/utils/ast2js.js`（1,008 行），其内部直接从 `generalAst` 获取 Java 组件映射；同步时无需复制 tov5parser 的 vendor 编译器，只需添加后处理模块并复用编辑器现有 `ast2js`。
+- VxEditor41 的 `generalAst.saveNodeDealAstEvents()` 已包含 timer、transaction、strict/loose 入参包装，但这些内部函数未导出；转换后的案例正常进入编辑器保存流程时会再次生成并覆盖 `_code`。
+- 同步模块将复用 `src/utils/ast2js.js`，在转换返回前生成可立即注册的 `_code`；覆盖 fake callback、timer、strict/loose 入参和 funcGroup props。transaction 的最终 DB ID 包装仍由编辑器原生保存流程在获得完整工作区上下文后处理。
+- VxEditor41 最终同步仅新增 `src/utils/convertV4ToV5/serverAstCompiler.js` 并修改同目录 `index.js` 两处（import + 返回前调用）；未修改用户现有文件，也未新增三篇规划文档。
+- VxEditor41 两文件定向 ESLint 0 errors/0 warnings，`git diff --check` 通过，production webpack build 成功。
+- 最新两份 JSON 的目标 service 节点、props、outParams、server-api 节点和调用者语义均一致；service AST 仅随机 block `ln` 不同，排除返回动作或服务参数结构丢失。
+- 两份 `_code` 的唯一实质差异位于 `$sys.afunc(...sendServerApiRequest...)`：外部正常文件在 `undefined,0,undefined,undefined` 后结束，最新转换产物多保留了第 7 个方法参数 `undefined`。
+- 目标 AST 本身在两份 JSON 中都含 7 个 method args；外部文件经过编辑器 `saveCaseDealFakeAst()` 后再编译，该流程会根据组件方法的 `errorCb`/参数定义移除多余回调占位。当前新增编译器只删除 `_fakeCbInner` alambda，没有执行完整的后台 fake-callback 归一化，因此把多余 `undefined` 编入 `_code`。
+- 运行组件映射确认 `server-api.sendServerApiRequest` 的公开业务参数恰为 6 个：headers、body、reqUrl、timeout、method、reqType；另有 `errorCb: true` 元数据。AST 第 7 项不是业务参数，而是 V4 回调模型遗留的错误回调占位。
+- VxEditor41 原生保存逻辑会读取同一方法定义：去掉 ctx/props 后若 AST 参数数大于 6，且末项不是 `_fakeCbInner`，就 `methArgs.pop()`。当前 compiler 缺少的正是这一步。
+- 因而正常 `_code` 的 6 参数调用是正确签名，最新 `_code` 的 7 参数调用不是无害格式差异；多余尾参会把后台异步 API 调用留在错误的回调调用形态，`$sys.afunc` 无法按正常 Promise/结果路径得到 `Rtn.result`，随后 paramResult 只能读到空值。
+- vl-backend-rs 文档与测试把线上 parser 的规范 saved-JS 明确定义为 6 个 server-api 位置参数，且字节级测试使用的正是外部正常文件形态。其 Rust 适配器只读取前 5 个有效槽位（第 6 个本来就是 `_unused`），因此在 Rust 本地兼容运行时里第 7 个也可能被忽略；不能仅凭 Rust 实现证明线上云端一定因多参失效。
+- 但用户当前运行环境表现与两份 JSON 的唯一代码差异吻合；仍需定位实际云端/预览运行时的 `$sys.afunc` 参数处理，或用将当前 `_code` 临时替换为外部代码的 A/B 验证，把“高度可疑”提升为确定根因。
+- Chrome 已定位用户当前最新 V5 运行页 `https://giupre.h5app.com/play/hpUBU5Pm`，但开发日志读取即使按目标服务 ID 窄过滤仍超时，未取得新的运行时日志；按两次失败停止该路径。
+- 已完成等价 A/B 验证：在内存中对当前目标服务 AST 按 V5 编辑器规则移除末尾旧错误回调占位，再使用同一 `ast2js` 和同一入参检查前缀重新编译，结果与 `case_12225413.json` 中正常 `_code` **逐字一致**，两者均为 998 字符。
+- 该验证排除了服务节点、所属 class、server-api 配置、调用端 `runsvc`、入参/出参声明、返回动作和编译器主体版本等其他差异；确定根因就是当前 `serverAstCompiler` 在编译前漏做方法签名驱动的 error-callback 占位清理。
+- 全量只读扫描当前后台 AST，发现 76 个同类待清理占位：75 个 `server-api.sendServerApiRequest`、1 个 `data-db.dbBatchUpdate`。修复不应只针对目标 BID，而应移植 `saveCaseDealFakeAst()` 的通用方法参数归一化规则。
+- 最小修复方向：编译每个后台事件的深拷贝 AST 前，根据组件映射定位方法定义，剔除 `IvxContext/props/parentProps` 后计算业务参数数；当方法声明 `errorCb`、实际参数超长且末项不是 `_fakeCbInner` 时移除末项，再执行现有 `_fakeCbInner` 清理和 `ast2js` 编译。
+- 修复已在 tov5parser 和 VxEditor41 的 `serverAstCompiler` 同步实现：通过 `ref` 的节点 ID 取得组件类型，再从 Java map 查找方法；只有方法声明 `errorCb` 且实参数量超过清理后的业务参数数时才弹出末参。
+- 该实现不修改案例中的原始 event AST，只归一化编译前的深拷贝，因此编辑器仍可查看完整迁移 AST；生成 `_code` 使用 V5 规范参数形态。
+- 回归覆盖 `server-api.sendServerApiRequest`（6 个业务参数）、`data-db.dbBatchUpdate`（4 个业务参数），并验证 `_fakeCbInner` 末项不会被新归一化提前弹出。
+- frp-pad 重转后目标服务 `ceyjn3ca3j50000468k0` 的 `_code` 为 998 字符，与 `/Users/lianghuang/Downloads/case_12225413.json` 中正常代码逐字一致。
+- 新产物的 80 个后台 `_code` 全部通过 JavaScript 语法校验；Acorn 统计 75 个 `sendServerApiRequest` 调用均为 10 个 `$sys.afunc` 总参数（4 个框架参数 + 6 个业务参数），1 个 `dbBatchUpdate` 为 8 个总参数（4 + 4），错误数量均为 0。
+- 新 `app.v5.json` 为 29,971,640 bytes、0 个换行，SHA-256 `9dc2196a6dfb623c1affc20dad727f9eec76d7a2c04ab29bbee17420cc421e73`。
+- VxEditor41 定向 ESLint 0 errors/0 warnings、`git diff --check` 通过、production webpack build 成功；build 的 33 条 warning 均来自仓库其他既有或用户未跟踪文件，目标转换文件没有告警。

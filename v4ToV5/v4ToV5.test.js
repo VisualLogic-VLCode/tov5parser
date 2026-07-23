@@ -10,7 +10,10 @@ import { convertV4CaseJsonToV5CaseJson } from './index.js';
 import { loadRuntimeMaps } from '../index.js';
 import { getLegacyFormulaTextValue } from './utils/action.js';
 import { genConObj, getLegacyConditionTextValue } from './utils/con.js';
-import { compileV5ServerAst } from './serverAstCompiler.js';
+import {
+  compileV5ServerAst,
+  normalizeServerMethodErrorCallbacks,
+} from './serverAstCompiler.js';
 
 // 将包内 ivxMap.txt / legacyIvxMap.txt 载入运行时全局（VxWidgetMap/VxJaMap 等）
 function ensureIvxMapNodeEnv() {
@@ -307,6 +310,68 @@ test('compileV5ServerAst mirrors loose function-group parameter handling', () =>
     /^fParamfuncgroup\.count = toLong\(fParamfuncgroup\.count\);/,
   );
   assert.equal(funcGroup.props._code, funcGroup.events.list[0]._code);
+});
+
+test('server compiler removes only legacy error callback placeholders', () => {
+  ensureIvxMapNodeEnv();
+  const javaMap = global.VxJaMap;
+  const nodes = {
+    api: { id: 'api', type: 'server-api' },
+    db: { id: 'db', type: 'data-db' },
+  };
+  const createMethodCall = (nodeId, methodName, businessArgCount, lastArg) => ({
+    op: 'get',
+    args: [
+      { op: 'ref', val: ['var', nodeId] },
+      {
+        op: 'method',
+        val: methodName,
+        args: [
+          ...Array.from({ length: businessArgCount }, () => ({ op: 'val' })),
+          lastArg,
+        ],
+      },
+    ],
+  });
+  const apiCall = createMethodCall(
+    'api',
+    'sendServerApiRequest',
+    6,
+    { op: 'val' },
+  );
+  const dbCall = createMethodCall('db', 'dbBatchUpdate', 4, { op: 'val' });
+  const fakeCallback = {
+    op: 'alambda',
+    _fakeCbInner: true,
+    args: [{ op: 'val' }],
+  };
+  const apiCallWithV5FakeCallback = createMethodCall(
+    'api',
+    'sendServerApiRequest',
+    6,
+    fakeCallback,
+  );
+  const rootAst = {
+    op: 'block',
+    args: [apiCall, dbCall, apiCallWithV5FakeCallback],
+  };
+
+  assert.equal(
+    normalizeServerMethodErrorCallbacks(
+      rootAst,
+      (id) => nodes[id],
+      javaMap,
+    ),
+    2,
+  );
+  assert.equal(apiCall.args[1].args.length, 6);
+  assert.equal(dbCall.args[1].args.length, 4);
+  assert.equal(apiCallWithV5FakeCallback.args[1].args.length, 7);
+  assert.equal(
+    apiCallWithV5FakeCallback.args[1].args.at(-1),
+    fakeCallback,
+    'V5 fake callbacks remain available for the existing fake-callback pass',
+  );
 });
 
 test('converted cloud module classes are marked editable in v5', () => {

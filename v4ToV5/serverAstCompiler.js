@@ -16,6 +16,55 @@ function removeFakeCbInner(ast) {
   ast.args.forEach(removeFakeCbInner);
 }
 
+function getBusinessMethodParams(method) {
+  const params = Array.isArray(method?.params) ? [...method.params] : [];
+  if (params[0]?.type === 'IvxContext') {
+    params.shift();
+  }
+  if (params[0]?.name === 'props') {
+    params.shift();
+  }
+  if (params[0]?.name === 'parentProps') {
+    params.shift();
+  }
+  return params;
+}
+
+function normalizeServerMethodErrorCallbacks(ast, getNodeById, javaMap) {
+  if (!ast || typeof ast !== 'object') return 0;
+
+  let removedCount = 0;
+  if (ast.op === 'get' && Array.isArray(ast.args)) {
+    const [objectRef, methodAst] = ast.args;
+    const objectNode =
+      objectRef?.op === 'ref' ? getNodeById(objectRef.val?.[1]) : null;
+    const method = javaMap?.[objectNode?.type]?.methods?.find(
+      (item) => item?.name === methodAst?.val,
+    );
+    const methodArgs = methodAst?.op === 'method' ? methodAst.args : null;
+
+    if (method?.errorCb && Array.isArray(methodArgs)) {
+      const businessParams = getBusinessMethodParams(method);
+      const lastArg = methodArgs[methodArgs.length - 1];
+      if (methodArgs.length > businessParams.length && !lastArg?._fakeCbInner) {
+        methodArgs.pop();
+        removedCount += 1;
+      }
+    }
+  }
+
+  if (Array.isArray(ast.args)) {
+    ast.args.forEach((arg) => {
+      removedCount += normalizeServerMethodErrorCallbacks(
+        arg,
+        getNodeById,
+        javaMap,
+      );
+    });
+  }
+  return removedCount;
+}
+
 function addNodesToMap(node, nodeMap) {
   if (!node || typeof node !== 'object') return;
   if (node.id) nodeMap[node.id] = node;
@@ -94,11 +143,13 @@ function compileNodeTree({
       events.forEach((event) => {
         if (!event?.ast) return;
         const ast = deepClone(event.ast);
+        const getNodeById = (id) => localNodeMap[id] || globalNodeMap[id];
+        normalizeServerMethodErrorCallbacks(ast, getNodeById, javaMap);
         removeFakeCbInner(ast);
         const code = ast2js({
           ast,
           eventNodeId: currentNode.id,
-          getNodeByIdFunc: (id) => localNodeMap[id] || globalNodeMap[id],
+          getNodeByIdFunc: getNodeById,
           javaMap,
         });
         event._code = applyServerEventPostProcess({
@@ -154,4 +205,4 @@ function compileV5ServerAst(caseJson) {
   return compiledCount;
 }
 
-export { compileV5ServerAst };
+export { compileV5ServerAst, normalizeServerMethodErrorCallbacks };

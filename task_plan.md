@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 23（提交推送并同步 VxEditor41）— in progress
+Phase 26（提交并推送双仓库修复）— in progress
 
 ## Phases
 
@@ -216,11 +216,34 @@ Phase 23（提交推送并同步 VxEditor41）— in progress
 - **Status:** complete
 
 ### Phase 23: 提交推送并同步 VxEditor41（2026-07-23）
-- [ ] 提交 tov5parser Phase 22 全部修改并推送 main
-- [ ] 盘点 VxEditor41 当前工作区及转换入口，隔离用户现有修改
-- [ ] 将后台 AST 编译态修复同步到 `src/utils/convertV4ToV5`
-- [ ] 运行 VxEditor41 定向语法/格式检查及可行的构建验证
-- [ ] 汇总 VxEditor41 修改范围，按仓库规则等待提交确认
+- [x] 提交 tov5parser Phase 22 全部修改并推送 main
+- [x] 盘点 VxEditor41 当前工作区及转换入口，隔离用户现有修改
+- [x] 将后台 AST 编译态修复同步到 `src/utils/convertV4ToV5`
+- [x] 运行 VxEditor41 定向语法/格式检查及可行的构建验证
+- [x] 汇总 VxEditor41 修改范围，按仓库规则等待提交确认
+- **Status:** complete
+
+### Phase 24: 目标服务无返回值诊断（2026-07-23）
+- [x] 精确对比两份 JSON 中目标 service、server-api、调用点及所属 class
+- [x] 对目标事件 AST 与 `_code` 做结构和逐字符差异分析
+- [x] 追踪 `$sys.afunc` 参数位及 data-service 返回路径的运行时约定
+- [x] 排除服务注册覆盖、参数映射和返回动作丢失
+- [x] 给出无返回值的确定根因与最小修复方向
+- **Status:** complete
+
+### Phase 25: 后台错误回调占位清理并同步 VxEditor41（2026-07-23）
+- [x] 在 tov5parser 后台编译前按组件方法签名清理 V4 错误回调占位
+- [x] 新增 server-api 与 data-db 回归测试，并保证合法 `_fakeCbInner` 路径不被误删
+- [x] 运行定向/全量测试并重新生成紧凑 frp-pad `app.v5.json`
+- [x] 将同一通用规则同步到 VxEditor41 转换函数，不新增规划文档
+- [x] 完成 VxEditor41 定向检查和构建验证，汇总待提交文件
+- **Status:** complete
+
+### Phase 26: 提交并推送双仓库修复（2026-07-23）
+- [ ] 核对 tov5parser 与 VxEditor41 待提交范围
+- [ ] 提交并推送 tov5parser 当前修复
+- [ ] 仅提交并推送 VxEditor41 本次转换文件
+- [ ] 确认两个远程分支更新且用户其他修改未进入提交
 - **Status:** in progress
 
 ## Future Work（不属于当前任务）
@@ -261,3 +284,6 @@ Phase 23（提交推送并同步 VxEditor41）— in progress
 | 扫描 frp-pad 时假定源文件名为 `app.v4.json`，实际路径不存在 | 1 | 不重复猜文件名；先列出案例目录中的真实文件，再用明确路径扫描 |
 | VxEditor41 定向 ESLint 报 `timeArg` 数组换行的 Prettier warning | 1 | 无语义错误；按仓库格式把单元素 `args` 改为单行后重新检查 |
 | 用 BSD `sed 1i` 给 vendored ast2js 加文件头时报语法错误 | 1 | 不再使用平台相关的插入语法；由补丁生成逻辑直接拼接注释 |
+| VxEditor41 新编译模块首次 ESLint 有 1 条函数参数换行 warning | 1 | 按仓库 Prettier 规则改为单行解构参数，不使用自动修复以免扩大差异 |
+| Chrome 读取最新 V5 页开发日志两次均超时 | 2 | 首次宽日志、第二次按服务 ID 窄过滤仍超时；停止页面日志读取，不再重复，改以 JSON/编译器/运行时规范证据定因 |
+| zsh 展开不存在的 `test*` 路径导致检索命令中止 | 1 | 不重复使用未引用 glob；改为先用 `rg --files` 确认测试文件路径，再检索明确文件 |

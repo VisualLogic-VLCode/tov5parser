@@ -293,8 +293,53 @@
 - 用户要求提交并推送 tov5parser 当前修复，然后同步至 VxEditor41 的转换函数。
 - 已核对 tov5parser 当前分支 `main`、远程 `origin`，差异检查通过；待提交范围为 Phase 22 代码、测试和规划记录。
 - 同步阶段将保留 VxEditor41 现有用户修改，不新增规划文档；完成后按仓库规则等待用户确认是否提交 VxEditor41。
-- **Phase 23 Status:** in progress。
-- **Phase 22 Status:** in progress。
+- tov5parser 已提交并推送：`8859dea`，远程 `origin/main` 已更新。
+- 已核对 VxEditor41：分支 `master`，用户现有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录保持隔离；编辑器已有可复用的 `src/utils/ast2js.js`。
+- 已确认 VxEditor41 原生后台保存逻辑与 tov5parser 的 timer/入参包装一致；transaction 依赖编辑器上下文且会在正式保存时覆盖处理。
+- 同步方案确定：新增转换目录内的 `serverAstCompiler.js`，并在 `ConvertV4ToV5.exec()` 返回前调用，不修改 `generalAst` 或用户文件。
+- 已向 VxEditor41 新增 `serverAstCompiler.js` 并接入转换入口；目前本轮只涉及转换目录内 2 个文件。
+- 首次定向 ESLint 为 0 errors、1 条 Prettier 换行 warning；已手动按仓库格式收敛，避免自动修复其他内容。
+- 修正后定向 ESLint 0 errors/0 warnings，`git diff --check` 通过，`npm run build` 成功。
+- VxEditor41 最终仅有本轮转换文件 `index.js` 与新增 `serverAstCompiler.js`；用户原有修改和未跟踪目录未触碰，仓库根无规划文档。
+- 按项目规则，VxEditor41 同步修改尚未提交，等待用户确认。
+- **Phase 23 Status:** complete。
+
+## 2026-07-23 目标服务无返回值诊断
+
+- 用户反馈最新 `app.v5.json` 中服务 `ceyjn3ca3j50000468k0` 已可调用，但没有返回值，要求与 `case_12225413.json` 对比。
+- 本轮只读诊断，不修改转换程序；优先核对 service/server-api/caller 结构、AST、编译代码和运行时参数位。
+- 第一轮精确对比确认：service/API/caller/返回 AST 一致；当前 `_code` 唯一实质差异是 `sendServerApiRequest` 被编译成 7 个方法参数，正常文件只有 6 个。
+- 根因方向收敛到后台编译前缺少编辑器原生 `saveCaseDealFakeAst()` 的完整回调占位清理；下一步核对方法签名和 `$sys.afunc` 运行时行为。
+- 组件映射已确认该方法只有 6 个业务参数并标记 `errorCb:true`；第 7 个 `undefined` 是遗留错误回调占位，正常编辑器保存会显式 pop。
+- Rust 本地运行时规范同样要求 6 参数，但其适配器会忽略更后的参数；因此当前结论是“缺少回调占位清理为唯一且高度可疑差异”，下一步继续查实际运行时或做等价 A/B 证明。
+- Chrome 找到最新 V5 页 `hpUBU5Pm`，但宽日志与服务 ID 窄日志两次均超时；按不重复失败原则停止页面日志路径。
+- 已完成内存 A/B：按 V5 编辑器规则移除目标 AST 末尾错误回调占位后，用当前编译器重编译，所得 998 字符 `_code` 与正常外部 JSON 逐字一致。
+- 当前后台 AST 共检出 76 个同类占位（75 个 server-api、1 个 data-db）；根因应以通用方法签名归一化修复，不能只特判目标服务。
+- 已排除服务注册、参数映射、返回动作和调用端丢失；本轮只读诊断完成，未修改转换程序。
+- **Phase 24 Status:** complete。
+
+## 2026-07-23 后台错误回调占位清理并同步 VxEditor41
+
+- 用户确认实施修复，并同步到 VxEditor41。
+- 本轮将把 V5 编辑器 `saveCaseDealFakeAst()` 的方法签名归一化子集移植到两个仓库的 `serverAstCompiler`，不对目标服务做 BID 特判。
+- tov5parser 负责保留计划记录、增加回归测试并重转紧凑案例；VxEditor41 只修改转换目录内代码，不新增 `findings.md`、`progress.md`、`task_plan.md`。
+- 初次检索 tov5parser 测试路径使用了未引用的 `test*` glob，被 zsh 因无匹配而中止；已记录，后续改用明确文件路径。
+- 两个仓库当前分支分别为 `main`、`master`；VxEditor41 已有用户的 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录，本轮保持不动。
+- 已在两个仓库的 `serverAstCompiler` 增加通用归一化：解析 `get(ref, method)` 的目标节点和 Java 方法定义，剔除 `IvxContext/props/parentProps` 后计算业务参数数，仅对 `errorCb` 方法的超长末参执行一次移除。
+- 归一化先于原有 `_fakeCbInner` 清理执行；若末项本身是 `_fakeCbInner`，新规则不弹出，由原有 pass 继续处理。
+- tov5parser 已增加纯 AST 回归，覆盖 `server-api.sendServerApiRequest`、`data-db.dbBatchUpdate` 和 V5 fake callback 保留路径；VxEditor41 同步相同实现且没有新增规划文档。
+- tov5parser 定向测试 17/17、全量测试 44/44 通过，两个仓库 `git diff --check` 均通过。
+- 已用最新 V4 源重新生成单行压缩 `localCases/v5/frp-pad/app.v5.json`：29,971,640 bytes、0 换行、SHA-256 `9dc2196a6dfb623c1affc20dad727f9eec76d7a2c04ab29bbee17420cc421e73`。
+- 目标服务 `_code` 长 998，与正常 `case_12225413.json` 逐字一致；80 个后台代码全部可编译，75 个 server-api 和 1 个 data-db 调用的最终参数数量全部正确。
+- VxEditor41 定向 ESLint 0 errors/0 warnings，production webpack build 成功（33 条其他文件既有 warning）；本轮只修改 `src/utils/convertV4ToV5/serverAstCompiler.js`，未触碰用户已有修改，也未新增规划文档。
+- 按仓库规则尚未创建 Git 提交，等待用户确认。
+- **Phase 25 Status:** complete。
+
+## 2026-07-23 提交并推送双仓库修复
+
+- 用户确认将 tov5parser 与 VxEditor41 的本次修复全部提交并推送。
+- tov5parser 提交范围为转换编译器、回归测试和计划记录；VxEditor41 仅提交 `src/utils/convertV4ToV5/serverAstCompiler.js`，继续隔离用户已有修改和未跟踪目录。
+- **Phase 26 Status:** in progress。
 
 ## 2026-07-23 full-js jsfn 单行输出修复
 
