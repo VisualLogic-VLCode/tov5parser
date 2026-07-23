@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 10.1（按确认保留 system receiver，仅修复方法参数）— complete
+Phase 14（full-js jsfn 单行输出兼容修复）— complete
 
 ## Phases
 
@@ -119,6 +119,37 @@ Phase 10.1（按确认保留 system receiver，仅修复方法参数）— compl
 - [x] 更新回归断言并重跑真实案例
 - **Status:** complete
 
+### Phase 11: frp-pad v4/v5 运行时表格缺失诊断（2026-07-22）
+- [x] 对比 Chrome 中 v4/v5 当前页面的可访问 DOM，确认缺失范围
+- [x] 用表头文本定位 v4/v5 案例 JSON 中的节点及共同父级
+- [x] 核对字段可见性、列宽配置对象及初始化逻辑
+- [x] 核对条件（三元）表达式的 v4 源码与 v5 AST 语义
+- [x] 给出根因、影响范围及转换函数修复建议
+- **Status:** complete
+
+### Phase 12: 修复三元表达式嵌套回调转换（2026-07-23）
+- [x] 让 full-js 模式下三元表达式各分支复用函数子树保护逻辑
+- [x] 新增 `condition ? value : array.map(item => {...})` 回归测试
+- [x] 运行定向测试与项目全量测试
+- [x] 重新转换 frp-pad，核验 6 个“量体部门”绑定并保持紧凑 JSON
+- [x] 检查最终差异并更新任务记录
+- **Status:** complete
+
+### Phase 13: 诊断 jsfn 在 5.x 编辑器中的部分显示（2026-07-23）
+- [x] 核对截图表现与目标 jsfn 的 JSON/解析后换行形态
+- [x] 检查 VxEditor41 对 jsfn 的导入、公式展示和保存逻辑
+- [x] 判断换行是仅影响展示还是会造成公式语义/保存截断
+- [x] 确认可安全改为 Astring 单行输出，并给出修复建议
+- **Status:** complete
+
+### Phase 14: full-js jsfn 单行输出兼容修复（2026-07-23）
+- [x] 将 Astring full-js 输出改为无换行的单行代码
+- [x] 更新回归测试，覆盖单行输出与原有执行语义
+- [x] 运行定向测试和项目全量测试
+- [x] 重新转换 frp-pad，核验全部 jsfn、6 个目标绑定和紧凑 JSON
+- [x] 检查最终差异并更新任务记录
+- **Status:** complete
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -142,3 +173,4 @@ Phase 10.1（按确认保留 system receiver，仅修复方法参数）— compl
 | `workspace-my` 转换时控制台输出约 10 万 token 的 ParseError 栈 | 1 | 转换本身成功；后续直接读取结构化诊断 JSON 做完整统计，不依赖截断的控制台输出 |
 | system 条件首版测试落入 sysutil/jsfn fallback | 1 | 测试夹具使用了非 20 位伪节点 ID，而旧公式判型严格要求组件 ID 长度为 20；改用真实案例 ID 后重试，生产实现不变 |
 | 同步更新三份规划文件时补丁上下文格式错误 | 1 | 拆分为标准多文件 patch 后成功，不重复原补丁 |
+| 用临时日志抑制 frp-pad 大量既有转换日志时命令被安全策略拒绝 | 1 | 不再删除临时文件；改为直接运行转换并限制返回输出 |

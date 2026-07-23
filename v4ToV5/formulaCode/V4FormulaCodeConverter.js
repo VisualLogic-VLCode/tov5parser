@@ -115,7 +115,11 @@ export default class V4FormulaCodeConverter {
       args: [
         {
           op: 'jsfn',
-          val: [generate(parsed), ...context.vList],
+          // 5.x 公式编辑器只读取自定义表达式的第 0 行，full-js 必须单行输出。
+          val: [
+            generate(parsed, { indent: '', lineEnd: ' ' }),
+            ...context.vList
+          ],
           args: context.jsFnArgs
         }
       ]
@@ -1885,19 +1889,10 @@ export default class V4FormulaCodeConverter {
         break
       }
       case 'ConditionalExpression': {
-        let { test, consequent, alternate } = parsed || {}
-        let list = [test, consequent, alternate]
-        list.map(item => {
-          let ast = this.processParsedTree({
-            parsed: item,
-            customExprContext: context
-          })
-          if (this.isGetAST({ ast })) {
-            this.genReplacement({ context, ast, parsed: item })
-          } else {
-            this.walkCustomExprParsed({ parsed: item, context })
-          }
-        })
+        const { test, consequent, alternate } = parsed || {}
+        for (const item of [test, consequent, alternate]) {
+          this.walkOrReplaceCustomExpr({ parsed: item, context })
+        }
         break
       }
       case 'BlockStatement':

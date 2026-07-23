@@ -222,3 +222,51 @@
 - 已重跑真实 `frp-pad`；目标条件逐字段匹配原 receiver + 完整方法参数，右值仍为 `PC`。
 - 最终 `app.v5.json` 为 29,772,875 bytes、0 个换行，保持压缩格式。
 - **Phase 10.1 Status:** complete。
+
+## 2026-07-22 frp-pad v4/v5 运行时表格缺失诊断
+
+- Chrome 对比确认：v5 的表头整组不可见，正文中“量体部门/量体师”等连续字段也不可见；其余正文列仍能显示，因此不是整张表未加载。
+- 更正早期定位：`cm1wxmya3j500009jgn0` 名为“未使用过滤表头”，根节点静态隐藏，不是当前表格；其冻结列/列宽不是本次根因。
+- 当前表格定位到 `cm1wxsqa3j500009jgng`，表头模块实例为 `cm1wys3a3j500009jjeg`，正文和表头共同消费 `量体过滤表头` `cm1x0qta3j500009jjxg`。
+- 核对 `过滤表头配置` `cm5578da3j50000mm3kg`：v4/v5 都保留 19 列，初始化 `find(...).columnShownData` 的 AST 正确；三元 `switchexp` 的空 `=` 是默认分支 schema，均排除。
+- 找到 JSON 级确定的正文根因：6 个“量体部门”值绑定的块体 `map(item=>{...})` 回调在 full-js fallback 的三元分支中被折叠成 `lambda return {op:'val'}`，导致该列内容为空。
+- 责任代码收敛到 `V4FormulaCodeConverter.walkCustomExprParsed()` 的 `ConditionalExpression`：应在 full-js 模式复用 `walkOrReplaceCustomExpr()`，避免带函数子树被提前部分转换。
+- 表头单元 visible 依赖 class 私有 `authData`；该数组初值为空，只由公共方法“设置权限”写入，而父级没有显式调用。visible AST 和方法 AST 均保留，表头消失高概率是 v4 云端模块的隐式权限注入未在 v5 承接，修复前需做运行时验证。
+- Chrome 接管 v5 运行页持续超时；未刷新页面、未改 sessionStorage。正文根因已确定，表头权限状态结论保留一次浏览器内验证项。
+- **Phase 11 Status:** complete（诊断完成，未修改转换程序）。
+
+## 2026-07-23 三元表达式嵌套回调修复
+
+- 用户要求先修复已确认的三元表达式嵌套回调问题。
+- 修复范围限定在 full-js walker 的 `ConditionalExpression` 分支；目标是复用已有函数子树保护逻辑，不改变普通三元表达式转换。
+- 将用最小回归测试和 frp-pad 中 6 个“量体部门”绑定做双重验证。
+- 已修改 `V4FormulaCodeConverter`：三元表达式的 test/consequent/alternate 统一进入 `walkOrReplaceCustomExpr()`，full-js 模式因此不再提前折叠包含函数的分支。
+- 新增回归测试，既检查生成代码保留块级 `map` 回调，也实际执行转换后的 jsfn，结果为 `A、B`。
+- 定向测试 8/8、项目全量测试 39/39 通过；`git diff --check` 通过。
+- 已重新转换 frp-pad 并归位紧凑产物；6/6 个“量体部门”绑定均保留完整回调且可编译。
+- 真实产物共 2,589 个 jsfn，2,589/2,589 可编译，参数数目不匹配为 0；诊断 dropped 为 0。
+- 新 `app.v5.json` 为 29,877,108 bytes，0 个换行，SHA-256 `c3e36a9a7baa0d4c1324cbaef0027e48dd749f28ed69240c7e73cef6414f6551`。
+- **Phase 12 Status:** complete。
+
+## 2026-07-23 jsfn 部分显示诊断
+
+- 用户重新导入 `app.v5.json` 后，公式编辑区域只显示到 `.map(item => {` 附近，怀疑 jsfn 中的换行造成截断。
+- 截图确认这是 5.x 编辑器里的单行公式可视化区域；当前尚不能仅凭截图判断是视觉隐藏、解析截断还是重新保存时的数据丢失。
+- 下一步直接检查目标 JSON 的字符串形态和 VxEditor41 的 jsfn 展示/导入代码。
+- 已确认截图显示内容与 jsfn 第一行逐字吻合，换行是首要嫌疑；继续追踪编辑器 `jsfn → ASTToBlocks` 与代码生成路径，判断是否会丢失后续行。
+- 已定位编辑器根因：自定义表达式 tokenizer 只读取 CodeMirror 第 0 行；运行路径保留完整代码，但编辑器回写可能将公式截断为第一行。
+- 已验证转换器使用的 Astring 可以直接生成单行等价代码，无需不安全地用正则删除换行。
+- 本轮按用户问题完成诊断，未继续修改转换逻辑；建议下一步让 full-js fallback 使用 Astring 单行输出并重新转换案例。
+- **Phase 13 Status:** complete。
+
+## 2026-07-23 full-js jsfn 单行输出修复
+
+- 用户确认按诊断建议继续修复。
+- 本轮将只调整 full-js fallback 的 Astring 输出选项，不用正则改写代码文本；目标是兼容 VxEditor41 单行 tokenizer，同时保持 JavaScript 语义。
+- 已修改生成选项并更新回归断言；定向测试 8/8、全量测试 39/39 通过。
+- 首次尝试通过临时日志文件抑制真实案例的大量既有诊断输出，被命令安全策略拒绝；转换尚未执行，改用直接命令继续。
+- 已重新转换 frp-pad 并归位新产物；诊断仍为 2,722 条 jsfn fallback、dropped 0，说明输出格式调整未改变 fallback 分类。
+- 全案例共有 2,589 个 jsfn，含换行 0、不可编译 0、参数数目不匹配 0。
+- 6/6 个“量体部门”绑定均为完整单行 `map(item => {...}).join("、")`，回调内容与 7 个参数均保留。
+- 新 `app.v5.json` 为 29,870,203 bytes，文件换行 0，SHA-256 `6875abefa6af31aaac6fbfa54b307ac1ade4c4e297e71414c21318d7176d1a1e`。
+- **Phase 14 Status:** complete。

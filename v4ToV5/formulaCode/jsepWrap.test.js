@@ -4,6 +4,10 @@ import jsep from './jsepWrap.js'
 import V4FormulaCodeConverter from './V4FormulaCodeConverter.js'
 import ExprAstToString from './ExprAstToString.js'
 
+const assertSingleLineJsfn = jsfn => {
+  assert.equal(/[\r\n]/.test(jsfn.val[0]), false)
+}
+
 test('jsepWrap registers the v4 formula syntax plugins', () => {
   const arrowAst = jsep('items.find(item => item.id === 1)')
   assert.equal(arrowAst.arguments[0].type, 'ArrowFunctionExpression')
@@ -35,6 +39,7 @@ test('full JavaScript fallback preserves block arrows as parameterized jsfn', ()
 
   const jsfn = ast.args[0]
   assert.equal(jsfn.op, 'jsfn')
+  assertSingleLineJsfn(jsfn)
   assert.match(jsfn.val[0], /^\$v1\.map\(/)
   assert.equal(jsfn.args.length, 1)
   assert.deepEqual(jsfn.args[0].args[0].args[0].val, ['param', 'items'])
@@ -51,6 +56,7 @@ test('full JavaScript fallback handles IIFE and assignment expressions', () => {
 
   const jsfn = ast.args[0]
   assert.equal(jsfn.op, 'jsfn')
+  assertSingleLineJsfn(jsfn)
   assert.match(jsfn.val[0], /var value = \$v1;/)
   assert.match(jsfn.val[0], /value \+= 1;/)
   assert.equal(jsfn.args.length, 1)
@@ -67,7 +73,8 @@ test('block arrows are routed to full parser before jsep can misparse the body',
   assert.equal(converter.shouldUseFullJsParser({ str: converter.str }), true)
 
   const jsfn = converter.exec().args[0]
-  assert.match(jsfn.val[0], /return \{\n\s+name: item\.name,/)
+  assertSingleLineJsfn(jsfn)
+  assert.match(jsfn.val[0], /return \{ name: item\.name,/)
   assert.doesNotThrow(() => {
     new Function(...jsfn.val.slice(1), `return (${jsfn.val[0]});`)
   })
@@ -117,9 +124,38 @@ test('full parser keeps callback subtrees intact while parameterizing external r
   }).exec()
 
   const jsfn = ast.args[0]
+  assertSingleLineJsfn(jsfn)
   assert.match(jsfn.val[0], /\.filter\(j => \(i\.assistAttributeIds \|\| \[\]\)\.includes\(j\.id\)\)/)
   assert.equal(jsfn.args.length, 2)
   assert.doesNotThrow(() => {
     new Function(...jsfn.val.slice(1), `return (${jsfn.val[0]});`)
   })
+})
+
+test('full parser keeps block callbacks nested in conditional branches', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: '!fParamgroup.items ? "" : fParamgroup.items.map(item => { if (item.ok) { var value = item.value; return value; } else { return ""; } }).join("、")',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = ast.args[0]
+  assert.equal(jsfn.op, 'jsfn')
+  assertSingleLineJsfn(jsfn)
+  assert.match(jsfn.val[0], /\.map\(item => \{/)
+  assert.match(jsfn.val[0], /if \(item\.ok\) \{/)
+  assert.match(jsfn.val[0], /return value;/)
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.equal(
+    evaluate(
+      [{ ok: true, value: 'ignored' }],
+      [{ ok: true, value: 'A' }, { ok: true, value: 'B' }]
+    ),
+    'A、B'
+  )
 })
