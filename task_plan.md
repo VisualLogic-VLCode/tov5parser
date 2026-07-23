@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 26（提交并推送双仓库修复）— in progress
+Phase 26（提交并推送双仓库修复）— complete
 
 ## Phases
 
@@ -240,11 +240,11 @@ Phase 26（提交并推送双仓库修复）— in progress
 - **Status:** complete
 
 ### Phase 26: 提交并推送双仓库修复（2026-07-23）
-- [ ] 核对 tov5parser 与 VxEditor41 待提交范围
-- [ ] 提交并推送 tov5parser 当前修复
-- [ ] 仅提交并推送 VxEditor41 本次转换文件
-- [ ] 确认两个远程分支更新且用户其他修改未进入提交
-- **Status:** in progress
+- [x] 核对 tov5parser 与 VxEditor41 待提交范围
+- [x] 提交并推送 tov5parser 当前修复
+- [x] 仅提交并推送 VxEditor41 本次转换文件
+- [x] 确认两个远程分支更新且用户其他修改未进入提交
+- **Status:** complete
 
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。

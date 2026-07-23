@@ -339,7 +339,10 @@
 
 - 用户确认将 tov5parser 与 VxEditor41 的本次修复全部提交并推送。
 - tov5parser 提交范围为转换编译器、回归测试和计划记录；VxEditor41 仅提交 `src/utils/convertV4ToV5/serverAstCompiler.js`，继续隔离用户已有修改和未跟踪目录。
-- **Phase 26 Status:** in progress。
+- tov5parser 已提交并推送：`cf51e74 fix: normalize server error callback arguments`，`origin/main` 更新成功。
+- VxEditor41 已提交并推送：`8e1180c22 fix: normalize server error callback arguments`，`origin/master` 更新成功。
+- VxEditor41 的 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录仍仅留在本地，未进入提交。
+- **Phase 26 Status:** complete。
 
 ## 2026-07-23 full-js jsfn 单行输出修复
 
