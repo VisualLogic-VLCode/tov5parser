@@ -320,6 +320,118 @@ test('infinite data-animate play actions are skipped to avoid awaiting forever',
   assert.equal(finitePlay.skip, undefined);
 });
 
+test('delayed variable methods yield once after updating bindings', (t) => {
+  if (!ensureIvxMapNodeEnv()) {
+    t.skip('missing optional fixture: ivxMap.txt');
+    return;
+  }
+
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push(
+    {
+      id: 'refresh-bool',
+      type: 'data-bool',
+      rootId: 'stage1',
+      uis: { name: '刷新布尔变量' },
+      props: { value: true },
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'refresh-text',
+      type: 'ih5-text',
+      rootId: 'stage1',
+      uis: { name: '普通文本' },
+      props: {},
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'refresh-controller',
+      type: 'ih5-text',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      children: [],
+      events: {
+        list: [
+          {
+            tree: {
+              bid: 'refresh-root',
+              type: 'root',
+              trigger: { name: 'click' },
+              children: [
+                {
+                  bid: 'delayed-bool-method',
+                  type: 'action',
+                  object: 'refresh-bool',
+                  delay: 1.5,
+                  action: { name: 'setFalse', params: [] },
+                  children: [],
+                },
+                {
+                  bid: 'delayed-text-method',
+                  type: 'action',
+                  object: 'refresh-text',
+                  delay: 2,
+                  action: { name: 'setProps', params: [] },
+                  children: [],
+                },
+                {
+                  bid: 'plain-bool-method',
+                  type: 'action',
+                  object: 'refresh-bool',
+                  action: { name: 'setTrue', params: [] },
+                  children: [],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  );
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const controller = v5CaseJson.stage.children.find(
+    (node) => node.id === 'refresh-controller',
+  );
+  const actionAsts = controller.events.list[0].ast.args;
+
+  assert.equal(actionAsts.length, 6);
+  assert.equal(actionAsts[1].ln, 'delayed-bool-method');
+  assert.equal(actionAsts[4].ln, 'delayed-text-method');
+  assert.equal(actionAsts[5].ln, 'plain-bool-method');
+
+  const assertDelayAst = ({ ast, time, hasTimeValue }) => {
+    assert.equal(ast.op, 'let');
+    assert.deepEqual(ast.val, [`${ast.ln}Rtn`, 'JsonVal']);
+    const getAst = ast.args[0];
+    assert.equal(getAst.op, 'get');
+    assert.deepEqual(getAst.args[0], {
+      op: 'ref',
+      val: ['sobj', 'base'],
+    });
+    const methodAst = getAst.args[1];
+    assert.equal(methodAst.op, 'method');
+    assert.equal(methodAst.val, 'delaysMethod');
+    assert.equal(methodAst.args.length, 1);
+    assert.deepEqual(
+      methodAst.args[0],
+      hasTimeValue
+        ? { key: 'time', op: 'val', val: time }
+        : { key: 'time', op: 'val' },
+    );
+  };
+
+  // 原有延时仍在变量方法前。
+  assertDelayAst({ ast: actionAsts[0], time: 1.5, hasTimeValue: true });
+  // 变量方法后新增一次无 time 值的零时长让步。
+  assertDelayAst({ ast: actionAsts[2], hasTimeValue: false });
+  // 非变量组件只有原有前置延时，不追加刷新让步。
+  assertDelayAst({ ast: actionAsts[3], time: 2, hasTimeValue: true });
+});
+
 test('getWidgetMethodMap resolves methods from runtime maps', (t) => {
   if (!ensureIvxMapNodeEnv()) {
     t.skip('missing optional fixture: ivxMap.txt');

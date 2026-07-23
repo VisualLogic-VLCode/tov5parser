@@ -324,3 +324,45 @@
 - frp-pad 实际转换确认 `cv7jynaa3j50000btc9g` 结果为 `{"op":"let", ... ,"skip":true}`，其方法引用仍准确指向 `cv7jynaa3j50000btc40.play`。
 - frp-pad 全量共有 22 个 `data-animate.play`，其中 11 个指向 `props.infinite=true` 的动画（10 个启用、1 个原本已禁用）；本次规则会统一覆盖这 11 个动作，另外 11 个非 infinite 动画动作保持原语义。
 - 最新生成的 `app.v5.json` 为紧凑单行 JSON，11/11 个 infinite animate play 均已标记 `skip:true`，没有缺失或漏标。
+
+## “加载成功”提示不关闭（2026-07-23）
+
+- `FRP_PAD_量体款式` 的自定义 toast 动作组为 `cv7jynaa3j50000btc6g`（“显示toast”）。它先把显示变量 `cv7jynaa3j50000btc60` 设为 true；成功类型 1 应在动作 `cv7jynaa3j50000btcag` 延时 1.5 秒后将其设为 false。
+- 该动作组中 loading 类型 3 才会进入 infinite animate play `cv7jynaa3j50000btc9g`；成功类型 1 不经过该分支，因此成功提示不关闭还需要单独检查延时块 `cv7jynaa3j50000btcag` 的 V5 AST。
+- 上层通用动作组 `cv7jynaa3j50000btce0`（“显示提示语”）在“系统弹窗”路径调用系统 `hideLoading + showToast`，在另一条路径调用自定义动作组 `cv7jynaa3j50000btc6g`。需先定位“加载成功”实际走的是哪条路径。
+- 款式信息链路中的多个“加载成功”调用（如首单款式信息 `cv7pndda3j5000042vwg`）传入类型 1，`系统弹窗` 留空，因此实际进入自定义 toast 动作组。
+- V5 的成功分支条件已转换为 `belongTo(param, [1])`；命中后先执行一个 `delaysMethod(1.5)` 的 `op:let`，再执行 `cv7jynaa3j50000btcag` 将显示变量设为 false。动作树没有丢失，当前最可疑点转为延时 `let` 是否能完成，或成功类型在运行时是否未命中 `[1]`。
+- `genActionDelay` 与 VxEditor41/VxEditor5 上游实现一致：生成 `sobj/base.delaysMethod({time:1.5})` 的 `op:let`。组件映射将该方法声明为 callback/noResult；widgets 实现会在 `time * 1000` 后调用 `cb('finished', {})`，理论上能够完成等待。
+- 因此不能简单归因于“延时节点丢失”或 `delaysMethod` 本身没有回调；下一步需检查 V5 AST 到运行码时，对 callback/noResult 方法的 Promise 包装是否返回可等待值。
+- VxEditor5 `ast2js` 对 `op:let` 的参数以 flag=1 下钻；普通组件方法会由 `$sys.afunc(...)` 调用，但 `sobj` 分支当前除 `genToken` 外固定生成 `$sys.func(...)`。因此 `sobj/base.delaysMethod` 不会走通用的异步组件调用路径。
+- 这使延时动作的执行语义依赖 `$sys.func` 对 callback 方法的特殊处理；需要进一步确认生成代码/运行时是否会真正等待回调。该差异是当前最强的转换/编译层嫌疑。
+- `belongTo` 运行时实现是 `Array.indexOf(v1) >= 0`，V5 条件参数顺序 `[param, [1]]` 正确；调用者传入的类型值在 AST 中也是数值 1。成功分支条件转换不是根因。
+- 被关闭的显示状态 `cv7jynaa3j50000btc60` 是普通 `data-bool`，初值 false；成功提示先 `setTrue`、延时后 `setFalse`，变量类型和目标引用均正确。
+- 用 VxEditor5 `ast2js` 将目标事件生成代码后，成功分支确实包含 `delaysMethod({time:1.5})`，下一行就是 `cv7jynaa3j50000btc60.setFalse()`；目标关闭动作没有被 skip，也没有被转换器遗漏。
+- 但 `ast2js` 主要用于服务/模块代码生成，前台运行页可能直接解释 AST，不能仅凭其把 `sobj/base` 生成为 `server-sys-serverSys` 就断定前台根因。
+- 本地 VLPreviewer 的 player/previewParser bundle 已压缩且不保留 `afunc`、`delaysMethod`、`op_belongTo` 标识，无法通过静态字符串检索确认前台 AST 解释器路径。
+- 自定义 toast 容器 `cv7jynaa3j50000btbz0` 的 visible 绑定在 V5 中正确引用 `cv7jynaa3j50000btc60.value`；不是显示属性绑定到了错误变量。
+- 成功调用参数已确认是数值 `1`，`belongTo(1, [1])` 能命中；成功分支中的关闭动作 `cv7jynaa3j50000btcag` 也存在、未 skip，故首个可能中断点唯一收敛到它前面的自动延时 AST。
+- 当前成品中的延时行 ID 为 `d9gwmdh60k47gd9fn92g`（转换时随机生成，不是稳定 BID），来源是 V4 关闭动作的 `delay: 1.5`；其结构为 `op:"let"` 等待 `sobj/base.delaysMethod({time:1.5})`，下一行才是 `cv7jynaa3j50000btc60.setFalse()`。
+- V5 widgets 的 `delaysMethod` 仍是回调式实现：`setTimeout(... cb('finished', {}), time * 1000)`；map 也把它声明成 `callback/noResult`。转换器却把这类延时输出成 V5 async/await 链中的 `op:"let"`，运行时若没有正确把该 system callback 桥接成可完成的 Promise，动作链就停在延时处。
+- 运行现象与该执行点完全一致：提示先成功显示，1.5 秒后没有执行 `setFalse`；而成功类型不会进入已经 skip 的 infinite animation 分支。因此本问题与 `cv7jynaa3j50000btc9g` 无关，是 V4 回调式延时迁移到 V5 await 语义后的独立兼容问题。
+- 修复方向应放在 `genActionDelay()`：让转换后的延时使用 V5 能正常 resolve 的原生异步等待表示，或为 `sobj/base.delaysMethod` 补齐可靠的 Promise 桥接；不应删除 `cv7jynaa3j50000btcag`，也不应调整成功条件。
+
+### 用户运行时复核后的根因修正
+
+- 用户已在运行时确认：前置 `delaysMethod(1.5)` 正常完成，`cv7jynaa3j50000btcag` 也确实执行，变量值成功变为 false；此前“延时阻塞导致 setFalse 未执行”的判断撤销。
+- 实际故障是延时后的变量组件方法虽然改变了数据，绑定该变量的组件 UI 没有重新渲染，属于 V4 回调架构迁移到 V5 运行时后的刷新时机兼容问题。
+- 指定迁移规则：当 V4 变量组件的方法调用本身带延时，V5 保留原延时和变量方法后，再追加一个新的 `op:"let"` system `delaysMethod` 动作；方法参数只保留 `{op:"val", key:"time"}`，不设置 `val`，以零时长让出一次执行时机。
+- 新动作的 `ln` 必须由 `genXid()` 生成，`val[0]` 为 `${ln}Rtn`、`val[1]` 为 `JsonVal`；规则不能扩展到无延时变量方法或非变量组件方法。
+- 当前转换器统一在 `converter.js` 的动作结果数组上处理 `block.delay`：先生成原动作 AST，再通过 `result.unshift(genActionDelay(block.delay))` 把原延时放到动作前。新刷新让步动作应插入到同一结果数组末尾，才能保证顺序为“原延时 → 变量方法 → 零时长让步”。
+- 现有回归测试集中在 `v4ToV5/v4ToV5.test.js`；无限动画规则已有完整动作夹具，可复用其运行时 map/env 初始化方式增加延时变量方法测试。
+- 运行时 map 中的基础变量组件至少包括 `data-var`（字符串变量）、`data-num`（数值变量）、`data-bool`（布尔变量）、`data-arr`（一维数组）和 `data-arr-2d`（二维数组）；新判定应使用明确白名单，避免用宽泛 `data-*` 前缀误命中服务、动画、数据库等数据组件。
+- frp-pad 源案例中目标动作 `cv7jynaa3j50000btcag` 确认为 `data-bool` 节点 `cv7jynaa3j50000btc60` 的 `setFalse`，V4 `delay=1.5`。全案例共有 222 个带延时动作，其中变量候选还出现 `data-obj-arr`、`data-obj-1d`、`data-obj-json`，说明变量白名单需要覆盖对象/JSON 变量而不只四种基础标量。
+- runtime map 的组件语义确认变量白名单应为 8 类：`data-var`、`data-num`、`data-bool`、`data-arr`、`data-arr-2d`、`data-obj-arr`、`data-obj-1d`、`data-obj-json`。`data-event` 是自定义事件、`data-funcGroup` 是动作组，均不得命中。
+- 为精确得到用户给出的无 `val` 参数 AST，`genActionDelay()` 可在 `time === undefined` 时只生成 `{key:'time', op:'val'}`；原有带数值延时仍显式生成 `val: block.delay`。刷新让步动作应直接插在变量方法 `_block` 后、回调 switch 块前。
+- 实现采用模块级 `VARIABLE_COMPONENT_TYPES` 明确白名单，并只对 `block.enable !== false && !!block.delay` 的变量方法追加让步动作；无延时变量方法、普通 UI 组件和禁用动作不会新增可执行刷新让步。
+- 定向回归 14/14 通过；精确验证输出顺序为 `[原延时, delayed-bool-method, 无值延时, 非变量原延时, delayed-text-method, 无延时变量方法]`，新增动作的返回局部变量与随机 ln 一致。
+- 项目全量测试 41/41 通过，`git diff --check` 通过。
+- `convert-local-cases.mjs` 会把所有 V5 产物写成无缩进紧凑 JSON，但其常规目标布局面向 `localCases/v4` 根下文件；frp-pad 位于子目录，需要直接调用同一转换库生成到既有 `localCases/v5/frp-pad/app.v5.json`，避免误写根目录。
+- frp-pad 已重新生成：29,884,854 bytes、文件换行 0。新产物共有 64 个无 `time.val` 的刷新让步动作，与源案例中 64 个启用的带延时变量方法数量一致。
+- 目标 `cv7jynaa3j50000btcag` 的相邻顺序已精确核验：前一行为原 `delaysMethod(time=1.5)`，当前行为 `setFalse` 的 `op:"get"`，后一行为随机 ln `d9gxppt60k4c091ewwy0` 的 `op:"let"`；其 `time` 参数只有 `key:"time", op:"val"`，没有 `val` 字段。

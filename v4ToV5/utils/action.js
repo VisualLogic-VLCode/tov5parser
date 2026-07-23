@@ -895,6 +895,13 @@ function genLoopObj({ actionObject }) {
 
 function genActionDelay(time) {
   let ln = genXid()
+  let timeArg = {
+    key: 'time',
+    op: 'val'
+  }
+  if (time !== undefined) {
+    timeArg.val = time
+  }
   return {
     ln,
     op: 'let',
@@ -911,11 +918,7 @@ function genActionDelay(time) {
             op: 'method',
             val: 'delaysMethod',
             args: [
-              {
-                key: 'time',
-                op: 'val',
-                val: time
-              }
+              timeArg
             ]
           }
         ]

@@ -314,5 +314,31 @@
 - 全量静态扫描 frp-pad：共有 22 个 `data-animate.play` 动作，其中 11 个目标节点 `props.infinite=true`；除当前 BID 外还有 10 个同类动作（9 个启用、1 个原本已禁用），均会被本次规则自动标记 skip。其余 11 个非 infinite play 不受影响。
 - 已按用户要求用最新 v4 源重新生成紧凑格式 `localCases/v5/frp-pad/app.v5.json`：29,870,582 bytes、0 个换行，SHA-256 `c8fffcd4b278c6b163c6e32548ff4661a1d7acf9400f187959b6c9ad582af45f`。
 - 成品核验：源案例 11 个 infinite animate play BID 在 v5 中全部存在且全部 `skip:true`；目标 `cv7jynaa3j50000btc9g` 为 `op:"let"`、方法 `play`、`skip:true`。
-- 当前修改未提交、未推送。
+- 无限动画 play 修复及测试已提交并推送：`35e58a7 fix: skip infinite animation play actions`。
 - **Phase 17 Status:** complete。
+
+## 2026-07-23 “加载成功”提示不关闭诊断
+
+- 用户确认重新转换后款式信息弹窗已能打开，但“加载成功”提示持续显示、没有自动关闭。
+- 本轮先诊断不修改代码；重点追踪成功提示动作之后的延时、动画和隐藏动作，以及 V5 `let` 等待语义。
+- 工作区存在用户对 `.gitignore` 的未提交修改，本轮保持不动。
+- 已定位成功提示链：`cv7jynaa3j50000btc6g` 设置显示状态后，成功分支应延时 1.5 秒执行 `cv7jynaa3j50000btcag`，把 `cv7jynaa3j50000btc60` 设为 false。
+- 成功类型参数、分支条件、关闭动作和 visible 绑定均正确；成功分支也不会执行 infinite animation play，排除此前 `cv7jynaa3j50000btc9g` 修复的影响。
+- 首个失败点收敛到关闭动作前由转换器生成的延时 `op:let`：当前成品行 ID `d9gwmdh60k47gd9fn92g` 等待回调式 `sobj/base.delaysMethod(1.5)`；V5 await 执行链未承接其完成回调，导致下一行 setFalse 不执行。
+- 已给出修复边界：调整 `genActionDelay()` 的 V5 异步等待表示或 runtime Promise 桥接，不修改成功条件与关闭动作。本轮诊断未修改项目代码。
+- **Phase 18 Status:** complete。
+
+## 2026-07-23 延时变量方法后补充 UI 刷新让步动作
+
+- 用户运行时确认前置延时与 `setFalse` 都已成功执行；真实问题是变量值改变后，绑定组件 UI 没有重新渲染。
+- 本轮修正此前诊断，并按用户给定 AST 实现：V4 中带延时的变量组件方法转为 V5 后，在该方法动作后追加零时长 `delaysMethod` 的 `op:let`。
+- 工作区中用户的 `.gitignore` 修改继续保持不动；本轮将修改转换代码、测试和重新生成的案例产物，但不会未经确认创建 Git 提交。
+- 已修改转换器：增加 8 类变量组件白名单；命中带延时且启用的变量方法时，在原方法 AST 后、回调 AST 前追加 `genActionDelay()`。
+- `genActionDelay()` 现在仅在传入具体时间时写入 `timeArg.val`；无参调用精确生成用户要求的 `{key:'time', op:'val'}` 零时长参数。
+- 已新增回归测试，同时覆盖：带延时布尔变量命中、带延时普通 UI 组件不命中、无延时变量不命中，并精确断言新增 AST 的随机 ln 关联返回变量和无 `val` 的 time 参数。
+- 定向测试 `node --test v4ToV5/v4ToV5.test.js` 已通过：14/14。
+- 项目全量测试通过：41/41；`git diff --check` 通过。
+- 已用最新 V4 源重新生成紧凑 `localCases/v5/frp-pad/app.v5.json`：29,884,854 bytes、0 个换行。
+- 成品验证通过：64 个带延时变量方法均新增零时长让步；目标 `cv7jynaa3j50000btcag` 后紧邻新动作 `d9gxppt60k4c091ewwy0`，AST 与用户给定结构一致且 time 参数无 `val`。
+- 最终差异检查确认只修改转换器、转换工具函数、回归测试和规划记录；用户已有 `.gitignore` 修改未触碰。本轮未创建 Git 提交。
+- **Phase 19 Status:** complete。
