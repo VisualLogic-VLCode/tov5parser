@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 18（“加载成功”提示不关闭诊断）— in progress
+Phase 23（提交推送并同步 VxEditor41）— in progress
 
 ## Phases
 
@@ -190,6 +190,39 @@ Phase 18（“加载成功”提示不关闭诊断）— in progress
 - [x] 重新转换 frp-pad，核验 `cv7jynaa3j50000btcag` 后新增动作及紧凑 JSON
 - **Status:** complete
 
+### Phase 20: 同步今日转换修复到 VxEditor41（2026-07-23）
+- [x] 盘点 tov5parser 今日提交及 VxEditor41 已同步内容
+- [x] 仅向 VxEditor41 转换目录同步仍缺失的逻辑
+- [x] 适配 VxEditor41 代码结构并补充可运行回归验证
+- [x] 检查 VxEditor41 差异，确保不触碰用户现有修改和不新增规划文档
+- [x] 汇总同步范围与测试结果，等待用户确认是否提交
+- **Status:** complete
+
+### Phase 21: 对比外部 V5 JSON 的服务注册差异（2026-07-23）
+- [x] 识别两个 JSON 的顶层结构、版本元数据和节点规模
+- [x] 定位服务 `ceyjn3ca3j50000468k0` 在两份 JSON 中的定义位置与完整字段
+- [x] 定位全部调用点，比较 runsvc AST、作用域和模块关系
+- [x] 比较服务注册所依赖的父节点、server/class 结构及关键属性
+- [x] 给出“外部 JSON 正常、当前 app.v5.json 服务不存在”的确定根因
+- **Status:** complete
+
+### Phase 22: 补齐 V5 后台服务编译态（2026-07-23）
+- [x] 确认 V5 `ast2js` 的最小可复用边界、运行依赖和后台节点覆盖范围
+- [x] 转换完成后编译 server 根及 server classes 事件 AST，写入 `events.list[0]._code`
+- [x] 设置 `server.props.v2 = 1`，但不覆盖与本次无关的节点数据
+- [x] 新增服务注册回归测试，验证目标服务能被运行时收集
+- [x] 运行全量测试并重新生成压缩版 frp-pad `app.v5.json`
+- [x] 核验 `ceyjn3ca3j50000468k0` 的 `_code`、服务计数和最终差异
+- **Status:** complete
+
+### Phase 23: 提交推送并同步 VxEditor41（2026-07-23）
+- [ ] 提交 tov5parser Phase 22 全部修改并推送 main
+- [ ] 盘点 VxEditor41 当前工作区及转换入口，隔离用户现有修改
+- [ ] 将后台 AST 编译态修复同步到 `src/utils/convertV4ToV5`
+- [ ] 运行 VxEditor41 定向语法/格式检查及可行的构建验证
+- [ ] 汇总 VxEditor41 修改范围，按仓库规则等待提交确认
+- **Status:** in progress
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -226,3 +259,5 @@ Phase 18（“加载成功”提示不关闭诊断）— in progress
 | Chrome 对精确“加载成功”文本 locator 读取仍超时 | 2 | 停止本轮 Chrome DOM 读取，改从 V5 AST 与运行时方法实现定位，不再消耗页面控制连接 |
 | zsh 展开不存在的 `test*`/`tests*` 路径导致检索命令中止 | 1 | 不重复使用 shell glob；先用 `rg --files` 定位测试目录，再对明确路径检索 |
 | 扫描 frp-pad 时假定源文件名为 `app.v4.json`，实际路径不存在 | 1 | 不重复猜文件名；先列出案例目录中的真实文件，再用明确路径扫描 |
+| VxEditor41 定向 ESLint 报 `timeArg` 数组换行的 Prettier warning | 1 | 无语义错误；按仓库格式把单元素 `args` 改为单行后重新检查 |
+| 用 BSD `sed 1i` 给 vendored ast2js 加文件头时报语法错误 | 1 | 不再使用平台相关的插入语法；由补丁生成逻辑直接拼接注释 |

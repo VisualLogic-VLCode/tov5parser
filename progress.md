@@ -259,6 +259,43 @@
 - 本轮按用户问题完成诊断，未继续修改转换逻辑；建议下一步让 full-js fallback 使用 Astring 单行输出并重新转换案例。
 - **Phase 13 Status:** complete。
 
+## 2026-07-23 V5 后台服务编译态修复
+
+- 用户确认实施 Phase 21 的诊断结论。
+- 修复目标：转换产物直接包含 V5 后台运行时可注册的服务代码，而不仅有服务 AST。
+- 已恢复跨会话记录并确认：当前项目依赖包含 Acorn/Astring，但没有直接的 V5 `ast2js` 实现。
+- 已确认 VxEditor5 `ast2js.js` 自包含、无外部 import，适合按现有 vendor 模式纳入项目；vlparser 版本较旧，不作为来源。
+- 已确认需编译 `server` 根与每个 `server.classes` 子树；转换入口将增加统一输出后处理。
+- 现场编译目标服务成功，主体代码与正常 JSON 一致；发现正常产物还包含服务入参类型检查包装，来源是 V5 编辑器事件保存逻辑。
+- 已确认外部产物只编译当前用到的两个 server class，但官方模块预处理会遍历全部 server classes；转换程序将完整编译，避免漏掉动态使用的模块。
+- 已确认默认 strict 入参包装规则；实现将匹配 V5 保存行为，并按后台根的 `paramLooseMode` 支持 loose 模式。
+- 下一步增加编译器 vendor 文件与后处理模块，随后补测试。
+- 首次生成 vendor 补丁时使用了 GNU 风格 `sed 1i`，在 macOS BSD sed 下失败且未产生文件；已记录，改由补丁生成逻辑直接拼接文件头。
+- 已将 VxEditor5 当前 `ast2js` 作为自包含 vendor 文件纳入转换项目。
+- 新增 `serverAstCompiler.js`：设置 `server.props.v2=1`，编译 server 根及全部 server classes，清理 fake callback，写事件 `_code`，并补 strict/loose 入参处理与 funcGroup `_code`。
+- 转换入口已在结构转换完成后执行后台编译。
+- 新增两项回归覆盖：class 中服务可注册、loose funcGroup 参数转换。
+- 初次完整测试 43/43 通过；合成 class service 的 `_code` 包含入参检查与 `let serviceResult = "ok"`。
+- 已确认 frp-pad v4 源文件为 `localCases/v4/frp-pad/app.json`，生成脚本输出紧凑 JSON。
+- 已用最新 v4 源重新转换 frp-pad：诊断 2,722 条，全部为既有 jsfn 兜底，dropped 为 0。
+- 后台编译结果为 AST 80、`_code` 80、service 80/80；所有生成代码通过语法编译检查。
+- 目标服务 `ceyjn3ca3j50000468k0` 已有 1,008 字符 `_code`；`server.props.v2=1`。
+- 已将生成文件归位到 `localCases/v5/frp-pad/`，`app.v5.json` 为 29,972,400 bytes、0 换行。
+- 交付前复核 V5 保存包装发现 transaction 专用处理尚未纳入；正在补齐数据库 ID 收集，避免新后台编译阶段对其他案例造成事务语义回归。
+- 进一步确认 transaction DB ID 依赖当前工作区身份上下文，转换接口无法可靠重建；本轮不猜测该数据，维持 VLangModProcessor 的通用编译边界。目标 data-service 修复不受影响。
+- 最终全量测试 43/43 通过；`git diff --check` 通过。
+- Lambda 运行包重建成功（1.9 MB），确认包含 `v4ToV5/ast2js.js` 与 `serverAstCompiler.js`；vendor 内容与 VxEditor5 源一致。
+- 最终目标服务核验：`_code` 为字符串、长度 1,008，包含入参检查和 `sendServerApiRequest`；新 JSON SHA-256 为 `2b90d9db0cc09f80800dab79a0ee0cc446e99c7c01907ed543c2f4b42307176d`。
+- **Phase 22 Status:** complete。
+
+## 2026-07-23 提交推送并同步 VxEditor41
+
+- 用户要求提交并推送 tov5parser 当前修复，然后同步至 VxEditor41 的转换函数。
+- 已核对 tov5parser 当前分支 `main`、远程 `origin`，差异检查通过；待提交范围为 Phase 22 代码、测试和规划记录。
+- 同步阶段将保留 VxEditor41 现有用户修改，不新增规划文档；完成后按仓库规则等待用户确认是否提交 VxEditor41。
+- **Phase 23 Status:** in progress。
+- **Phase 22 Status:** in progress。
+
 ## 2026-07-23 full-js jsfn 单行输出修复
 
 - 用户确认按诊断建议继续修复。
@@ -342,3 +379,28 @@
 - 成品验证通过：64 个带延时变量方法均新增零时长让步；目标 `cv7jynaa3j50000btcag` 后紧邻新动作 `d9gxppt60k4c091ewwy0`，AST 与用户给定结构一致且 time 参数无 `val`。
 - 最终差异检查确认只修改转换器、转换工具函数、回归测试和规划记录；用户已有 `.gitignore` 修改未触碰。本轮未创建 Git 提交。
 - **Phase 19 Status:** complete。
+
+## 2026-07-23 同步今日转换修复到 VxEditor41
+
+- 用户要求把今天在 tov5parser 修复的全部 V4→V5 转换问题同步到 VxEditor41。
+- VxEditor41 当前存在用户未提交修改和大量未跟踪组件目录；本轮只修改 `src/utils/convertV4ToV5/` 内必要文件，不触碰其他内容。
+- 按用户既有要求，不在 VxEditor41 新增 `findings.md`、`progress.md`、`task_plan.md`；计划记录仅保留在 tov5parser。
+- 已确认 VxEditor41 缺少今日 3 项修复，并移植到对应 3 个生产文件：full-js 三元回调与单行输出、infinite 动画 play 自动 skip、延时变量方法后的零时长刷新让步。
+- 未向 VxEditor41 添加测试文件或任何规划文档；其他脏工作区内容保持不动。
+- 三文件差异检查通过；首次定向 ESLint 为 0 errors、1 条纯格式 warning，已按仓库 Prettier 规则调整单元素 `args` 数组。
+- 调整后定向 ESLint 0 errors/0 warnings，3 个文件 Babel 语法解析全部通过。
+- `npm run build` 成功完成；webpack 只有仓库其他文件的 33 条既有 warning，未出现本次转换文件错误。
+- 最终 VxEditor41 状态核验：本次只新增 3 个转换文件修改；原有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录均保持原状；仓库根目录没有规划文档。
+- 本轮未创建 Git 提交，按仓库规则等待用户确认后再提交。
+- **Phase 20 Status:** complete。
+
+## 2026-07-23 外部 V5 JSON 服务注册差异诊断
+
+- 用户提供 `/Users/lianghuang/Downloads/case_12225413.json`，要求与当前 `localCases/v5/frp-pad/app.v5.json` 对比。
+- 目标是解释服务 `ceyjn3ca3j50000468k0` 为什么在外部 JSON 中可正常调用，而当前转换产物运行时报“服务不存在”。
+- 本轮只做只读结构分析，不修改 JSON 或转换程序。
+- 已确认服务定义、所属模块、调用 AST、参数和全部节点 ID 均未丢失；两份 JSON 节点规模与 ID 集合完全一致。
+- 关键差异为外部文件经过 V5 server 编译：目标服务事件带 998 字符 `_code`，server 根带 `v2=1`；当前转换产物的 80 个服务只有 AST，`_code` 数量为 0，server 根也无 v2。
+- 按运行时注册规则验证：外部可注册 20 个服务并包含目标，当前可注册 0 个服务，不包含目标；根因已确定。
+- 建议后续修复转换器：输出前对 server classes 执行 AST→`_code` 编译，并补齐 V5 server 模式标记。本轮未实施代码修改。
+- **Phase 21 Status:** complete。

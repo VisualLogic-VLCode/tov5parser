@@ -10,6 +10,7 @@ import { convertV4CaseJsonToV5CaseJson } from './index.js';
 import { loadRuntimeMaps } from '../index.js';
 import { getLegacyFormulaTextValue } from './utils/action.js';
 import { genConObj, getLegacyConditionTextValue } from './utils/con.js';
+import { compileV5ServerAst } from './serverAstCompiler.js';
 
 // 将包内 ivxMap.txt / legacyIvxMap.txt 载入运行时全局（VxWidgetMap/VxJaMap 等）
 function ensureIvxMapNodeEnv() {
@@ -209,6 +210,103 @@ test('convertV4CaseJsonToV5CaseJson converts structure without touching input', 
   assert.deepEqual(svcNode.props.outParams, [{ name: 'q1', type: 'JsonVal' }]);
   // 小模块类完成转换
   assert.equal(v5CaseJson.stage.classes.length, 1);
+});
+
+test('compileV5ServerAst makes server class services registrable', () => {
+  ensureIvxMapNodeEnv();
+  const serviceNode = {
+    id: 'service-in-class',
+    type: 'data-service',
+    uis: { name: 'getStyleList' },
+    props: {
+      inParams: [{ name: 'session', type: 'JsonVal' }],
+    },
+    children: [],
+    events: {
+      list: [
+        {
+          name: 'callService',
+          ast: {
+            op: 'let',
+            val: ['serviceResult', 'JsonVal'],
+            args: [{ op: 'val', val: 'ok' }],
+          },
+        },
+      ],
+    },
+  };
+  const caseJson = {
+    server: {
+      id: 'server-root',
+      type: 'system-server',
+      props: {},
+      children: [],
+      classes: [
+        {
+          id: 'server-class',
+          type: 'data-modClass',
+          props: { classId: 'C_server_class' },
+          children: [serviceNode],
+        },
+      ],
+    },
+  };
+
+  assert.equal(compileV5ServerAst(caseJson), 1);
+  assert.equal(caseJson.server.props.v2, 1);
+  assert.match(
+    serviceNode.events.list[0]._code,
+    /_checkInParamsTypeError\(\[{"name":"session","type":"JsonVal"}\], param\)/,
+  );
+  assert.match(
+    serviceNode.events.list[0]._code,
+    /let serviceResult = "ok"/,
+  );
+  assert.equal(
+    typeof serviceNode.events.list[0]._code,
+    'string',
+    'runtime service collection only registers string _code',
+  );
+});
+
+test('compileV5ServerAst mirrors loose function-group parameter handling', () => {
+  ensureIvxMapNodeEnv();
+  const funcGroup = {
+    id: 'funcgroup',
+    type: 'data-funcGroup',
+    props: {
+      inParams: [{ name: 'count', type: 'long' }],
+    },
+    children: [],
+    events: {
+      list: [
+        {
+          name: 'callFuncGroup',
+          ast: {
+            op: 'let',
+            val: ['funcResult', 'JsonVal'],
+            args: [{ op: 'val', val: 1 }],
+          },
+        },
+      ],
+    },
+  };
+  const caseJson = {
+    server: {
+      id: 'server-root',
+      type: 'system-server',
+      props: { paramLooseMode: true },
+      children: [funcGroup],
+      classes: [],
+    },
+  };
+
+  compileV5ServerAst(caseJson);
+  assert.match(
+    funcGroup.events.list[0]._code,
+    /^fParamfuncgroup\.count = toLong\(fParamfuncgroup\.count\);/,
+  );
+  assert.equal(funcGroup.props._code, funcGroup.events.list[0]._code);
 });
 
 test('converted cloud module classes are marked editable in v5', () => {

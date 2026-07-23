@@ -10,6 +10,7 @@ import {
   clearActiveEnv,
 } from './env.js';
 import { installLegacyVxWidgetMapOverlay } from '../legacyMaps/legacyVxWidgetMapOverlayInstaller.js';
+import { compileV5ServerAst } from './serverAstCompiler.js';
 
 // 4.x 案例 JSON（{ case, stage, server } 结构，即 4.1 编辑器 saveDealCase 的产物）
 // 转 5.x 案例 JSON。ntype 为 4.x 平台案例记录上的案例类型，未传时从
@@ -27,7 +28,9 @@ function convertV4CaseJsonToV5CaseJson({ v4CaseJson, ntype } = {}) {
   setActiveEnv(createV4ConvertEnv({ v4CaseJson: workingJson, ntype }));
   try {
     const converter = new ConvertV4ToV5();
-    return converter.exec({ nodes: workingJson });
+    const v5CaseJson = converter.exec({ nodes: workingJson });
+    compileV5ServerAst(v5CaseJson);
+    return v5CaseJson;
   } finally {
     clearActiveEnv();
     if (typeof uninstallOverlay === 'function') uninstallOverlay();

@@ -366,3 +366,56 @@
 - `convert-local-cases.mjs` 会把所有 V5 产物写成无缩进紧凑 JSON，但其常规目标布局面向 `localCases/v4` 根下文件；frp-pad 位于子目录，需要直接调用同一转换库生成到既有 `localCases/v5/frp-pad/app.v5.json`，避免误写根目录。
 - frp-pad 已重新生成：29,884,854 bytes、文件换行 0。新产物共有 64 个无 `time.val` 的刷新让步动作，与源案例中 64 个启用的带延时变量方法数量一致。
 - 目标 `cv7jynaa3j50000btcag` 的相邻顺序已精确核验：前一行为原 `delaysMethod(time=1.5)`，当前行为 `setFalse` 的 `op:"get"`，后一行为随机 ln `d9gxppt60k4c091ewwy0` 的 `op:"let"`；其 `time` 参数只有 `key:"time", op:"val"`，没有 `val` 字段。
+
+## 同步今日转换修复到 VxEditor41（2026-07-23）
+
+- tov5parser 今日共有 3 个功能提交：`2004c01`（三元嵌套回调 + full-js 单行 jsfn）、`35e58a7`（跳过 infinite data-animate play）、`e19833e`（延时变量方法后补 UI 刷新让步）。
+- VxEditor41 转换目录当前工作区干净；仓库其他位置存在用户的 `.gitignore`、`src/stores/event.js` 修改和多批未跟踪组件目录，必须保持不动。
+- VxEditor41 最近的 `3572003d4`、`76aef28a1` 已同步更早的文本、方法参数及真实案例公式修复，但特征检索未发现今天 3 个提交的关键实现；当前只命中原有 `genActionDelay(time)`。
+- 精确源码核对确认 VxEditor41 缺少全部 3 项：full-js 仍为 `generate(parsed)` 且 `ConditionalExpression` 仍直接 `processParsedTree()`；动作转换仍只按 `block.enable` 设置 skip；延时结果仍是 `[_block, ...cbList]`，且 `genActionDelay` 总是写入 `val: time`。
+- VxEditor41 与 tov5parser 的对应文件为：`formulaCode/V4FormulaCodeConverter.js`、转换入口 `index.js`（对应 `converter.js`）和 `utils/action.js`。今天的生产代码改动可按这 3 个文件逐块移植，不需要复制 Node 专用 env 或 tov5parser 测试框架。
+- VxEditor41 没有转换器单测目录或 test script，不能直接复制 `node:test` 文件；但依赖中已有相同版本 `acorn@8.17.0`、`astring@1.9.0`，并且本地 `node_modules`、ESLint/Babel/webpack 配置齐全，可用定向 ESLint、Babel 编译检查和项目 build 做适配验证。
+- 三文件移植差异与 tov5parser 功能提交一致，`git diff --check` 通过；首次定向 ESLint 为 0 errors，仅 `utils/action.js` 的单元素数组换行触发 1 条 Prettier warning，需要按 VxEditor41 格式收紧为单行。
+- 格式调整后，3 个目标文件定向 ESLint 为 0 errors/0 warnings，Babel `parseSync` 全部通过。
+- VxEditor41 正式生产构建成功：webpack compiled with 33 warnings，耗时约 65.6 秒。警告均来自仓库其他既有文件/未跟踪组件（Sass deprecation、旧 Prettier、缺失 export 等），目标 3 个转换文件没有构建告警。
+
+## 外部 V5 JSON 与当前 app.v5.json 的服务差异（2026-07-23）
+
+- 两份文件都是完整 `{case, stage, server}` JSON；外部文件约 26.69 MB，当前转换产物约 29.88 MB。
+- 服务 `ceyjn3ca3j50000468k0` 在两份 JSON 中都只定义一次，位置相同：`server.classes[7].children[4]`，类型均为 `data-service`、名称均为 `getStyleList`，输入/输出参数、AST、所属后台模块类均存在。
+- 所属后台模块类也一致：`cd4bs1ca3j50000cc7fg`（FRP_选择弹窗_款式），`classId=C_cd4bs1ca3j50000cc7g0`、`widgetId=15185`、`isModServer=true`、`modEdtVer=2`；不是服务定义被转换器丢失或模块标记缺失。
+- 调用 AST 在两份文件中均为 `op:'runsvc', val:'ceyjn3ca3j50000468k0'`，4 个参数结构一致；外部位于 `stage.classes[14]`，当前位于 `stage.classes[15]`，只是类数组顺序发生变化，调用所属节点 ID 仍是同一个 `ceyjmesa3j50000467fg`。
+- 首个关键差异：外部 JSON 的服务事件 `ceyjn3ca3j50000468kg` 同时含 `ast` 和 998 字符的 `_code`；当前 app.v5.json 只有 `ast`，没有 `_code`。
+- 第二个关键差异：外部 JSON 的 server 根 `props.v2=1`，当前 app.v5.json 的 server 根没有 `v2`。需要继续从 V5 编译/运行时代码确认服务注册依赖的是 `_code`、`v2`，还是二者组合。
+- 本地 V5 后台产物构建代码 `vlparser/vl-local-artifact.mjs::collectServicesAndVars()` 明确只在 `node.events.list[0]._code` 是字符串时，才把 `data-service` 写入 services 注册表；仅有 AST 的服务不会注册。该文件还会在 compiled code/service 数量为 0 时直接报 `compiled data-service _code is empty`。
+- V5 编辑器的 `eventView/genCode/genCode.js` 会把事件编译结果 `_code` 写回函数/动作组等节点；正常外部 JSON 已经过这一步，而直接转换产物只完成 V4 event tree → V5 AST，没有完成 server AST → 可执行 `_code` 编译。
+- 因此 `_code` 缺失已经足以解释“节点存在但运行时服务不存在”；`server.props.v2=1` 仍需确认是编译模式标识还是独立注册条件，但不是唯一必要差异。
+- VxEditor5 `tree.dealServer()` 在新版通用事件模式保存案例时统一写入 `server.props.v2=1`；这是“已由 V5 编辑器保存/编译”的版本标志。NodeCreator 创建的新后台根也默认带 `v2:1`。
+- `serviceMissingError` 的另一来源是 VLang 项目解析阶段按服务名查不到 backend service node，但本案例两份 JSON 的 service node 都存在；结合实际差异，当前问题更符合后端服务注册表因缺 `_code` 未收录，而不是前端 AST 未绑定 service ID。
+- 全量统计进一步确认：两份 JSON 都有 80 个 `data-service` 且 80/80 都有 AST；外部正常文件已有 20 个服务带事件 `_code`，当前 app.v5.json 为 0/80。目标 `getStyleList` 正属于外部已编译的 20 个之一。
+- 外部仍有 60 个未编译 service，说明编辑器不会无条件编译所有云端模块，只会编译当前案例实际纳入后台的模块/服务；但目标模块被纳入并生成 `_code`，当前转换产物对任何服务都没有执行编译阶段。
+- 当前 app.v5.json 保留了 799 个 V4 动作组的旧 `props._code`，外部编辑器保存后只保留/重建其中 354 个；这也证明外部文件不是单纯字段补丁，而是经过 V5 保存时的代码生成和清理流程。
+- 目标前后台模块类的 `classId/widgetId/modEdtVer/isModServer/serverMap/provides/dbMap` 均一致；目标服务 AST 除转换时生成的匿名 block ln 不同外，结构一致。模块关联和服务业务 AST 可排除。
+- `v2` 在本地字段说明中定义为“服务端版本/模式标记”，V5 编辑器保存通用事件案例时写入；它本身不是服务 ID 映射。结合 `_code` 统计，实际失效链条是：直接转换文件没有 V5 server 编译标记/产物 → 发布路径未把目标 AST 编译进 services 表 → `runsvc` 按 ID 查询时显示服务不存在。
+- 两份 JSON 的结构规模完全一致：均为 11,607 个节点、11,581 个唯一 ID、stage 13 个直属节点/35 个 class、server 82 个直属节点/20 个 class；节点 ID 集合无任何增删。stage class 仅数组顺序不同，server class 集合和顺序都一致。
+- 按实际服务注册规则模拟：外部 JSON 可注册 20 个服务，目标 ID 存在且代码长 998；当前 app.v5.json 可注册 0 个服务，目标 ID 不存在。这是“服务不存在”的直接、可重复证据。
+- `VLangModProcessor.preProcessImportedCaseJson()` 在正常导入流程中会调用 `processModServerInsClassAst()`，后者遍历 server classes 并用 `ast2js` 把 event AST 写成 `_code`。外部 JSON 显然经过该流程；当前转换器只生成 AST，没有执行这一步。
+- 若要让转换产物本身可直接作为最终 V5 运行/发布态，转换程序需要在输出前编译 server class AST 为 `_code`，并补 `server.props.v2=1`；仅复制服务节点或改 `runsvc.val` 都无法解决。
+- Phase 22 开始时确认 tov5parser 自身尚无 `ast2js` 或等价 V5 后台编译器依赖；不能只设置 `server.props.v2=1`，需要把可部署的最小编译实现纳入转换链。
+- VxEditor5 的 `src/utils/ast2js.js` 是 1,344 行的自包含 ESM 文件，没有 import；可作为独立转换项目的运行时代码生成器复用。vlparser 内另有较旧的 1,065 行版本，两者已存在差异，本次应以 VxEditor5 当前实现为准。
+- VLangModProcessor 的实际编译范围包括 `server.classes` 与 `server` 根两个入口；每个入口独立建立子树 node map，深度遍历所有带 AST 的事件，并把生成结果写入事件 `_code`。`data-funcGroup` 还会同步写 `node.props._code`。
+- 当前 `v4ToV5/index.js` 在 `converter.exec()` 后立即返回，尚无输出后处理阶段；后台编译适合放在这里，且必须在 active env/组件映射仍有效时完成。
+- 用当前 frp-pad 目标服务 AST 实测 VxEditor5 `ast2js` 可成功生成 732 字符代码，主体调用与外部正常 JSON 一致；说明 AST 本身可编译。
+- 生成代码与外部 `_code` 尚有两点差异：外部前置了服务入参类型检查（约 266 字符）；当前 VxEditor5/旧 vlparser `ast2js` 对 server-api 调用末尾多一个 `undefined` 参数。前者来自 VxEditor5 `stores/funcs/generalAst.js` 的事件代码包装，不属于纯 `ast2js`。
+- 因此最终修复不能只机械调用 `ast2js`；还需要复用服务事件保存时的入参检查包装规则。多出的可选参数是当前编译器版本差异，不影响“服务是否注册”，但应以当前 V5 编译器输出为准。
+- V5 编辑器保存后台事件时会先深拷贝 AST、清理 fake callback，再调用 `ast2js`；随后按 `node.props.inParams` 添加 strict 类型检查（默认）或按后台根 `paramLooseMode` 做入参类型转换。`data-funcGroup` 使用 `fParam<id>`，普通 service 使用 `param`。
+- 外部正常 JSON 的 20 个 `_code` 全部位于当前实际使用的两个 server class（“FRP_选择弹窗_款式”3 个、“FRP_PAD_量体款式”11 个等合计 20）；其余 60 个 class service 仍只有 AST。这说明“只要运行时会用到的 class 已编译即可”，但转换器无法可靠预测所有动态模块使用路径，因此完整编译全部 `server.classes` 更稳妥，也与 `VLangModProcessor.processModServerInsClassAst()` 的正式行为一致。
+- vl-local-artifact 的 service 收集函数只遍历传入 server 的 children，不自动遍历 `server.classes`；其上游先把实际后台模块组合进 backend server。编辑器运行当前案例则直接依赖 class 中的 `_code`，目标服务恰处在已实例化 class。
+- 新编译器对合成 class service 已生成 V5 strict 入参检查与主体代码，并写入字符串 `_code`；项目既有转换测试在接入后保持通过。
+- 本地批量转换脚本已固定使用 `JSON.stringify(v5CaseJson)`，因此重新生成的 `app.v5.json` 会继续保持单行压缩格式。
+- 真实 frp-pad 全量转换成功：server 范围共有 80 个带 AST 的事件、80 个 data-service；修复后 80/80 均生成字符串 `_code`，且 80 份代码全部通过 `new Function` 语法校验。
+- 目标服务 `ceyjn3ca3j50000468k0` 的 `_code` 长 1,008 字符，包含与正常外部 JSON 相同的 `_checkInParamsTypeError` 前缀和服务主体；相对外部 998 字符仅是当前 V5 ast2js 的可选参数位差异。
+- 新产物 `server.props.v2=1`、JSON 换行数为 0，大小 29,972,400 bytes。
+- V5 保存后处理除入参检查外还对 `callTimerService` 和 `callTransaction` 做专用包装。当前实现已覆盖 timer；transaction 需要从 AST 中收集实际数据库组件 ID 后生成 `txBegin/txCommit` 包装，不能简单省略，否则未来转换含事务组件的案例会得到已注册但语义不完整的 `_code`。
+- transaction 的正式 DB ID 计算依赖案例 nid/uid/gid/eid、数据库 scope 和编辑器 widget 元数据；独立转换接口目前只接收 case JSON/ntype，不保证具备完整工作区身份上下文。盲目复刻会产生错误前缀。
+- 因此本轮不扩展 transaction 编译语义；应保持与 VLangModProcessor 的通用 AST 编译一致，仅添加目标服务所必需且可由节点自身完整确定的入参包装。timer 包装同样只依赖事件名，可安全保留。
