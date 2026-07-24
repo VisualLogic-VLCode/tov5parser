@@ -1,5 +1,41 @@
 # Progress Log
 
+## Session: 2026-07-24（同步与提交）
+
+### Phase 29: 同步 VxEditor41 并提交推送双仓库
+- **Status:** in progress
+- 已确认用户授权双仓库提交和 push；VxEditor41 的用户既有修改已列出并将排除在本次提交之外。
+- 已定位 VxEditor41 对应打印器，确认转换目录同步前干净且没有现成回归测试文件。
+- 已同步打印器修复；定向 ESLint/Babel 检查通过。额外内存重放需调整 Babel module 输出方式后复验。
+- CommonJS 内存重放和 VxEditor41 生产构建均通过；同步验证完成，准备核对远程分支并精确暂存。
+- 已 fetch 两个远程且分支无分叉；最终 diff 核对通过，准备按明确文件列表暂存。
+
+## Session: 2026-07-24（续）
+
+### Phase 28: 修复数字字面量成员访问序列化
+- **Status:** in progress
+- 已恢复 Phase 27 的真实案例证据，准备先补回归测试再实施最小打印器修复。
+- 首版完整 converter 测试因单测环境未初始化 sysutil map，在打印器前进入空值分支；已确认改为直接覆盖 `ExprAstToString`，不重复同一失败路径。
+- 已新增精确失败回归测试并修改 `ExprAstToString.js`；数字 Literal receiver 现在保留括号，定向测试 9/9 通过。
+- 全量测试 45/45 通过，进入案例 11023063 重转与全量 jsfn 审计。
+- 已重转 `localCases/v5/11023063/app.v5.json` 并更新三份诊断/分析文档；全部 1,004 个 jsfn 通过编译审计，目标公式括号正确。
+- 已重建运行包并检查最终差异；代码改动仅为 `ExprAstToString.js` 和 `jsepWrap.test.js`，等待用户确认是否创建 Git 提交。
+- **Phase 28 Status:** complete。
+
+## Session: 2026-07-24
+
+### Phase 27: 获取并转换案例 11023063
+- **Status:** in progress
+- 已确认仓库 `main` 工作区干净；现有本地转换脚本支持 `--ntype`、`--diag` 和紧凑 v5 JSON。
+- 已确认 `frp-pad` 错误文档基准包含逐条 JSON、逐条 Markdown和根因分析 Markdown。
+- 已启动中文服只读数据库隧道，并在临时目录准备好 Python 数据库驱动；首次查询因 env 变量未导出而未连接，已确定用 `set -a` 修正。
+- 只读元数据查询成功：案例为 4.1、`ntype=1`，已取得当前 `work_id`，可进入编辑器加载接口下载阶段。
+- 已从编辑器 `/work/load` 接口取得二进制并成功解码到 `localCases/v4/11023063/app.json`；完整性与紧凑格式校验通过。
+- 已启动带诊断转换；包装命令在转换完成后因 zsh 保留变量名报错，下一步直接核查转换日志和落盘产物，避免无意义地重跑。
+- 转换实际成功：`app.v5.json` 26,756,951 bytes；诊断 1,023 次、去重 999、dropped 0、jsfn fallback 1,023。三份产物已归位 `localCases/v5/11023063/`。
+- 已补齐 v4 案例 README 和 v5 `app.convert-errors.analysis.md`；分析定位 1 个无效 `jsfn` 及 2 个源数据悬空服务引用。
+- 交付验证完成：v5/诊断产物均可解析且 v5 保持紧凑格式；767/767 节点、5,051/5,051 动作落点通过；全量测试 44/44 通过，Phase 27 complete。
+
 ## Session: 2026-07-07
 
 ### Phase 1: 调研与依赖抽离设计

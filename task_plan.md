@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 26（提交并推送双仓库修复）— complete
+Phase 29（同步 VxEditor41 并提交推送双仓库）— in progress
 
 ## Phases
 
@@ -246,6 +246,30 @@ Phase 26（提交并推送双仓库修复）— complete
 - [x] 确认两个远程分支更新且用户其他修改未进入提交
 - **Status:** complete
 
+### Phase 27: 获取并转换案例 11023063（2026-07-24）
+- [x] 从中文服只读数据库确认案例版本、`work_id`、`ntype` 和基本元数据
+- [x] 调编辑器加载接口下载并解码完整 v4 案例 JSON，校验 `stage/server/case`
+- [x] 用当前转换器和正确 `ntype` 生成紧凑 v5 JSON及诊断报告
+- [x] 若有错误，按 `localCases/v5/frp-pad` 结构生成逐条错误文档与归类分析文档
+- [x] 校验产物可解析、关键结构完整，并运行项目测试
+- **Status:** complete
+
+### Phase 28: 修复数字字面量成员访问序列化（2026-07-24）
+- [x] 为 `(1).toString()` 的 custom-expression 输出增加最小回归测试
+- [x] 修复 `ExprAstToString` 对数字 `Literal` receiver 的括号处理
+- [x] 运行定向测试和项目全量测试
+- [x] 重新转换案例 11023063，确认全部 `jsfn` 可编译并更新错误分析
+- [x] 检查最终差异，等待用户确认是否创建 Git 提交
+- **Status:** complete
+
+### Phase 29: 同步 VxEditor41 并提交推送双仓库（2026-07-24）
+- [x] 核对 VxEditor41 转换器对应文件与现有用户改动边界
+- [x] 同步数字 Literal receiver 括号修复并完成定向验证
+- [x] 核对 tov5parser 和 VxEditor41 的待提交文件
+- [ ] 分别创建 Git 提交，确保 VxEditor41 不包含用户其他修改
+- [ ] 推送两个仓库当前分支并验证远程状态
+- **Status:** in progress
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -287,3 +311,8 @@ Phase 26（提交并推送双仓库修复）— complete
 | VxEditor41 新编译模块首次 ESLint 有 1 条函数参数换行 warning | 1 | 按仓库 Prettier 规则改为单行解构参数，不使用自动修复以免扩大差异 |
 | Chrome 读取最新 V5 页开发日志两次均超时 | 2 | 首次宽日志、第二次按服务 ID 窄过滤仍超时；停止页面日志读取，不再重复，改以 JSON/编译器/运行时规范证据定因 |
 | zsh 展开不存在的 `test*` 路径导致检索命令中止 | 1 | 不重复使用未引用 glob；改为先用 `rg --files` 确认测试文件路径，再检索明确文件 |
+| Python 元数据查询读不到 shell 中未导出的 `MYSQL_HOST` | 1 | 环境文件仅赋值未 export；下次用 `set -a` 加载后再执行只读查询 |
+| 转换包装命令给 zsh 只读变量 `status` 赋值 | 1 | 转换子命令已先执行；不重复转换，改为检查日志和产物，并使用其他变量名保存退出码 |
+| 诊断汇总的一次性 Node 表达式括号拼写错误 | 1 | 产物移动已成功；改用分步语句重跑只读统计，不重复文件操作 |
+| 数字 receiver 首版测试通过完整 converter 时缺少运行时 sysutil map | 1 | 按现有测试分层改测 `jsep → ExprAstToString`；完整链路由真实案例重转覆盖 |
+| VxEditor41 Babel 默认输出保留 ES module import，CommonJS 内存重放失败 | 1 | 不重复默认转换；改为显式追加 modules-commonjs 插件后执行重放，构建单独记录退出状态 |

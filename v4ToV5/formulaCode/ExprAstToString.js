@@ -57,8 +57,10 @@ export default class ExprAstToString {
         // 例如：obj['prop']
         let { object, property, computed, optional } = ast
         let objStr = this.visit({ ast: object })
-        // 判断是否需要添加括号
-        if (object.type === 'BinaryExpression') {
+        // 整数后直接接点号会被解析成小数（1.toString 非法），必须保留括号。
+        const isNumericLiteral =
+          object.type === 'Literal' && typeof object.value === 'number'
+        if (object.type === 'BinaryExpression' || isNumericLiteral) {
           objStr = `(${objStr})`
         }
         let propertyStr = this.visit({ ast: property })

@@ -1,5 +1,49 @@
 # Findings & Decisions
 
+## 2026-07-24 同步 VxEditor41 并提交推送
+
+- 用户明确授权：将数字字面量 receiver 修复同步到 VxEditor41，并将 tov5parser、VxEditor41 两个仓库都提交并 push。
+- VxEditor41 当前分支 `master`，已有用户修改 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录；本轮只会暂存转换器对应文件，其他内容保持不动。
+- tov5parser 当前分支 `main`，待提交为本轮转换器、回归测试及规划记录。
+- VxEditor41 对应文件为 `src/utils/convertV4ToV5/formulaCode/ExprAstToString.js`，同步前该转换目录无未提交差异；仓库没有对应自动化测试文件，将用 ESLint、Babel 解析和最小运行重放验证。
+- 修复已同步到 VxEditor41；定向 ESLint 和 Babel 解析通过。首次内存重放因该仓库默认 Babel 配置保留 ESM import 而无法由 CommonJS 包装器执行，下一次改用显式 CommonJS 模块转换。
+- 显式 CommonJS 转换后的运行重放成功输出 `(1).toString()` 并通过 JavaScript 编译。
+- VxEditor41 生产构建成功（webpack 33 条仓库既有 warnings、0 errors）；同步文件自身定向 ESLint 为 0 warnings/0 errors。
+- 两个本地分支均与最新远程一致（ahead 0 / behind 0），无需合并。
+- 待提交范围已核对：tov5parser 为转换器、回归测试和三份规划记录；VxEditor41 仅一个 `ExprAstToString.js`，用户其他修改不在范围内。
+
+
+## 2026-07-24 修复 `(1).toString()` 非法输出
+
+- 用户要求修复转换器把合法的 `(1).toString()` 输出成非法 `1.toString()` 的问题。
+- 已知根因位于 `v4ToV5/formulaCode/ExprAstToString.js` 的 `MemberExpression` 打印逻辑：只给 `BinaryExpression` receiver 加括号，未处理数字 `Literal`。
+- 本轮范围包括生产修复、最小回归测试、全量测试和案例 11023063 重转审计；不会未经确认创建 Git 提交。
+- 最小修复已实施：`MemberExpression.object` 为数值 `Literal` 时统一输出括号，避免整数后的点号被当作小数语法。
+- 回归测试直接覆盖 `jsep('(1).toString().padStart(2, "0")') → ExprAstToString`，修复前精确输出非法 `1.toString()`，修复后输出 `(1).toString()` 且可编译；定向测试 9/9 通过。
+- 项目全量测试增至 45/45 通过，未发现其他转换路径回归。
+- 案例 11023063 重转成功：v5 仍为紧凑 JSON，1,004/1,004 个 jsfn 全部可编译，参数数目不匹配 0，旧 `$refs/fParam/cbParams/_loop/$P_` 源语法残留 0。
+- 目标公式已从非法 `$v1 + "." + 1.toString().padStart($v2, "0")` 修正为 `$v1 + "." + (1).toString().padStart($v2, "0")`；错误分析文档已同步更新。
+- 新 v5 为 26,756,953 bytes，SHA-256 `a3c50f38863cf49fbd4d8fdbd1e807c3de0dea48a3a320ca853ec57a44dca45e`。
+- `archive.runtime-tov5.zip` 已重建（1.9 MB），压缩包内确认包含本次 `isNumericLiteral` 修复。
+
+
+## 2026-07-24 案例 11023063 获取与转换
+
+- 用户要求从中文服接口获取 nid `11023063` 的 v4 案例，转换成 v5 JSON。
+- 若转换产生诊断，交付目录与 `localCases/v5/frp-pad` 对齐：紧凑 `app.v5.json`、逐条 `app.convert-errors.json/.md`，并补充 `app.convert-errors.analysis.md` 做根因归类。
+- 下载链路按 `raw/中文服完整案例JSON导出.md`：只读数据库查 `work_id/ntype/版本`，再调用编辑器 `/work/load/{workId}?nid={nid}` 解码完整 `stage/server/case`。
+- 数据库确认：标题“frp-后台”，编辑器版本 4.1，`ntype=1`，`work_id=calcup52uhpcud8vv3h0-2496`，版本号 1016，已发布/已上架；发布链接码 `nL0DIwFE`。
+- 编辑器加载接口下载和解码成功；源文件为紧凑 JSON，29,297,509 bytes，顶层完整包含 `case/server/stage`，根类型分别为 `ih5-case/data-server/ih5-stage`。
+- 源树统计：前台 128 个节点、后台 638 个节点、case 根 1 个节点；stage/server 顶层均无 classes。
+- 使用 `ntype=1 --diag` 转换成功，v5 紧凑 JSON 为 26,756,951 bytes；诊断 1,023 次、去重 999 条，全部是 `custom-expr-fallback`，dropped 为 0。
+- 诊断主类为 `||` 372、full JavaScript 326、`&&` 129、unknown varType 51、flat 48、NewExpression 42、SpreadElement 19、toString 18，其余低频。
+- 结构初审：767/767 个源节点 ID 均存在；5,051/5,051 个普通源动作 BID 均有 v5 `ln` 落点；1,004 个 jsfn 参数数全部匹配、旧 `$refs/fParam/cbParams/_loop/$P_` 源语法残留为 0。
+- jsfn 语法审计发现 1 个不可编译表达式：`$v1 + "." + 1.toString().padStart($v2, "0")`。这是数值字面量后直接成员访问缺括号的转换结果，需在错误分析文档中明确标为转换器缺陷。
+- 已生成 `app.convert-errors.analysis.md`：将 1,023 次诊断收敛为 6 个根因组，明确 1 个转换器缺陷和 2 个源案例已有的悬空服务引用。
+- 最终校验：源/v5/诊断 JSON 均可解析，v5 为 26,756,951 bytes、0 换行的紧凑 JSON，`server.props.v2=1`；项目全量测试 44/44 通过，`git diff --check` 通过。
+- v5 SHA-256：`16c8682226d73a993bdf3d7b9b48663de8a15907a04c592f8b0746dd690d3263`。
+
+
 ## Requirements
 - 4.x 案例 JSON → 5.x 案例 JSON 的转换接口，独立项目 + 独立 lambda 部署
 - 只做 v4→v5，不做一步到 VL（5.x→vl 仍走 vlparser 的 legacyToVLang）

@@ -91,6 +91,17 @@ test('object-return arrows remain valid in custom-expression output', () => {
   })
 })
 
+test('numeric literal receivers stay valid in custom-expression output', () => {
+  const code = new ExprAstToString({
+    ast: jsep('(1).toString().padStart(2, "0")')
+  }).exec()
+
+  assert.equal(code, '(1).toString().padStart(2, "0")')
+  assert.doesNotThrow(() => {
+    new Function(`return (${code});`)
+  })
+})
+
 test('typeof expressions use the full parser and bare equals inside strings do not', () => {
   const converter = new V4FormulaCodeConverter({
     str: 'typeof fParamgroup.value === "number" ? fParamgroup.value : `${fParamgroup.value}`',
