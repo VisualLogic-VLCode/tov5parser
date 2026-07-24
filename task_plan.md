@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 29（同步 VxEditor41 并提交推送双仓库）— in progress
+Phase 29（同步 VxEditor41 并提交推送双仓库）— complete
 
 ## Phases
 
@@ -266,9 +266,9 @@ Phase 29（同步 VxEditor41 并提交推送双仓库）— in progress
 - [x] 核对 VxEditor41 转换器对应文件与现有用户改动边界
 - [x] 同步数字 Literal receiver 括号修复并完成定向验证
 - [x] 核对 tov5parser 和 VxEditor41 的待提交文件
-- [ ] 分别创建 Git 提交，确保 VxEditor41 不包含用户其他修改
-- [ ] 推送两个仓库当前分支并验证远程状态
-- **Status:** in progress
+- [x] 分别创建 Git 提交，确保 VxEditor41 不包含用户其他修改
+- [x] 推送两个仓库当前分支并验证远程状态
+- **Status:** complete
 
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。

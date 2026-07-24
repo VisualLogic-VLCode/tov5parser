@@ -9,6 +9,8 @@
 - 已同步打印器修复；定向 ESLint/Babel 检查通过。额外内存重放需调整 Babel module 输出方式后复验。
 - CommonJS 内存重放和 VxEditor41 生产构建均通过；同步验证完成，准备核对远程分支并精确暂存。
 - 已 fetch 两个远程且分支无分叉；最终 diff 核对通过，准备按明确文件列表暂存。
+- 已提交并推送 tov5parser `4c68e4f` 和 VxEditor41 `c0f215cbe`；VxEditor41 用户其他工作区内容保持未暂存。
+- **Phase 29 Status:** complete。
 
 ## Session: 2026-07-24（续）
 

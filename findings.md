@@ -11,6 +11,8 @@
 - VxEditor41 生产构建成功（webpack 33 条仓库既有 warnings、0 errors）；同步文件自身定向 ESLint 为 0 warnings/0 errors。
 - 两个本地分支均与最新远程一致（ahead 0 / behind 0），无需合并。
 - 待提交范围已核对：tov5parser 为转换器、回归测试和三份规划记录；VxEditor41 仅一个 `ExprAstToString.js`，用户其他修改不在范围内。
+- tov5parser 已创建并推送代码提交 `4c68e4f`（`main`）；VxEditor41 已创建并推送代码提交 `c0f215cbe`（`master`）。
+- VxEditor41 提交只含 `src/utils/convertV4ToV5/formulaCode/ExprAstToString.js`；用户的 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录均未进入提交。
 
 
 ## 2026-07-24 修复 `(1).toString()` 非法输出
