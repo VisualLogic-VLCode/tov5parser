@@ -492,3 +492,67 @@
 - 新产物的 80 个后台 `_code` 全部通过 JavaScript 语法校验；Acorn 统计 75 个 `sendServerApiRequest` 调用均为 10 个 `$sys.afunc` 总参数（4 个框架参数 + 6 个业务参数），1 个 `dbBatchUpdate` 为 8 个总参数（4 + 4），错误数量均为 0。
 - 新 `app.v5.json` 为 29,971,640 bytes、0 个换行，SHA-256 `9dc2196a6dfb623c1affc20dad727f9eec76d7a2c04ab29bbee17420cc421e73`。
 - VxEditor41 定向 ESLint 0 errors/0 warnings、`git diff --check` 通过、production webpack build 成功；build 的 33 条 warning 均来自仓库其他既有或用户未跟踪文件，目标转换文件没有告警。
+
+## 2026-07-24 量体部门单元格高度差异
+
+> 修正：本节后半基于 `VxEditor41-widgets/src/v5` 是线上 V5 组件实现的前提。用户确认该目录已废弃，V4/V5 共用 `src/components` 组件，因此关于 V5 layout 缺少 `ResizeObserver` 的根因判断无效。节点和案例行高事件链事实仍保留，根因在 Phase 31 重新定位。
+
+## 2026-07-24 按共用组件链重新诊断
+
+- `VxEditor5-widgets/src/components/ih5/core/rel/layoutRow/layoutRow.jsx` 与 4.x 对应实现一致；实际差异应位于播放器包装层、事件执行或变量依赖更新，不是两套 layout 组件。
+- 实际 V5 播放器仍把共用 React 组件包装在运行时控制组件中。包装组件的 `shouldComponentUpdate()` 由运行时 `_up` 标志控制，组件 props 和循环项何时重新计算由 `player.js` 的依赖系统决定。
+- 案例除测高布局行 `crqff6ma3j50000a6dw0.heightChange` 外，还有更直接的文本测高链：`crnjam2a3j50000gp5kg.valueChange` → 延时 0.1 秒 → 读取文本 `_boundHeight` → 再延时 0.1 秒 → 调用 `cvrgkvfa3j50000vq3tg` 更新行高。
+- V5 转换结果完整保留了上述 `valueChange` AST、两次 `delaysMethod(0.1)` 和 `_boundHeight` 调用；因此不能只检查 layout 的 `heightChange`。
+- Chrome 已成功连接 V5 页，但按全 DOM 文本扫描定位节点超时并导致浏览器执行会话重置。该方法对大案例不适用，后续改用已知 `.ih5-rel-text` / `.text_inner` CSS 类做窄范围读取。
+- 线上 V4 “量体部门”文本节点的两个 `valueChange` 动作本身都带 `delay: 0.1`：`cvrhqfna3j50000vqf80`（日志）与 `cvrgnxqa3j50000vq4zg`（调用“行高更新”动作组）。所以 V5 AST 中的两次 `delaysMethod(0.1)` 是源案例延时语义的正常承接，不是转换器重复插入。
+- V4 “行高更新”动作组会依次更新局部行高列表、计算最大值并回写全局 `ctmch3ca3j50000k5p6g`；继续寻找 V5 首个未触发或未传播更新的位置。
+- 将直接转换产物与 `/Users/lianghuang/Downloads/case_12225413.json`（经 V5 编辑器保存）做语义差异比较，目标链路除随机 `ln/Rtn` 外，唯一稳定差异是编辑器把 `objArr_find` 规范化为 `arr_find`。
+- 共用运行时 `sysFunc.js` 中 `objArr_find(value, fn)` 与 `arr_find(value, fn)` 实现完全相同，均直接执行 `value.find(fn)`；因此该差异不改变查找结果，尚不能解释行高不更新，需继续核查依赖收集或事件触发。
+- `player-shared.js` 的 AST 编译器对 `sysutil` 是通用处理：统一生成 `$sys.util.<name>(...)`，没有针对 `objArr_find/arr_find` 的特殊依赖逻辑；`switchexp` 的四参数形式也确认是条件/值对序列，先前看到的空 `=` 是 else 条件占位，不是三元转换错误。
+- 运行时 `Mi.fini` 会在动作结束后读取变更依赖并更新根/子引用；下一步需检查文本 `initialize/valueChange` 是否以当前循环实例触发，以及 `_boundHeight` 引用是否命中该实例。
+- 共用组件确认：文本继承 `Ih5Base`，在 `componentDidMount` 触发 `onInitialize`；布局行在自身 mounted 时先测量并触发 `onHeightChange`，随后触发 `onInitialize`。React 子组件 mounted 先于父布局行，因此文本初始化测高与布局行首次测高的时序本身存在竞争，但两版本组件代码一致。
+- V5 播放器把节点事件 props 绑定到当前编译 scope，并通过控制包装 `fi`/`Mi.fini` 传播依赖；尚未发现 V5 特有的 initialize 丢失。需要进一步检查共用组件中 `isV5` 分支、实际 DOM 尺寸和事件执行结果。
+- 共用 `Ih5Base` 在 `config.current.ver===2` 时会增加 `processAdaptiveWH` 样式，因此同一套组件仍可能按版本分支；目标空高度会得到 `height: fit-content`，但该值本身应当允许内容撑开，不足以解释整行仍锁在 52。
+- 更关键的调度差异位于 V5 播放器包装：`fi.shouldComponentUpdate(nextProps)` 只返回当前编译节点的 `_up` 标记。子文本绑定独立更新时，测高父布局行没有直接数据依赖，父包装不会更新，因而共用 `BaseLayout.componentDidUpdate()->getWH()` 不会被再次调用。V4 的宽更新路径会更广泛地触发组件树更新，案例依赖了这项隐式副作用。
+- 本轮 Chrome 重新连接成功，但接管单个既有 V5 标签仍在 30 秒超时并重置会话；此前同类宽扫描/接管已多次失败，按不重复失败原则停止此浏览器路径。
+- 默认行高初始化动作组 `crqfse5a3j50000a6en0` 会在量体列表请求/同步后，为新数据先写入 `行高=52` 和 `行高列表`，再 push 到全局 `ctmch3ca3j50000k5p6g`；V4/V5 均保留三处调用。
+- 因此完整时序更明确：默认 52 行高列表建立后表格渲染；测高文本/布局行再回写真实高度。V5 若子文本更新不触发父测高行二次 update，便会长期停留在默认 52，这与页面现象吻合。
+- 修正后的根因：不是两套组件差异，也不是目标公式/事件 AST 丢失；是同一套 React 组件在两套播放器调度中的更新粒度不同。V5 只更新依赖命中的子节点，测高父行 `crqff6ma3j50000a6dw0` 没有对文本值的直接依赖，故其 `BaseLayout.componentDidUpdate()->getWH()` 不再被子文本变化带动；默认 52 无法被后续真实高度覆盖。
+- 最小修复位置应在 V5 播放器/编译调度或案例转换的显式依赖补偿层，而不是废弃的 `src/v5` 组件目录。运行时方案是让受控布局父行在子树提交后重新测高；转换兼容方案则需把这类“子文本 `_boundHeight` 驱动父行高度”的隐式 V4 关系转为显式更新触发，不能简单改成 `height:auto`，否则会破坏整行等高。
+
+## 2026-07-24 剔除禁用 heightChange 后重查文本测高链
+
+- 用户指出 `crqff6ma3j50000a6dw0.events.enable=false`；因此上一轮把该节点 `heightChange` 当作有效补偿入口是错误的，必须从执行链中剔除。
+- `crqff...` 还位于 `cm1wxsqa3j500009jhk0`（`visible:false`）旧数据分支；当前可见分支的对应父行是 `d0dcr6ra3j5000080qtg`，其事件总开关同样为 false，所以两个父行的 `heightChange` 都必须从有效链中删除。
+- 当前可见分支真正启用的自动测高入口是文本 `d0dcr6ra3j5000080r1g`（量体部门）与 `d0dcr6ra3j5000080rj0`（量体师）的 `initialize/valueChange`；两者读取自身 `_boundHeight()` 后调用 `cvrgkvfa3j50000vq3tg` 回写行高。
+- 本地 V4/V5 精确核对：`crqff...events.enable=false`，文本 `crnjam...events.enable=true`，行高更新动作组 `cvrgkv...events.enable=true`；禁用判断无歧义。
+- V4 生成代码揭示延时语义：同级带 `delay:0.1` 的动作分别用独立 `setTimeout(...,100)` 调度。`valueChange` 的日志与 `fireFuncGroup` 都在约 100ms 并发执行；当前 V5 AST 则是 `await delay(0.1) → 日志 → await delay(0.1) → fireFuncGroup`，实际调用被累计到约 200ms。`initialize` 只有第二个动作延时，V4/V5 都约 100ms 调用。
+- `delaysMethod` 会稳定回调；`cvrgkv...` 内两个 `arrUpdate` 也无论匹配成功/失败都会调用回调，因此现有 `op:let` 不会因为无匹配而永久阻塞。问题更可能是延时后的测量值/作用域或调用时序，而不是 callback 不返回。
+- 转换器当前确实对每个 `block.delay` 执行 `result.unshift(genActionDelay())`，所以同级动作被强制串行累计；这与 V4 独立 `setTimeout` 语义不等价，是确定的转换时序差异。
+- `_boundHeight()` 本身共用且只返回 `ReactDOM.findDOMNode(this).getBoundingClientRect().height`，不存在 V4/V5 数值类型分支；行高初始数组结构也未发现转换差异。
+- 通过只读数据库取得线上 V5 `nid=12225473` 的 `work_id=d9h1jjbc1t2c73ch029g-1`，再按 raw 文档从 `/work/load` 解码出编辑器实际 JSON；它与本地最新 `app.v5.json` 在上述可见文本事件、动作组和全局行高数组上没有动作、参数或绑定缺失。
+- 编辑器实际 JSON 与本地产物在有效链上的唯一非随机差异是 `objArr_find → arr_find`；共享 `sysFunc.js` 中两者都直接执行 `value.find(fn)`，不是高度不更新的语义差异。
+- V5 player 对 `callFuncGroup` 的 async 包装会在函数体完成后执行 `$cbParam(true, result)`；因此“行高动作组没有显式返回动作，所以调用永不结束”的假设也可排除。
+- 目前唯一已证实但尚未闭环到 UI 症状的转换差异，是同级延时动作被串行累计。由于 `initialize` 仍会在约 100ms 执行同一行高动作组，必须继续通过实际运行值区分“文本事件未触发/实例作用域失效”与“行高数据已写但绑定未刷新”，不能再用禁用的父布局事件解释。
+
+### 最终运行时闭环
+
+- 用独立 Playwright 预置同一 `sessionStorage.session`，分别加载线上 V4/V5，并捕获案例自身日志；两页当前都成功取得 4 行相同数据。
+- V5 中两个启用文本的 `initialize/valueChange` 确实执行，`_boundHeight()` 实测返回 49；但每次进入 `cvrgkvfa3j50000vq3tg` 时，“量体行高列表”日志都是 `[]`，所以按数据 ID 的 `arrUpdate` 匹配不到任何记录。
+- V5 随后才输出“进入行高处理”，由 `crqfse5a3j50000a6en0` 创建 4 条默认高度 52 的记录；此后文本值没有再次变化，已错过的测高不会重放，最终行高停在 52。
+- V4 的顺序相反：先输出“进入行高处理”并建立 4 条记录，随后文本 `valueChange` 才以 49（内容更长时会大于 52）调用行高更新；此时 `arrUpdate` 有可匹配行，能够正常写回最大高度。
+- 首个分叉发生在列表加载动作组 `ccnwpq2a3j50000pe3yg`：设置主列表后调用 `crn0n2wa3j50000ag9tg` 获取详细信息，再调用 `crqfse5a3j50000a6en0` 初始化行高。
+- `crn0n2...` 的 V4 回调树在 `crn16z3a3j50000agang` 返回后，同级发起 4 个独立详细信息动作组；它们各自只有空 status 占位，V4 不等待它们完成，外层很快继续初始化行高。
+- 转成 V5 后，这 4 个动作因为组件方法声明了 `action.callback=true`，全部生成 `op:"let"` 并被串行 `await`；外层必须等用户、部门、公司、角色四个请求依次完成才初始化行高。文本初始化的 0.1 秒计时先到，因而在空数组上执行测高更新。
+- 因此最终根因不是禁用的 `heightChange`，也不是 `_boundHeight`、循环 scope 或 UI 刷新丢失，而是转换器把“具备回调能力但回调分支为空、V4 不承接返回值”的动作强制改成了 V5 阻塞式 `await`，改变了外层执行时序。
+- 转换器修复应区分“方法支持 callback”和“该动作实例实际消费 callback”：空 status 占位且返回值未被后续公式引用时，不应生成阻塞式 `let/await`；只有存在有效回调动作或确实引用 `${bid}Rtn` 时才等待。
+
+- V4/V5 的“量体部门”表头节点 `ch4bzxqa3j50000ykwz0` DOM 尺寸与计算样式一致，列宽和表头模块不是差异来源。
+- 当前表格正文的主要“量体部门”文本节点为 `cm21jqja3j5000036m3g`、`crnjam2a3j50000gp5kg`，另一套同构表格使用 `d0dcr6ra3j5000080r10/r1g` 等节点。文本属性均为宽 100%、空高度、12px 字号、15px 行高（fontSize 12 + lineHeight 3），V4/V5 保持一致。
+- 案例的实际自适应方案不是让 52px 单元格直接按文本撑开，而是用自动高度布局行 `crqff6ma3j50000a6dw0`（另一套为 `d0dcr6ra3j5000080qtg`）测量内容高度。
+- 该布局行的 `heightChange` 事件读取 `param.currentHeight`，并通过 `arrUpdate` 写入 `ctmch3ca3j50000k5p6g`（“量体行高列表”）。`crqfgtka3j50000a6e50`（“行高”）再按当前数据 ID 读取记录中的行高，找不到时回退 52；14 个正文单元格的 `height` 都绑定这个值。
+- `crqfse5a3j50000a6en0`（“行高处理”）会先为数据行补齐默认 52 的记录，随后依赖测高行的 `heightChange` 把大于当前值的高度回写。上述节点、公式和事件动作在 V5 中均已转换且语义完整。
+- V5 runtime 的 `src/v5/components/layout/baseLayout.web.ext.ts` 没有观察元素内容尺寸变化：只在 window resize、layout 自身 `updated()` 和 mounted 时读取 `offsetHeight`。文本值、条件节点或循环子项稍后完成渲染时，只会更新子组件，不保证测高布局行本身进入 `updated()`，因此新增换行没有触发第二次 `heightChange`。
+- V4 的 `src/components/ih5/base/baseLayout/baseLayout.jsx` 会在 React `componentDidUpdate()` 中调用 `getWH()`；案例实际依赖了旧架构中祖先随子树更新而重测的副作用。V5 独立组件更新后失去这项隐式行为。
+- 因此故障链是：量体部门文本变长并换行 → 测高行 DOM 实际内容高度变化但 V5 未重测 → `heightChange` 不触发 → 量体行高列表仍为 52 → 所有列继续使用 52px，视觉上内容溢出。
+- 正确修复点在 V5 layout runtime：在 mounted 后对 `webCom` 使用 `ResizeObserver`，回调中复用 `_updateWidthHeight()`，在卸载时 disconnect；保留现有去重比较即可避免事件循环。转换器不应把案例中的 52px 或 height 绑定改写为 auto，否则会破坏整行所有列等高的业务设计。

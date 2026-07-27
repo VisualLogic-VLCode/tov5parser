@@ -83,6 +83,9 @@ AWS 运维手册（凭证配置、查日志、回滚、一次性搭建命令记�
 面向调用方的完整指引（curl 与网页 fetch、大 JSON 通道、错误码）见
 [docs/api-calling-guide.md](docs/api-calling-guide.md)，可直接转发。调用示例：
 
+V4/V5 底层执行语义不同、无法由转换器安全自动修复的问题见
+[docs/manual-migration-issues.md](docs/manual-migration-issues.md)。
+
 ```bash
 curl -X POST 'https://ui9kfbjiwd.execute-api.cn-northwest-1.amazonaws.com.cn/' \
   -H 'Content-Type: application/json' \

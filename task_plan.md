@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 29（同步 VxEditor41 并提交推送双仓库）— complete
+Phase 33（记录自动转换无法解决的架构兼容问题）— complete
 
 ## Phases
 
@@ -270,6 +270,36 @@ Phase 29（同步 VxEditor41 并提交推送双仓库）— complete
 - [x] 推送两个仓库当前分支并验证远程状态
 - **Status:** complete
 
+### Phase 30: 量体部门单元格高度差异诊断（2026-07-24）
+- [x] 在 Chrome 中复现并定位 V4/V5 的目标表格、行和“量体部门”单元格
+- [x] 对比目标 DOM 层级、实际尺寸、计算样式和内容溢出状态
+- [x] 从 DOM 节点 ID 回查 V4/V5 JSON 的布局、文本和表格属性
+- [x] 区分转换数据错误、组件属性差异与 V5 运行时布局差异
+- [x] 给出确定根因、相关节点 ID 与修复建议
+- **Status:** complete
+
+### Phase 31: 按共用组件链重新诊断量体部门行高（2026-07-24）
+- [x] 撤销“V5 使用 `src/v5` 组件”的错误前提，确认线上 V4/V5 实际共用组件入口
+- [x] 对比 V4/V5 目标测高行收到的 props、事件参数和行高列表变化
+- [x] 检查 V5 AST 执行、循环作用域及变量更新是否改变行高事件语义
+- [x] 用既有真实 DOM 现象、线上 work 与播放器调度源码交叉验证首个分叉点
+- [x] 给出修正后的确定根因与最小修复位置
+- **Status:** complete
+
+### Phase 32: 剔除禁用 heightChange 后重查文本测高链（2026-07-24）
+- [x] 确认 `crqff6ma3j50000a6dw0.events.enable=false` 在 V4/V5 与编译期的实际效果
+- [x] 找到可见分支 `d0dcr...`，只保留两个启用文本的 `initialize/valueChange` 测高链
+- [x] 对比 `_boundHeight`、延时和 `cvrgkvfa3j50000vq3tg` 调用的 V4/V5执行语义
+- [x] 锁定有效链的首个分叉点，修正根因与修复建议
+- **Status:** complete
+
+### Phase 33: 记录自动转换无法解决的架构兼容问题（2026-07-24）
+- [x] 明确问题分类边界和转换器不能安全推断的原因
+- [x] 新增专项文档并记录 frp-pad 行高时序问题及全部相关 BID
+- [x] 给出 V4 业务逻辑改造方案和验收条件
+- [x] 在 README 增加文档入口
+- **Status:** complete
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -316,3 +346,6 @@ Phase 29（同步 VxEditor41 并提交推送双仓库）— complete
 | 诊断汇总的一次性 Node 表达式括号拼写错误 | 1 | 产物移动已成功；改用分步语句重跑只读统计，不重复文件操作 |
 | 数字 receiver 首版测试通过完整 converter 时缺少运行时 sysutil map | 1 | 按现有测试分层改测 `jsep → ExprAstToString`；完整链路由真实案例重转覆盖 |
 | VxEditor41 Babel 默认输出保留 ES module import，CommonJS 内存重放失败 | 1 | 不重复默认转换；改为显式追加 modules-commonjs 插件后执行重放，构建单独记录退出状态 |
+| Chrome 按横坐标扫描全部正文 `.text_inner` 导致读取超时并重置控制会话 | 1 | 不重复宽范围 DOM 扫描；先从本地 JSON 锁定正文节点 ID，再按精确 class 在页面读取 |
+| Chrome 重新 claim 已打开的 V5 预览页连续超时 | 2 | 扩展轻量 openTabs 正常，页面接管卡住；停止重复 claim，尝试复用 browser session 中已有受控 tab，否则转为 JSON 与运行时代码静态定因 |
+| Chrome 已受控 V5 页的定向开发日志读取仍超时 | 1 | 停止页面读取；用案例中的完整行高事件链与 V4/V5 布局生命周期实现交叉定因 |
