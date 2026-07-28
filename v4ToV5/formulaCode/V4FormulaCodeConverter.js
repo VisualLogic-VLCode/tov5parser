@@ -905,10 +905,10 @@ export default class V4FormulaCodeConverter {
   genStringConcatAST = ({ left, right }) => {
     let convertedArgs = []
     ;[left, right].map(item => {
-      let r = this.processParsedTree({
-        parsed: item,
-        identity: 'stringConcat'
-      })
+      // 只拍平子树自身已经判定出的字符串拼接。
+      // 外层存在字符串并不代表内部的 `+` 也是字符串运算，例如：
+      // `(6 + level * 18) + 'px'` 必须保留左侧数值加法。
+      let r = this.processParsedTree({ parsed: item })
       if (!Array.isArray(r)) {
         let arg = r?.args?.[0]
         let { op, args } = arg || {}

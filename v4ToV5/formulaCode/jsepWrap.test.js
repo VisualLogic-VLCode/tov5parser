@@ -102,6 +102,77 @@ test('numeric literal receivers stay valid in custom-expression output', () => {
   })
 })
 
+test('string concatenation preserves nested numeric addition', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: "(6+$refs.v0_chpq9t7a3j50000jzpp0*18)+'px'",
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+
+  assert.equal(ast.op, 'var')
+  assert.equal(ast.cType, 'String')
+  assert.equal(ast.args[0].op, 'concat')
+  assert.equal(ast.args[0].args.length, 2)
+  assert.deepEqual(ast.args[0].args[0], {
+    op: '+',
+    args: [
+      {
+        op: 'val',
+        val: 6
+      },
+      {
+        op: '*',
+        args: [
+          {
+            op: 'var',
+            args: [
+              {
+                op: 'get',
+                args: [
+                  {
+                    op: 'ref',
+                    val: ['arg0', 'chpq9t7a3j50000jzpp0']
+                  }
+                ],
+                _blockType: '$cbParams'
+              }
+            ]
+          },
+          {
+            op: 'val',
+            val: 18
+          }
+        ]
+      }
+    ]
+  })
+  assert.deepEqual(ast.args[0].args[1], {
+    op: 'val',
+    val: 'px'
+  })
+})
+
+test('ordinary string concatenation chains remain flattened', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: "'prefix-'+fParamgroup.value+'-suffix'",
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  assert.equal(ast.args[0].op, 'concat')
+  assert.equal(ast.args[0].args.length, 3)
+  assert.deepEqual(ast.args[0].args[0], {
+    op: 'val',
+    val: 'prefix-'
+  })
+  assert.deepEqual(ast.args[0].args[2], {
+    op: 'val',
+    val: '-suffix'
+  })
+})
+
 test('typeof expressions use the full parser and bare equals inside strings do not', () => {
   const converter = new V4FormulaCodeConverter({
     str: 'typeof fParamgroup.value === "number" ? fParamgroup.value : `${fParamgroup.value}`',

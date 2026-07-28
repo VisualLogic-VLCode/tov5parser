@@ -54,6 +54,15 @@
 - 首条记录为 frp-pad 行高问题，包含完整 BID、V4/V5 执行顺序、运行日志证据、无法通用自动修复的原因、V4 最小改造方案和验收条件。
 - README 已增加文档入口；本轮没有修改转换生产代码。
 
+## 2026-07-27 量体部门弹窗展开收起差异诊断
+
+- 用户报告：点击量体部门打开弹窗后，V5 的内容展开/收起行为不正确，V4 正常。
+- 本轮只读诊断，不修改转换程序；先复现交互，再通过 DOM、日志和节点 BID 回查转换前后动作链。
+- 继续使用 V4 `wt5RnwSK@10000590` 与 V5 `cFk6XuDE` 预览；页面加载时预置既有 sessionStorage 会话。
+- 当前 Chrome 实际打开的最新 V5 预览已更新为 `192cX76o`；本轮以该页和 V4 `wt5RnwSK@10000590` 对比。
+- 两页表格数据、量体部门文本和首行可点击区域一致；首行目标文本组件均位于约 `x=591..792, y=148..197`，cursor 为 pointer。
+- 已在两页点击同一首行量体部门，弹窗都成功打开并显示“确定”；下一步读取弹窗内树节点、展开图标和点击后的可见子节点差异。
+
 ## Session: 2026-07-24（续）
 
 ### Phase 28: 修复数字字面量成员访问序列化
@@ -552,3 +561,60 @@
 - 按运行时注册规则验证：外部可注册 20 个服务并包含目标，当前可注册 0 个服务，不包含目标；根因已确定。
 - 建议后续修复转换器：输出前对 server classes 执行 AST→`_code` 编译，并补齐 V5 server 模式标记。本轮未实施代码修改。
 - **Phase 21 Status:** complete。
+
+## 2026-07-27 量体部门弹窗树展开/收起异常诊断
+
+- 已在当前 Chrome 中确认 V5 实际预览地址为 `https://giupre.h5app.com/play/192cX76o`，并与 V4 `https://giupre.h5app.com/play/wt5RnwSK@10000590` 对比。
+- 两侧表格首行“量体部门”文本与点击区域一致，点击后均能打开“选择部门”弹窗。
+- 修正前一轮观察：V4 自动展开而 V5 折叠是浏览器会话残留状态；独立加载后两侧初始树都折叠，不是初始化差异。
+- 当前实际弹窗来自小模块 `chpq97ca3j50000y9370`（`FRP_选择弹窗_部门_多选`），模块已带 `modEdtVer:2`；树节点为 `chpq9t7a3j50000jzpp0`，行模板为 `chpq9t7a3j50000jzppg`。
+- 展开图标和动作分别为 `chpq9t7a3j50000jzpz0` / `chpq9t7a3j50000jzq00`；收起图标和动作分别为 `chpq9t7a3j50000jzq10` / `chpq9t7a3j50000jzq20`。
+- V4 行缩进公式使用 `$refs.v0_chpq9t7a3j50000jzpp0`；转换器将树的 `v0/v1/v2` 依次转为该树容器的 `arg0/arg1/arg2`，其中 `v1` 被展开/收起动作传给 `openNode/closeNode`。
+- 独立 Playwright 实测共享 TreeFor 组件参数正确：顶层 `currentLevel=0/index=0`，一级“工程部” `currentLevel=1/index=15`；V4 对应左缩进为 `6px/24px`，V5 却为 `60px/618px`。
+- V5 点击顶层后可以显示一级节点，但“工程部”的加号被错误缩进推到弹窗之外；即使强制点击该加号，V5 仍没有出现“老厂工程部/新厂工程部”，而 V4 正常展开。
+- V4 点击后开放节点集合包含顶层 index 0 和“工程部” index 15；V5 只有顶层 index 0。说明不仅 `arg0` 的缩进值错误，传给 `openNode` 的 `arg1` 也没有承接到当前深层树节点的真实 index。
+- 共用组件 `TreeItem.jsx` 明确以 `generateItem(itemData, levelIndex, [currentLevel, index, openType])` 传参；React fiber 也验证传入值正确，因此故障发生在 V5 生成模板回调/模块实例作用域解析 `ref:["argN", treeId]` 时，而非部门数据或树组件。
+- 首个分叉早于树状态写入：V5 在渲染行缩进和计算展开动作参数时就已取得错误的树回调参数。当前更准确的分类是“转换 AST 与 V5 小模块运行时回调作用域的契约不兼容”，修复点优先在 V5 module template 的 tree arg 引用解析/clone scope 绑定层。
+- 回归验收应同时覆盖：顶层缩进 6px、一级缩进 24px；点击“工程部”能显示“老厂工程部/新厂工程部”；收起后子项消失；其他分支的展开状态不受影响。
+- **Phase 34 Status:** complete。本轮只读诊断，未修改生产代码。
+
+## 2026-07-28 复核量体部门弹窗实际模块定位
+
+- 用户在小模块 `chpq97ca3j50000y9370` 中修改行 `chpq9t7a3j50000jzppg` 的静态左内边距后，预览没有变化；重新以当前预览 DOM 和运行时实例反查。
+- 已确认用户当前 V5 预览仍为 `192cX76o`，编辑器标签为 `#12225628`；Chrome 接管预览再次超时，停止重复该路径，改用独立页面复现。
+- 首行量体部门文本本身不是弹窗入口；实际入口是其右侧放大镜。点击后，弹窗树行 DOM 明确带 `chpq9t7a3j50000jzppg` class。
+- React fiber 确认该行的 `customClass`、`__events` 都是 `chpq9t7a3j50000jzppg`；上层实例 `modId=chpvc70a3j50000byak0`、`classId=C_chpq97ca3j50000y937g`，与模块定义 `chpq97ca3j50000y9370` 对应。
+- 静态左内边距改动无效的原因是 `binds.paddingLeft` 仍启用：运行时按 `(6+当前层级*18)+'px'` 计算并覆盖 `props.paddingLeft`。
+- 顶层树组件实际 `currentLevel=0,index=0`，但最终行 props/DOM 仍为 `paddingLeft=60px`，所以原“树回调参数承接异常”证据保持成立。
+- **Phase 35 Status:** complete。本轮只读复核，未修改生产代码。
+
+## 2026-07-28 绑定移除后树行缩进仍异常
+
+- 用户确认已删除 `chpq9t7a3j50000jzppg` 的左内边距绑定，只保留固定值 `6px`，但运行时视觉缩进仍不正确。
+- 这说明“绑定覆盖静态值”不足以闭环；重新核对最新 work JSON、预览实际模块版本和 DOM 最终样式来源。
+- 最新预览已确认改动生效：顶层行变为 `padding-left:6px`；展开后所有 `level=1` 子部门同样为 6px，故视觉仍不对。正确层级值应为顶层 6px、一级 24px。
+- 排除旧缓存和错误模块副本；固定 6px 只能绕开顶层异常，不能替代层级绑定。继续独立验证深层展开动作的树序号参数。
+- 固定 6px 后，“工程部”加号位于可见区域；点击能显示“老厂工程部/新厂工程部”，点击减号后两项消失。展开/收起动作本身及 `arg1` 正常。
+- 最终根因改正为字符串拼接转换错误：V4 `(6+level*18)+'px'` 被转为 `concat(6, level*18, 'px')`，运行时使用 `join('')`，所以 level 0/1 分别生成 `60px/618px`，而不是 `6px/24px`。
+- 问题函数为 `V4FormulaCodeConverter.genStringConcatAST()`；它在外层拼接上下文中错误地强制拍平内部数值加法。正确结果需保留内部 `op:'+'`，仅让外层负责与 `px` 拼接。
+- **Phase 36 Status:** complete。本轮只读诊断，未修改生产代码。
+
+## 2026-07-28 修复字符串拼接误拍平数值加法
+
+- 用户确认修复转换问题。本轮修改公式转换器并补回归测试；完成后不直接创建 Git 提交，等待用户确认。
+- 目标是把 `(6+level*18)+'px'` 转成外层 concat 包裹内部 `op:'+'`，同时保持普通字符串拼接链可拍平。
+- 已新增真实公式精确回归；修复前按预期失败：concat 参数数实际为 3，正确应为“内部 plus + px”两个参数。
+- 已修改 `genStringConcatAST()`：不再把外层字符串上下文强制传给内部子树；仅拍平子树自行生成的 concat。
+- 新增普通字符串拼接链回归，确认 `'prefix-'+value+'-suffix'` 仍被拍平为 3 个 concat 参数。
+- 定向测试 11/11、项目全量测试 47/47 通过。
+- 已用原始 `localCases/v4/frp-pad/app.json` 重新转换并归位压缩产物；目标 paddingLeft AST 为 `concat([ +(6, *(arg0,18)), "px" ])`。
+- 新产物 29,973,020 bytes、0 换行，SHA-256 `c773a2fc2d069ef99467836e40ef8ab1892f5826f349f96c6cb9b65f40340e96`。
+- **Phase 37 Status:** complete。代码和产物尚未提交，等待用户确认。
+
+## 2026-07-28 同步 VxEditor41 并提交推送双仓库
+
+- 用户授权将字符串拼接修复同步到 VxEditor41，并对 tov5parser、VxEditor41 两个仓库创建提交并 push。
+- 本轮只提交转换器修复、相关回归测试和 tov5parser 计划记录；VxEditor41 的其他既有改动继续隔离。
+- VxEditor41 仅修改 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`；已有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录保持不动。
+- VxEditor41 目标文件 ESLint 0 errors/0 warnings，production webpack build 成功；33 条 warning 均来自仓库其他既有/未跟踪文件。
+- 双仓库远端均未领先本地；提交范围已精确暂存，准备分别提交并推送当前分支。

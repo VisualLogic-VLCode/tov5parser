@@ -556,3 +556,43 @@
 - V4 的 `src/components/ih5/base/baseLayout/baseLayout.jsx` 会在 React `componentDidUpdate()` 中调用 `getWH()`；案例实际依赖了旧架构中祖先随子树更新而重测的副作用。V5 独立组件更新后失去这项隐式行为。
 - 因此故障链是：量体部门文本变长并换行 → 测高行 DOM 实际内容高度变化但 V5 未重测 → `heightChange` 不触发 → 量体行高列表仍为 52 → 所有列继续使用 52px，视觉上内容溢出。
 - 正确修复点在 V5 layout runtime：在 mounted 后对 `webCom` 使用 `ResizeObserver`，回调中复用 `_updateWidthHeight()`，在卸载时 disconnect；保留现有去重比较即可避免事件循环。转换器不应把案例中的 52px 或 height 绑定改写为 auto，否则会破坏整行所有列等高的业务设计。
+
+## 2026-07-27 量体部门弹窗树回调参数承接异常
+
+- 当前线上 V5 预览为 `192cX76o`；与 V4 `wt5RnwSK@10000590` 独立加载后，两侧“选择部门”树的初始状态一致，排除初始化展开状态和部门数据差异。
+- 活跃小模块为 `chpq97ca3j50000y9370`（`FRP_选择弹窗_部门_多选`），已设置 `modEdtVer:2`。树节点 `chpq9t7a3j50000jzpp0` 的行模板是 `chpq9t7a3j50000jzppg`。
+- 树展开动作 BID 为 `chpq9t7a3j50000jzq00`，收起动作 BID 为 `chpq9t7a3j50000jzq20`；二者依赖 V4 树特殊引用 `v1` 作为 `openNode/closeNode` 的 index。
+- 转换器按既有协议将 V4 `v0/v1/v2` 转为 V5 `arg0/arg1/arg2`。但 V5 小模块实例的生成模板没有把这些引用正确绑定到共享 TreeFor 回调提供的 `[currentLevel,index,openType]`。
+- 运行时证据：共享组件对顶层传入 `currentLevel=0,index=0`，对“工程部”传入 `currentLevel=1,index=15`；V4 行缩进为 `6px/24px`，V5 却为 `60px/618px`。
+- 交互证据：V4 展开“工程部”后出现“老厂工程部/新厂工程部”，开放节点包含 index 0 和 15；V5 强制点击同一加号后仍只有 index 0，深层节点没有打开。
+- 因此 `arg0` 的错误使深层控件移出弹窗，`arg1` 的错误使展开/收起动作不能操作正确节点。首个错误发生在行模板绑定和动作参数求值阶段，早于树组件状态变更。
+- 根因边界：部门服务、层级数据、共享树组件和 `modEdtVer` 均正常；问题位于转换后的树特殊参数引用与 V5 小模块 template/clone scope 运行时解析之间。不能通过修改部门数据、调整固定 padding 或简单偏移 arg 序号解决。
+- 优先修复 V5 运行时对模块实例内 `ref:["argN", forContainerId]` 的 clone-aware 作用域绑定；若必须由转换器兼容，应先明确运行时可稳定承接的树回调引用结构，并为 `data-module-defs` 内的 v0/v1/v2 增加回归测试。
+
+## 2026-07-28 Phase 34 定位复核
+
+- 用户修改 `chpq97ca3j50000y9370/chpq9t7a3j50000jzppg` 的静态左内边距后预览无变化，因此重新从 V5 `192cX76o` 的实际 DOM 反查。
+- 表格中的点击入口不是量体部门文本，而是单元格右侧放大镜（约 `x=798,y=173`）；点击后出现的树行 DOM class 明确包含 `chpq9t7a3j50000jzppg`。
+- 该行的 React props 同时显示 `customClass=chpq9t7a3j50000jzppg`、`__events=chpq9t7a3j50000jzppg,tap`，上层模块实例 `modId=chpvc70a3j50000byak0`，`classId=C_chpq97ca3j50000y937g`。
+- 本地 JSON 对应模块定义节点正是 `stage.classes.11`、ID `chpq97ca3j50000y9370`、名称 `FRP_选择弹窗_部门_多选`，因此 Phase 34 的模块与行定位正确。
+- 用户的改动未体现在预览，是因为 `props.paddingLeft` 只是静态默认值；该行还有启用的 `binds.paddingLeft=(6+当前层级*18)+'px'`。V5 运行时优先计算绑定并把结果写回 props，覆盖静态左内边距。
+- 运行时顶层 TreeItem 仍明确为 `currentLevel=0,index=0`，但行的最终 `paddingLeft=60px`；这继续支持树回调 `arg0` 承接异常的原判断，而不是模块误定位。
+
+## 2026-07-28 删除缩进绑定后的运行结果
+
+- 最新 V5 `192cX76o` 已加载用户修改：顶层“乔治白总公司”行的 DOM `padding-left` 从 60px 变为 6px，说明预览没有继续使用旧缓存，目标模块和行均正确。
+- 展开顶层后，所有 `level=1` 子部门的行也都是固定 6px；正确结果应为 24px。因此当前视觉仍不正确，是固定值无法区分树层级，不是修改未生效。
+- 该实验进一步隔离出两项问题：动态缩进必须恢复“6 + 层级×18”，而展开/收起还需独立验证 `v1/arg1` 节点序号。
+- 继续实测后，“工程部”能够正常展开出“老厂工程部/新厂工程部”，再次点击减号也能正常收起；因此 `arg1`、`openNode/closeNode` 和相关动作 BID 均正常。Phase 34 关于 `arg1` 承接失败的判断撤销。
+- 原公式是 `(6+$refs.v0_chpq9t7a3j50000jzpp0*18)+'px'`。转换结果错误地把内部数值加法拍平为 `concat(6, arg0*18, "px")`。
+- V5 的 `concat` 通过数组 `join('')` 执行。因此顶层 `arg0=0` 得到 `"6"+"0"+"px" = "60px"`，一级 `arg0=1` 得到 `"6"+"18"+"px" = "618px"`。这些值反而证明 `arg0/currentLevel` 正确。
+- 根因位于 `V4FormulaCodeConverter.genStringConcatAST()`：处理外层字符串拼接时，对左右子树传入 `identity:"stringConcat"`，从而强制把左侧本应保持的数值 `+` 也转成并拍平到 concat。
+- 正确 AST 应保留两层语义：外层 `concat([ plus(6, multiply(arg0,18)), "px" ])`。转换器只能拍平真正的字符串拼接子树，不能拍平不含字符串字面量的数值加法子树。
+
+## 2026-07-28 字符串拼接转换修复
+
+- `genStringConcatAST()` 不再给每个子树强制传入 `identity:"stringConcat"`；子树先按自身语义转换，只有结果本身已经是 concat 时才拍平。
+- 该最小改动使 `(6+level*18)+'px'` 保留内部 `op:'+'`，同时 `'prefix-'+value+'-suffix'` 仍保持一个扁平 concat。
+- 回归测试先确认旧实现以 3 个 concat 参数失败，再在修复后通过；定向测试 11/11、项目全量测试 47/47 通过。
+- frp-pad 重转后的目标绑定精确为 `concat([ +(6, *(arg0,18)), "px" ])`，不再生成 `concat([6, *(arg0,18), "px"])`。
+- 新 `localCases/v5/frp-pad/app.v5.json` 为 29,973,020 bytes、0 换行，SHA-256 `c773a2fc2d069ef99467836e40ef8ab1892f5826f349f96c6cb9b65f40340e96`。
