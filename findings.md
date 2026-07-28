@@ -596,3 +596,135 @@
 - 回归测试先确认旧实现以 3 个 concat 参数失败，再在修复后通过；定向测试 11/11、项目全量测试 47/47 通过。
 - frp-pad 重转后的目标绑定精确为 `concat([ +(6, *(arg0,18)), "px" ])`，不再生成 `concat([6, *(arg0,18), "px"])`。
 - 新 `localCases/v5/frp-pad/app.v5.json` 为 29,973,020 bytes、0 换行，SHA-256 `c773a2fc2d069ef99467836e40ef8ab1892f5826f349f96c6cb9b65f40340e96`。
+
+## 2026-07-28 选择部门弹窗首次加载列表滞后
+
+- 最新 V5 预览 `hmdKxyBj` 的全新隔离页中：约 0.75 秒弹窗出现，约 1.75 秒显示“加载成功”但树根节点仍为空，约 3.75 秒才显示“乔治白总公司”等部门。该结论只描述全新隔离实例，不能推断用户现有标签页最终一定恢复。
+- 对照 V4 `wt5RnwSK@10000590`：约 1.75 秒显示“加载成功”时，部门树已经同时出现。两版本使用相同接口和完整数据。
+- 小模块为 `chpq97ca3j50000y9370`（`FRP_选择弹窗_部门_多选`），初始化动作组为 `chpq9t7a3j50000jzqyg`，部门服务为 `chpq9nya3j50000jzp50`。服务实际返回 HTTP 200、`isSuccess:true` 和完整 `department` 数组，排除服务不存在、返回字段丢失及树绑定永久失效。
+- 成功分支先调用 `chpqsw7a3j50000jzy00`（toast），再调用 `chpqsw7a3j50000jzy0g`（初始化数据处理）。toast 动作组 `chpq9t7a3j50000jzrcg` 的成功分支包含 `delaysMethod(1.5)`，用于延时隐藏提示。
+- V4 源动作 `chpqsw7a3j50000jzy00` 虽声明 `action.callback=true`，但 `children=[]`，没有 status 回调承接；V4 因而发起 toast 后立即执行同级的数据处理动作。`chpqsw7a3j50000jzy0g` 有 status child，才需要等待其结果。
+- 当前转换器只检查 `action.callback`，把两者都转成 `op:"let"`。因此 V5 会等待 toast 动作组连同 1.5 秒延时完整结束，再开始整理和赋值部门数据，造成“加载成功但内容为空”的首开窗口。
+- 最小修复方向：动作具备 callback 能力但实例没有有效 status child、后续也不消费返回值时，应转换为非阻塞 `get`；仅存在有效回调承接或返回值依赖时才生成 `let/await`。这与此前发现的“callback 能力不等于实例实际消费 callback”属于同一类转换语义问题。
+
+### 持续空白实例的反证
+
+- 用户反馈 3.75 秒后仍为空后，直接读取其当前 Chrome 页：弹窗可见，文本只有“选择部门/选择/已选/确定”，`.chpq9t7a3j50000jzppg` 可见树行数量为 0，成功 toast 已不可见。该实例确实不是单纯等待不足。
+- 随后用同一 session、同一 V5 地址对四条表格数据分别创建全新页面并首次点击，四条都在 8 秒内显示完整根部门，控制台没有 page error；重复快速点击同一行也能正常显示。
+- 因而目前存在两层问题：转换后的 toast await 确定造成约 1.5 秒额外空白；用户当前标签页另有一次性调用异常或状态提交失败，导致空白持续。后者不是仅凭静态 AST 就能等同于前者。
+- V5 成功分支在设置 `部门数据` 后还会处理“已选部门”，外层模块调用结束后才进入后续房间登记。若后半段 await 不返回，V5 的动作完成/依赖刷新阶段不会走完，使已经写入变量的数据也不能提交到树 UI。
+
+### 第二个错误等待：生成 path
+
+- `部门数据.setValue` 之后立即调用 `cs3bb9xa3j50000e7fr0`，目标动作组 `cs3b1dxa3j50000e7b5g` 名称为“生成path”。
+- V4 源动作 `cs3bb9xa3j50000e7fr0` 与成功 toast 一样：`action.callback=true`，但 `children=[]`，没有完成/status 子块。V4 不等待它，后面的已选状态更新和模块结束可以立即继续。
+- V5 转换结果却是 `op:"let"`。而“生成path”内部会遍历已选部门，并等待递归动作组 `cs3b1dxa3j50000e7bb0` 返回；所以外层初始化是否结束，被错误地绑定到了这条本来应后台并行的 path 计算上。
+- 修正：V5 动作组即使没有显式返回动作，也会在函数体执行结束时自动完成回调；`op:"let"` 不等于永久不返回。不能仅凭 V4 `children=[]` 就把本次永久空白归因于 callback。
+- 展开 `生成path` 及 `单部门path` 后，没有服务、延时、动画或递归自调用；内部只有同步条件、数组读写和显式 return。已选部门更新所用 `arrUpdate` 在共享实现中也会在命中和未命中两条分支都调用 callback。
+- 用 5 个已选部门的订单、切换“全部”后立即点击等更重输入仍可正常输出 path、登记房间并显示树。因此当前证据不支持“生成 path 必然阻塞”的结论。
+- 当前永久空白实例需要按运行日志继续二分：若没有输出 `===The value of path===`，说明当前订单数据使同步 path 逻辑异常；若已输出 `path` 和“创建加入房间”但树仍为空，则动作已经完成，问题转为 V5 当前模块实例的依赖更新/重渲染未提交。
+- 用户授权任意点一行后，隔离页实测 `D.043847`：模块完整输出 `path` 和“创建加入房间3513”，树行由 0 变为 9。`D.043886` 的 5 个已选部门也完整结束并显示树。
+- 因此现有转换产物中没有可稳定复现的内部阻塞；用户旧 Chrome 标签的永久空白属于该运行实例的一次性异常状态。已对该标签发出 reload，若刷新后任意行恢复正常，则可确认不是静态转换缺陷；若刷新后仍空，必须从该刷新后实例抓运行日志，不能再用旧实例或隔离页推断。
+
+## 2026-07-28 首开空白、二次打开正常的最终根因
+
+- 用户确认刷新后任意量体部门单元格第一次打开仍为空，关闭后第二次打开立即显示；这排除了旧标签一次性卡死。
+- 独立 Playwright 对同一模块完成首开与二开对照：第一次打开请求 `chpq9nya3j50000jzp50` 一次；关闭后第二次打开，请求累计仍为一次，说明第二次没有重新请求部门服务。
+- 第二次能直接显示 9 条根部门，只可能来自模块内部第一次已经写入的 `chpq9t7a3j50000jzrbg`（“部门数据”）。因此第一次并非服务失败、callback 不回或 path 阻塞，数据已经进入模块。
+- 模块在打开弹窗后才异步请求部门，并通过 BID `chpqsw7a3j50000jzy1g` 调用 `部门数据.setValue`。此时 tree-for `chpq9t7a3j50000jzpp0` 已以空数组挂载；用户当前 Chrome 中该变量变化没有可靠驱动 tree-for 重求 `binds.value`。
+- 关闭并再次打开会触发弹窗 show/render；树绑定重新求值时读到第一次保留的非空部门数组，因此立即显示，且无需再次请求服务。
+- 修正后的根因是 V5 异步变量更新到已挂载小模块 UI 的刷新缺失，不是动作组 callback 或内部逻辑阻塞。
+- 最小转换兼容方案：在 `chpqsw7a3j50000jzy1g` 的变量 `setValue` 之后增加一次独立的 `delaysMethod` 动作边界，沿用项目已有“变量组件延时方法后补刷新延时”的兼容思路，促使变量依赖先提交并驱动 tree-for 重渲染。不要改 `生成path`、`arrUpdate` 或通用动作组返回规则。
+
+## 2026-07-28 “全部”第二页空部门行精确复现
+
+- 独立 Playwright 预置 session 后打开 V5 `hmdKxyBj`，顶部“全部”加载为 1901 条、191 页；分页 DOM 可直接点击数字 `2`。
+- 第二页第一行订单号为 `D.043882`，人数/件数均为 `0`，量体部门文本区域为空，但搜索图标正常存在；图标资源为 `3f226ed23a46a8e097df839eda861208_1375.svg`，位置约 `x=792,y=165.5`。
+- 该行与用户描述完全一致，后续首次/二次打开对照均固定使用 `D.043882`，不再用有已选部门的普通行代替。
+- 首次打开 `D.043882` 后等待 10 秒，弹窗始终只有“选择部门/选择/已选/确定”，可见树行 `.chpq9t7a3j50000jzppg` 为 0；这次稳定复现了用户所见，并非等待时间不足。
+- 部门服务仅请求 1 次，`chpq9nya3j50000jzp50` 返回 HTTP 200、`isSuccess:true` 和完整 `department` 数组；服务数据没有缺失。
+- 业务日志确认当前订单 `数据ID=3543 / invoiceCode=D.043882 / measureUserDepartment=null`，“已选量体部门”为 `[]`；之后仍输出“创建加入房间3543”“登记成功”“创建成功”，说明动作组完整结束，没有 callback 或内部阻塞。
+- 空选择分支没有输出 `path`，与 V4 逻辑中 `已选部门.length===0` 时跳过“生成 path”和后续选中项 `arrUpdate` 一致。
+- 关闭后第二次打开同一行，部门服务请求总数仍为 1，但树立即显示 9 个根部门。由此确认第一次已把部门数组写入模块变量，只是首次挂载的 tree-for 没有在这次 `setValue` 后刷新；二次 show/render 读取到了缓存数据。
+- 同一版本的非空部门对照 `D.043886 / 数据ID=3546`：首次打开同样只请求部门服务 1 次，但“已选量体部门”有 5 项，随后输出 5 项 `path`，并在第一次打开就显示 9 个根部门。
+- 转换后的初始化 AST 与 V4 源代码都显示：`chpqsw7a3j50000jzy1g` 执行 `部门数据.setValue` 后，只有 `已选部门.length>0` 才会调用“生成 path”，并循环执行 `chpvtt3a3j50000k065g` 对同一个“部门数据”变量做 `arrUpdate(status=1)`；空部门行完全跳过这段。
+- `objArr.arrUpdate()` 命中时会克隆当前数组并再次 `_sys.set(node,id,'value',_arr)`；这正是非空行相对空行多出的同变量二次写入。它补触发了 tree-for 依赖刷新，所以非空行首次打开正常。
+- V4 对同一个 `D.043882` 进行全新加载、“全部”→第二页→首次打开，5 秒内直接显示相同的 9 个根部门；服务同样只请求 1 次、已选部门同样为 `[]`。因此差异不是业务数据或条件分支，而是 V5 对异步 `objArr.setValue` 的 UI 依赖提交行为。
+- 转换器已有“带 V4 延时的变量方法后插入零时长 `delaysMethod`”兼容逻辑，但本动作没有 `block.delay`，所以 `chpqsw7a3j50000jzy1g` 后没有刷新边界。
+- 本案例最小修复点是给该异步回调内的 `data-obj-arr.setValue` 补一次零时长 `delaysMethod`，让 tree-for 在后续空选择条件结束前消费新值；不能依赖 `arrUpdate` 偶然补刷新。
+- 通用规则不能粗暴扩展为“所有 status 回调内变量方法都加延时”：frp-pad 有 2,874 个此类动作，其中 569 个是 `data-obj-arr.setValue`。更稳妥的转换条件应至少限定为：异步回调中的数据变量写方法，且该变量直接被可见循环/树组件属性绑定；本案变量明确通过 `_cited.props` 绑定 `ih5-tree-for chpq9t7a3j50000jzpp0`。实施前需补合成回归，验证空选择路径和非空路径都只产生一次必要让步。
+
+## 2026-07-28 Phase 44 实现边界
+
+- 转换遍历当前没有显式父块参数，但 `convertActionCb()` 是所有 V4 status 子树的统一入口；可在转换该子树期间维护同步的 callback depth，而不改动所有条件/循环/分组方法签名。
+- 目标动作 `chpqsw7a3j50000jzy1g` 位于两层 status 回调内，方法为 `data-obj-arr.setValue`，目标变量 `_cited.props` 直接包含 `ih5-tree-for chpq9t7a3j50000jzpp0` 和 `data-for chpqf54a3j50000jztfg`。
+- 初版把 `ih5-tree-for/data-for/ih5-grid-for` 都纳入集合渲染组件；真实重转后发现会给 223 个原本无延时的 `setValue` 新增让步，范围过大。
+- 当前运行证据只确认 `ih5-tree-for` 的首挂载刷新缺失，因此最终规则收窄为直接绑定 `ih5-tree-for` 的异步 `setValue`；普通 `data-for`、`ih5-grid-for` 和 `arrUpdate` 均不改变时序。
+- 实现采用转换器实例级 `asyncCallbackDepth`：进入 `convertActionCb()` 的 status 子树时加一，`finally` 中恢复，既能覆盖嵌套回调，也不会把异步上下文泄漏到后续兄弟动作。
+- 插入条件最终固定为：动作启用、当前处于异步回调、方法名为 `setValue`、目标属于变量组件类型，并且目标变量 `_cited.props` 至少直接引用一个 `ih5-tree-for`。已有 V4 `block.delay` 的兼容规则保持原样。
+- frp-pad 最终命中 35 个动作。目标 BID `chpqsw7a3j50000jzy1g` 后生成一次零时长 `delaysMethod`，而对照 `chpvtt3a3j50000k065g` 的 `arrUpdate` 不命中，符合空部门行与非空部门行的差异证据。
+- 重转产物保持压缩格式，目标 AST、影响数量和全部 2,589 个 jsfn 均通过审计；项目全量测试 48/48 通过。
+
+## 2026-07-28 Phase 45 待验证假设
+
+- `asyncCallbackDepth` 是转换器用于限定影响面的代理条件；它来自目标 BID 的结构特征，并非已经从 V5 运行时证明的必要条件。
+- 至少需要区分三种可能根因：状态写入保留了数组引用导致订阅比较不触发、tree-for 只在某个批处理/动作完成边界更新、以及模块首次挂载时订阅建立晚于异步赋值。
+- `arrUpdate` 会克隆数组后再次 `_sys.set`，它能补刷新既可能因为新引用，也可能因为第二次写入落在订阅建立后的时刻；必须从运行时代码判定，不能仅由页面现象推导。
+- 本机存在独立运行时仓库 `/Users/lianghuang/Desktop/ivx_repos/VxWidgets-player`；其 `sys2.js` 同时包含 React 包装组件和 `_sys.set(self,id,name,value)`，`sys2_core.js` 包含 `setupProps/rctUpdate`，是当前最直接的 V5 状态与渲染链候选源码。
+- 初步定位到旧 `sys.js` 也有一套 `set(node,id,name,value)` 和引用目标 `forceUpdate()`；需要结合预览页实际入口判断 V5 使用 `sys2` 还是旧 `sys`，不能混用两套机制下结论。
+- 当前 V5 预览 `hmdKxyBj` 的 HTML 实际加载 `//file3.ih5.cn/v35/v41player/20230911190146/player.js` 与 `//file3.ih5.cn/v35/widgets/20260714182742/widgets.js`；后续需从这两个精确版本核对，而不是假设本机仓库 HEAD 就是线上版本。
+- 本机 `sys2_core.js` 的状态链已显示：`setVar()` 调用 `changeProp()` 立即重算依赖并用 `markDirty()` 删除 React 元素缓存；真正调用 `setState()` 的是 `evFini()`。`sys2.fini()`、`asyncEnd()` 都能进入 `evFini()`，所以问题焦点是结束/提交边界是否在正确模块实例上执行，而不只是数组引用比较。
+- 已下载线上精确构建：player 1,591,667 bytes，widgets 12,759,919 bytes。widgets 注册表确认 `data-obj-arr` 方法模块 ID 为 `75181`，`ih5-tree-for` React 组件索引为 198；`delaysMethod` 也位于同一线上 widgets 包。
+- 线上 widgets 是单行压缩且尾部无 source map 注释，需要按 webpack 模块边界提取目标模块；不能靠普通行号检索理解实现。
+- 线上 `data-obj-arr` 模块 75181 已精确提取：`setValue` 先用 klona 深拷贝传入值，再调用公共 `dataVar_setPathValue(e,t,r,clonedValue,path)`；因此目标写入不是简单复用服务返回数组引用。
+- 同模块的 `arrUpdate` 也先克隆当前数组，命中后再 `e.set(...,'value', clonedArray)`；它与 `setValue` 的主要差异不是“一个新引用、一个旧引用”，数组引用比较假设基本排除。
+- 线上 `delaysMethod` 明确是 `setTimeout(callback, 1000 * time)`；当 time 缺失/≤0 时仍进入 `setTimeout(...,0)`，它提供的是新的宏任务与异步完成回调，而不是某个树组件专用刷新 API。
+- 线上压缩运行时代码可与本机 `dartIvx2.js + v6core.js` 逐段对应；当前 V5 React 模块实际走的是这套 `Sn`/V6 runtime，不是最初看的 `sys2_core` 版本。后续结论以 V6 链为准。
+- V6 `setVar()` 会立即执行 `changeProp()` 和 `markDirty()`，并返回根节点是否已失去元素缓存；`sys.set()` 只调用 `setVar()`，自身不提交 React 更新。
+- V6 `sys.fini()` 才读取 `changed()` 结果并对模块根执行 `setState()`，同时更新模板/外部 ref；`callx/funcx` 的 flag bit 2 可在调用下一动作前先 `fini`。因此“写值”和“UI 提交”在架构上确实分离。
+- 这套 V6 runtime 的 `asyncStart` 是空函数，文件末尾把 `asyncEnd` 指向 `fini`；异步结束可成为刷新边界，但“位于异步回调内”本身并不是 `setValue` 是否标脏的必要条件。
+- 线上 V6 `sys.callx/funcx` 的 flag 语义已确认：bit 1 表示等待 callback，bit 2 表示在开始该调用前先 `fini`；`checkAsync()` 直接从组件编译映射的 `as[method]` 读取该数值。
+- 同步组件方法会编译成普通 `$sys.func/$sys.call`，连续写值只累积 dirty；异步方法会编译成 `await $sys.funcx/callx(...)`。因此在 `setValue` 后插入 `delaysMethod`，真正产生刷新的机制很可能是 delay 的异步 flag 在调用前执行一次 `fini`，而不是 setTimeout 回调本身。
+- 旧 V4 callback 代码会在每个 callback 开头 `asyncStart`、结尾 `asyncEnd/fini`；V5 AST 编译后改由 async method flags 和事件函数尾部 `fini` 控制提交。两种架构的刷新边界并不等价。
+- `ivxMap.txt` 中编辑器方法元数据不是直接保存编译器的 `as` 表，而是 `map.methods` 的数组式定义；需要从方法 callback/async 元数据或线上组件编译 map 还原 `setValue` 与 `delaysMethod` 的最终 flag。
+- `genmap.js` 给出了精确规则：method 有 `callback` 则 `as |= 1`，有 `preSync` 则 `as |= 2`。本案 `setValue` 无 callback/preSync，flag=0；`delaysMethod` 有 callback、无 preSync，flag=1。
+- V6 `funcx(flag=1)` 启动异步方法后，如果 callback 没有同步发生，会立即调用 `f.fini()` 再等待 Promise；因此零延时动作的刷新效果发生在 `setTimeout` 启动之后、timeout 回调之前。它确实是在强制提交此前 `setValue` 累积的 dirty。
+- 这也证明 `asyncCallbackDepth` 不是运行时刷新条件：任何执行路径中，只要同步 `setValue` 后在事件尾 `fini` 前需要 UI 立即可见，都可能受同类提交时机影响。
+- V6 `markDirty()` 会清除当前节点到根/模板边界的 `el` 缓存；`changed()` 以根 `el` 是否为空决定模块 `setState`，并返回模板局部更新 key。说明变量绑定依赖被重算后，只要随后对正确模块执行 `fini`，tree-for 理论上应刷新。
+- 因此“异步 callback 导致 setValue 不标脏”可以排除；更精确的问题是目标路径中 dirty 在何时、由哪个 `$self` 对应的模块实例消费，以及事件尾是否实际执行到 `fini`。
+- 目标 `setValue` 位于云端小模块 `chpq97ca3j50000y9370 / FRP_选择弹窗_部门_多选` 的动作组 `chpq9t7a3j50000jzqyg / 初始化` 内；转换后的 AST 中它处在服务/数据处理的嵌套 `let` 成功分支。
+- 当前兼容动作精确插在目标 `setValue` 与“已选部门是否为空”的 switch 之间；空部门路径由此在直接结束分支前新增一次 `let delaysMethod`，非空路径原本还会继续执行 `arrUpdate`。
+- 节点 `props._code/code` 仍是 V4 旧代码文本，V5 运行依赖 `events.list[].ast` 在线编译；判断运行时行为必须以 AST 编译结果为准，不能用该旧文本推演。
+- V5 AST 语义中 `op:'get'` 调用方法时 flags=0，目标 `setValue` 因而是同步 `$sys.func`；`op:'let'` 会以 flags=1 编译其方法调用，新增 delay 因而成为异步等待调用。这个差异与运行时 `func/funcx` 的提交边界完全吻合。
+- 仓库中的通用 `ast2js.js` 输出 `$sys.func/$sys.afunc`，但线上 player 的 `ivxCvt` 会进一步/独立生成 `$sys.funcx/callx`；要得到预览页的精确代码，应调用实际 `ivxCvt`，不能只看编辑器辅助生成器。
+- 本机 `ivxCvt.js` 可在 Node 中直接 `require`，导出 `convert(src, widgetsMapJson, paramJson, isApp)`；`wpLoader.js` 是调用示例。可以用与线上同源编译器生成目标模块代码，不需要继续猜测压缩产物。
+- `ivxCvt.convert` 的 `src` 是 `*.ivx.vue` 文本，另需构建目录里的 `libs/widgets.json` 与 `src/case.json`；当前独立 `VxWidgets-player` 检出不含这两个生成资产，不能直接用 app.v5.json 调该 API。
+- 项目本身未安装 Playwright，但 Codex workspace dependency bundle 提供浏览器自动化包；可用其 Node/package 路径启动独立 Chromium，抓取预览页实际返回的 app/module 资源。
+- 以本机 Chrome 作为 Playwright executable 后，V5 预览可正常加载。对所有 text/json/js/octet-stream 响应扫描三个目标 ID 均未命中，说明线上运行负载可能已把节点 ID编译/映射、压缩或通过未扫描的传输形式加载，不能仅靠原始响应字符串定位。
+- 预览 HTML 明确给出 work 资源：`//file3.ih5.cn/v35/works/d9k1ngjc1t2c73ch039g-sticky?1785207872`，`vxConfig.ver=2`。该资源为 2,127,456-byte 二进制数据，直接字符串扫描无目标 ID，需通过 player 的解码路径或页面内存读取。
+- `widgets.js` 通过内部 `he.run(Uint8Array)` 解码 work 二进制并挂载 React；公开的 `window.VxLoadTree` 只接收已解码文本，不直接暴露解码结果。
+- 目标小模块弹窗根组件有稳定 DOM class `chpq9t7a3j50000jzpb0`，可从该元素的 React fiber 向上找到模块实例、`_rc` 与 `_sf`，直接读取内存中的编译函数。
+- 初始页面中目标 class 数量为 0，说明选择部门模块/弹窗是点击时才挂载，不是单纯 `display:none`；必须先按业务路径打开弹窗再读取 fiber。
+- 最新线上 `hmdKxyBj` 按“全部 → 第二页 → D.043882 首行搜索”首次打开已能显示 10 个根节点；React fiber 内同时读到“部门数据”变量、tree-for 绑定值和 tree-for 实际 value 均为同一个 539 项数组，说明当前线上负载已包含/等效于刷新兼容，数据引用与树展开本身无异常。
+- V5 普通 AST 事件编译器会把事件体包在 async 函数中，并在函数末尾执行 `$sys.fini($self)`；所以普通同步 `setValue` 会先标脏，随后在事件结束时可靠提交 React 更新。
+- 小模块动作组 `callFuncGroup` 是例外：编译器生成的 `$code().then(...callback...)` 没有尾部 `fini`；模块 `modCall()` 只在启动动作组后立即执行一次 `sys.fini(c)`。因此动作组在第一个 await 之前的同步写入会被这次立即 fini 消费，而 await/服务 callback 恢复后的写入发生在这次 fini 之后，动作组完成时又没有第二次 fini，于是出现“变量已变、UI 未提交”。
+- 零时长 `delaysMethod` 的 flag=1。`funcx()` 启动它并发现 callback 未同步返回时，会立刻执行 `f.fini()`，正好消费此前 `setValue` 留下的 dirty；是否等待 0ms 不是关键。
+- frp-pad 中直接绑定 tree-for 的 `setValue` 共 48 个：13 个不在 status callback 内，35 个在 callback 内。13 个同步写入没有该类刷新缺失，符合“启动后的立即 fini/普通事件尾 fini 可提交”的运行时机制。
+- 当前 35 个兼容命中中，31 个属于 `data-funcGroup`，4 个属于普通 `ih5-input` 的 input/blur 事件。后 4 个普通事件本来就有事件尾 `fini`，从运行时根因看属于过度插入。
+- 最终判断：不应把规则扩大为所有 `setValue`，也不应移除“异步 callback”限制；更准确的条件应继续限定“异步边界之后”，并进一步限定为小模块/动作组 `callFuncGroup` 这类缺少完成态 `fini` 的执行上下文。长期根治点应是运行时在动作组 Promise 完成后对对应模块再执行一次 `fini`；转换器的 delay 只是旧案例兼容。
+
+## 2026-07-28 Player 修复后撤销转换兼容
+
+- 用户确认 `VxWidgets-player/dartIvx2.js` 的动作组完成态 `fini` 问题已经修复并完成编译，要求同时移除两类转换器临时兼容，并同步 VxEditor41。
+- 第一类是 Phase 44 新增的异步 status callback + tree-for 直绑变量 `setValue` 后补零时长 `delaysMethod`。
+- 第二类是更早已有的 `block.delay` + 变量组件方法执行后再补一次零时长 `delaysMethod`；它同样是在旧 Player 缺少合适提交边界时强制消费 dirty。
+- 当前本机 `VxWidgets-player/main` 检出的 `dartIvx2.js::modCall()` 仍是旧实现且仓库 clean，说明用户所述修复编译不在该本地检出中；本轮按用户确认的新 Player 作为目标运行时执行转换器清理。
+- 清理成立的部署前提是使用新转换产物的预览和正式运行页均加载修复后的 Player；旧 Player 不再受转换器 delay 保护。
+- tov5parser 的两类补偿都集中在 `v4ToV5/converter.js::convertAction()`：`addDelayedVariableRefresh` 处理带 V4 `block.delay` 的变量方法，`addAsyncTreeRefresh` 处理异步 callback 内 tree-for 直绑变量 `setValue`；两者都在动作后调用无参数 `genActionDelay()`。
+- `block.delay` 自身转换成动作前的 `genActionDelay(block.delay)` 是原始业务延时语义，不属于刷新补偿，必须保留。
+- VxEditor41 当前只包含更早的 `addDelayedVariableRefresh` 兼容，位于 `src/utils/convertV4ToV5/index.js`；尚未包含 Phase 44 的 `asyncCallbackDepth/addAsyncTreeRefresh`，因此无需在 VxEditor41 撤销不存在的 tree-for 代码。
+- tov5parser 有两段对应回归：`delayed variable methods yield once after updating bindings` 和 `async tree-bound variable setValue yields after updating bindings`。清理后应把前者改为验证“仅保留前置业务延时”，把后者改为验证“callback 内不再插入系统 delay”，避免只删除测试而失去新行为约束。
+- VxEditor41 的目标文件定向 ESLint 通过，production webpack 也成功；构建报告的 33 条 warning 来自仓库其他既有/未跟踪代码，与本次转换器清理无关。
+- 使用当前转换器在内存中重转真实 frp-pad 后，`delaysMethod` 总数从现有产物的 321 降为 222；所有 99 个缺少 `time` 值的刷新补偿 delay 均已消失，而有明确时间值的原始业务延时保留。
+- 99 个被移除的无参数 delay 包含 Phase 44 的 35 个异步 tree-for 补偿，以及更早规则生成的 64 个延时变量方法补偿。
+- 目标 BID `chpqsw7a3j50000jzy1g` 在旧产物后接无参数 `delaysMethod`，当前转换结果后直接进入原始 `switch`，证明目标临时兼容已撤销。

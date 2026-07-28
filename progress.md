@@ -487,6 +487,33 @@
 - V5 player 的 `callFuncGroup` async 包装会在函数体结束后统一回调，已排除“无显式 funcResult 导致行高动作组永不完成”。
 - 目前唯一确认存在、但尚未闭环到页面症状的转换差异仍是同级动作延时被串行累计；由于 `initialize` 的更新时序仍约为 100ms，暂不把它直接宣布为最终根因。
 - Stop hook 恢复：Phase 32 只剩“锁定可见文本测高链的首个运行分叉点”；下一步从 V5 编译后的循环实例引用和事件触发上下文验证 `_boundHeight()` 是否读取到当前行实例。
+- Phase 39 完成：最新 V5 首次打开时约 1.75 秒已显示“加载成功”但部门树仍为空，约 3.75 秒才出现列表；同一时刻 V4 已显示列表。
+- 已确认服务 `chpq9nya3j50000jzp50` 返回 `isSuccess:true` 和完整 department 数据，树最终也能渲染，排除服务无数据、字段转换错误和永久不刷新。
+- 首个分叉为成功提示动作 `chpqsw7a3j50000jzy00`：V4 该 `fireFuncGroup` 动作没有任何 status child，调用 toast 后不等待，立即并行执行数据处理 `chpqsw7a3j50000jzy0g`；V5 仅因 `action.callback=true` 把它生成 `op:"let"`，等待 toast 内部 1.5 秒延时和隐藏结束后才处理数据。
+- 本轮仅诊断，没有修改转换器；建议恢复“没有实际回调子块就不等待”的 V4 语义，只有存在有效 status child 或返回值被消费时才生成阻塞式 `let`。
+- Phase 40 复核：用户当前 Chrome 的 V5 弹窗在远超 3.75 秒后仍只有“选择部门/选择/已选/确定”，可见树行精确为 0；Phase 39 的“最终会出现”不能覆盖该实例。
+- 同一账号、同一 `hmdKxyBj` 地址重新创建全新运行页后，四条数据行分别首次点击，8 秒内都显示完整部门根节点，且没有 page error；因此持续空白不是接口、静态 JSON 或所有新实例都必现的问题。
+- 当前证据把问题收窄为原 Chrome 标签页中一次动作调用异常终止或模块状态未提交。Chrome 大型页面在进一步读取 React/变量状态时多次接管超时，尚不能把“后续 selected-department 处理报错”或“调用未完成导致 V5 批量更新未 flush”宣布为确定根因。
+- Stop hook 恢复 Phase 40：不等待用户手工判断，继续从当前页面状态、案例日志节点和 V5 动作完成边界定位持续空白实例的具体停点。
+- Phase 40 闭环：成功分支在 `部门数据.setValue` 之后还调用 `cs3bb9xa3j50000e7fr0`（“生成path”）。该 V4 动作同样 `children=[]`、不承接 callback；当前 V5 却将其转为 `op:"let"`。
+- “生成path”内部会遍历已选部门，并等待递归动作组 `cs3b1dxa3j50000e7bb0`。全新隔离页中该调用能结束，所以树只晚约 1.5～2 秒；用户现有实例中该调用没有结束，导致模块方法无法完成，部门数据的依赖更新也没有提交到树 UI。
+- 修正后的统一根因不是固定 3.75 秒，而是转换器把 `action.callback=true` 等同于“本动作实例实际等待 callback”。toast `chpqsw7a3j50000jzy00` 和生成 path `cs3bb9xa3j50000e7fr0` 都没有 status child，V4 均为非阻塞调用，V5 均不应生成 `let`。
+- 用户指出 V5 动作组即使没有显式返回值，也会在函数体结束时自动回调；该判断与此前核对的 player `callFuncGroup` 包装一致。撤回“无 status child 本身导致永久不返回”的直接归因，Phase 41 转查 `生成path` 内部真正未结束的递归或动作。
+- 已完整展开 `生成path` → `单部门path`：没有服务、延时、动画或递归自调用；单部门 path 只有同步条件、数组读写和显式 return。
+- 已核对剩余阻塞候选 `data-obj-arr.arrUpdate` 的共享实现：无论命中记录与否都会调用 callback（success/fail），不能解释永久等待。
+- 同一账号下继续验证“全部”列表、5 个已选部门的订单以及列表切换后立即点击，均能输出 path、完成房间登记并显示树；当前问题无法按静态动作链稳定复现。
+- 因此永久空白只剩两类可能：当前订单数据触发同步 path 表达式异常，或动作已结束但当前实例的树依赖更新未提交。需要当前被点击订单编号及 `path/创建加入房间` 两条运行日志区分。
+- Stop hook 恢复 Phase 41：本地可验证路径已穷尽；四条默认订单及“全部”列表可编辑订单均正常，无法用新实例替代用户现有实例下结论。下一步必须取得当前点击行的单据编号，以及是否出现 `===The value of path===`、`创建加入房间` 两条日志。
+- 用户授权任意选择一行后，在隔离 V5 页点击第一条可编辑订单：日志依次出现 `已选量体部门`、`===The value of path===`、`创建加入房间3513`，随后可见树行从 0 变为 9；动作组及内部逻辑完整结束。
+- 又在“全部”列表点击包含 5 个已选部门的 `D.043886`，同样输出 5 条 path、完成房间登记并显示树。进一步排除 path 数据量导致的稳定阻塞。
+- 已按既有授权刷新用户当前 Chrome 的 `hmdKxyBj` 标签，标签最近打开时间更新，说明 reload 已发出；刷新后再次接管大型页面超时，无法代用户完成最后一次点击。当前证据只能说明旧标签实例曾处于异常状态，不能把该一次性状态归为转换器的 callback 或静态内部阻塞。
+- Stop hook 再次恢复 Phase 41：剩余唯一验收是刷新后的同一 Chrome 标签再次点击是否正常；在获得该新实例结果前，不修改转换器，也不把旧实例卡死提升为通用根因。
+- 用户确认刷新后任意行首次打开仍为空，关闭后第二次打开即显示。Phase 42 改用独立 Playwright 重放完整两次打开，重点验证首次服务数据已进入模块但树依赖没有刷新。
+- 独立 Playwright 完成“首开→关闭→二次打开”：首次仅发生 1 次模块部门服务 `chpq9nya3j50000jzp50`；第二次打开服务请求数仍为 1，没有重新取数，但立即显示 9 条根部门。
+- 第二次打开仍完整输出当前订单、已选部门、path 和房间登记；模块内部 `部门数据` 明确由第一次请求保留，第二次只是 hide/show 后重新求值树绑定。
+- 结合用户当前 Chrome 的“首开永久空、二开正常”，最终排除 callback/内部阻塞：第一次已经完成数据写入，缺的是异步 `部门数据.setValue` 后对已挂载 tree-for 的可靠依赖刷新。关闭再打开触发 show/render，才读取到已有数据。
+- 最小转换兼容点位于 `chpqsw7a3j50000jzy1g` 后：插入一次独立 `delaysMethod`/刷新边界，强制在变量组件 setValue 后提交 UI 更新；不应修改动作组 callback 规则或 path 逻辑。
+- 用户给出稳定路径：“全部”→第二页→第一行量体部门为空→点击搜索图标。Phase 43 将验证空 `已选部门` 跳过后续 `arrUpdate`，是否导致 `部门数据.setValue` 后没有第二次变量更新带动 tree-for 刷新。
 - v4 页面即使单页遍历全部元素仍超时；已停止宽范围浏览器检索，先用案例 JSON定位“款式信息”节点和事件 ID，再回到页面做精确读取。
 - 定位到图片节点 `cm1wxsqa3j500009jj8g`（名称“款式信息”），点击事件入口 `cm21x4ma3j5000036wrg`；外层动作会设置当前订单，再调用模块实例 `cv891cna3j500009qnw0` 的公开动作组 `cv7jynaa3j50000bt49g`“获取款式信息”。
 - v4/v5 的节点、外层事件链、当前订单参数以及三个后端服务引用均存在；服务转换或注册不是首个故障点。
@@ -618,3 +645,90 @@
 - VxEditor41 仅修改 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`；已有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录保持不动。
 - VxEditor41 目标文件 ESLint 0 errors/0 warnings，production webpack build 成功；33 条 warning 均来自仓库其他既有/未跟踪文件。
 - 双仓库远端均未领先本地；提交范围已精确暂存，准备分别提交并推送当前分支。
+
+## 2026-07-28 选择部门弹窗首次打开列表为空诊断
+
+- 用户反馈：首次点击正文“量体部门”单元格右侧搜索图标后，弹窗显示“加载成功”，但部门树列表没有渲染内容。
+- 本轮先只读诊断，区分服务无数据、变量写入未刷新和首次打开动作时序问题。
+- 用户补充了稳定复现路径：顶部选择“全部”→翻到第二页→第一行“量体部门”为空→点击该单元格的搜索图标。
+- Phase 43 改为严格按该数据行复现；重点验证空“已选部门”是否跳过后续 `arrUpdate`，从而暴露 `部门数据.setValue` 后 tree-for 未刷新的问题。
+- 已精确定位第二页第一行为 `D.043882 / 数据ID=3543`；首次打开等待 10 秒仍为 0 条树行。
+- 部门服务 HTTP 200 且返回完整数组；日志确认已选部门 `[]`，并完整执行到房间登记和创建成功，排除服务、callback 和动作组阻塞。
+- 关闭再开同一行时没有第二次服务请求，却立即显示 9 个根部门，确认首次数据已写入、UI 未刷新。
+- 非空对照 `D.043886` 首开正常；其唯一关键额外路径是对同一“部门数据”执行选中项 `arrUpdate`，这次二次 `_sys.set` 补触发了 tree-for 刷新。
+- V4 同行首开正常，最终根因为 V5 异步 `data-obj-arr.setValue` 到已挂载 tree-for 的依赖提交缺失。
+- 已收敛转换兼容点：在满足“异步回调内、数据变量写入、变量被可见树/循环属性直接绑定”的条件下补零时长 `delaysMethod`；不应给全部变量动作无差别插入。
+- 独立 Playwright 浏览器均已关闭；本轮没有修改转换生产代码。
+- **Phase 43 Status:** complete。
+
+## 2026-07-28 异步树数据写入刷新兼容修复
+
+- 用户确认按 Phase 43 结论修改转换程序。
+- 修复范围限定为异步回调内的数据变量写入，且变量直接被树/循环类可见组件属性绑定；不扩大为所有变量方法。
+- 将先用合成案例覆盖目标命中、非回调不命中、无树/循环绑定不命中，再修改转换器并重转 frp-pad。
+- 已确定用 `convertActionCb()` 转换子树期间的 callback depth 标记异步回调上下文，避免为整套转换 API 增加父块参数。
+- 命中条件进一步收窄为 `setValue` + 变量组件 + 直接绑定 `ih5-tree-for/data-for/ih5-grid-for`；已有 `block.delay` 规则保持不变。
+- 已先新增合成回归，修复前按预期失败；覆盖异步树绑定 `setValue` 命中，以及非回调、无绑定、普通文本绑定、其他变量方法不命中。
+- 已实现 callback depth、集合渲染组件白名单和受限插入规则；定向测试 18/18 通过。
+- 项目全量测试 48/48 通过；新增规则未破坏既有公式、服务、动画和延时变量兼容逻辑。
+- 首次真实产物审计脚本因遍历回调笔误 `forEach(w)` 报 `ReferenceError`；转换本身已成功，审计改用修正后的 `forEach(walk)`，不重复错误命令。
+- 修正审计后发现初版集合白名单会新增 223 个无原始延时的让步动作，影响面不符合最小修复原则；规则进一步收窄为 `ih5-tree-for`，将重新转换并复核命中数量。
+- 最终规则只处理异步 status 回调子树内的变量组件 `setValue`，且变量 `_cited.props` 必须直接绑定 `ih5-tree-for`；`data-for`、`ih5-grid-for`、普通属性绑定、回调外写入和 `clearValue/arrUpdate` 均不命中。
+- 最终定向测试与项目全量测试通过：`v4ToV5/v4ToV5.test.js` 18/18，项目 48/48；`node --check` 与 `git diff --check` 通过。
+- 已用最终规则重新转换 frp-pad。目标 BID `chpqsw7a3j50000jzy1g` 后紧接随机 ln `d9m2vtf60k4aw2rezypg` 的零时长 `delaysMethod`；对照 BID `chpvtt3a3j50000k065g` 的 `arrUpdate` 未追加让步。
+- 真实案例最终新增 35 个符合条件的异步树刷新让步，较初版 223 个显著收窄；2,589/2,589 个 jsfn 均可编译。
+- 最终 `localCases/v5/frp-pad/app.v5.json` 为紧凑 JSON（0 个换行），29,980,825 bytes，SHA-256 `cee42fee6fc4d855d4b676868ea62591d096555f9ee8312aabeade4888276e4b`；Phase 44 完成，尚未提交 Git。
+
+## 2026-07-28 V5 变量写入与树组件刷新根因审计
+
+- 用户追问为何只处理异步回调内的 `setValue`，并要求结合实际运行时 JS 判断同步写入是否同样可能出现变量已变但 UI 未渲染。
+- 当前“异步回调”条件只是基于已复现路径和影响面控制的转换器保护条件，不是运行时根因结论；本轮先只读追踪运行时，不继续扩大转换规则。
+- 将核对实际预览构建产物、本地运行时源码、变量 `_sys.set` 通知链和 tree-for 的订阅/渲染机制，再决定规则边界。
+- 已定位本机 `VxWidgets-player` 运行时仓库及关键入口：`sys2.js::_sys.set`、`sys2_core.js::setupProps/rctUpdate`，下一步逐段追踪引用表建立和 React 更新触发。
+- Web 读取工具因目标站点安全校验拒绝打开，已改为只读下载预览 HTML；确认线上 player/widgets 的精确构建版本。
+- 本机运行时初步追踪确认 `setValue → setVar → changeProp/markDirty` 与 `evFini → React setState` 是分离的两阶段流程。
+- 已下载并锁定线上两个精确构建文件，确认变量方法、树组件和系统延时均来自 `widgets.js`；开始提取 webpack 目标模块并与本机源码逐段对应。
+- 已提取并格式化线上 `data-obj-arr`、公共数据路径写入和系统方法模块；确认 `setValue/arrUpdate` 都产生新数组引用，零延时的有效差异是异步任务边界。
+- 已把线上压缩系统代码映射到本机 `dartIvx2/v6core`：状态重算发生在 `setVar`，React 提交发生在 `fini/asyncEnd`。下一步核对目标 AST 编译后的 flag 与最终 `fini` 落点。
+- 已确认 V5 编译器由方法映射 `as` 决定 `callx/funcx` flag，bit 2 会在下一异步动作开始前先提交 dirty。正在核对 `setValue/delaysMethod` 的实际 flag 和目标事件生成代码。
+- 编辑器资产未直接暴露 `as` 表，继续从方法定义和线上编译 map 还原实际异步 flag。
+- 已还原最终 flag：`setValue=0`、`delaysMethod=1`。确认兼容动作利用 `funcx` 的“异步尚未回调时立即 fini”行为提交 dirty，而非依赖 delay 时长。
+- 已核对 V6 dirty/changed：绑定重算与树缓存失效本身不区分同步异步；下一步必须查看目标小模块事件的实际编译代码和 `$self/fini` 位置。
+- 已定位目标动作在小模块初始化 AST 的完整嵌套路径，并确认兼容 delay 正好位于 `setValue` 与空部门分支结束之间；开始用 V5 AST 编译器生成等价 JS。
+- 已确认目标 `setValue` 是同步 get、兼容 delay 是异步 let；准备调用线上同源 `ivxCvt` 或读取其编译结果，核对事件尾 `fini`。
+- 已确认本机 `ivxCvt` 提供可直接调用的 `convert` API，开始准备其 widgets map 与转换参数。
+- 发现 `ivxCvt` 输入不是案例 JSON，且本仓库缺构建期 widgets/case 资产；改用 workspace 自带 Playwright 抓实际预览响应和编译代码。
+- Workspace Playwright 包可用但默认 Chromium 未安装；下一次使用本机 Chrome 二进制，不重复默认 launch。
+- Playwright + 本机 Chrome 成功加载预览；响应正文未直接包含目标 ID。下一步枚举完整网络资源与页面运行时对象，定位编译模型。
+- 已锁定 work-sticky 二进制资源；开始追踪 player 对该资源的解码与运行时挂载对象。
+- 解码器闭包未直接导出，改从目标弹窗 DOM 的 React fiber 读取实际模块实例和静态函数。
+- 初始 DOM 没有目标模块，下一步先自动进入“全部”第二页并打开第一行搜索弹窗，再读取 fiber。
+- 已在最新线上预览重新走通“全部 → 第二页 → D.043882 首行搜索”；首次打开已显示 10 个根部门。运行时 fiber 显示变量值、tree-for 绑定值和组件 value 均为同一 539 项数组，当前线上版本的刷新已成功提交。
+- 结合 `dartIvx2.js` 与 `ivxCvt.js` 定位到真正差异：普通 AST 事件的 async 包装在结尾调用 `$sys.fini($self)`，小模块动作组 `callFuncGroup` 的 Promise 完成分支却没有 `fini`；`modCall()` 只在动作组启动后立即 fini 一次。
+- 所以同步 `setValue` 或动作组第一个 await 之前的 `setValue` 会被正常提交；服务/异步 callback 恢复后的 `setValue` 发生在启动期 fini 之后，完成时没有第二次 fini，才会留下“变量已变但 UI 未刷新”的 dirty。
+- 对 frp-pad 做了只读影响面审计：tree-for 绑定的 `setValue` 共 48 个，13 个同步、35 个 callback；当前 35 个兼容命中里 31 个属于 `data-funcGroup`，4 个属于普通 input/blur 事件。普通事件自带尾部 fini，后 4 个不需要 delay。
+- 结论是不扩大到全部 `setValue`；转换器规则若继续优化，应从泛化的 `asyncCallbackDepth` 收窄为“动作组/callFuncGroup 的异步恢复段”。真正架构修复应放在 V5 运行时：动作组 Promise 完成时对正确模块执行一次 fini。
+- 本轮只完成根因审计与规划文档更新，没有继续修改转换生产代码；Phase 45 完成。
+
+## 2026-07-28 Player 修复后移除变量刷新临时兼容
+
+- 用户确认 Player 已修复并编译，授权从 tov5parser 和 VxEditor41 同步移除两类变量刷新 delay 补偿。
+- 已确认当前 tov5parser 工作区仍包含 Phase 44 未提交的异步 tree-for 补偿及 201 行配套测试；需在保留其他既有修复的前提下精确撤销。
+- 已确认 VxEditor41 工作区存在用户自己的 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录，后续只修改转换器对应文件，不触碰这些既有变化。
+- 本机 `VxWidgets-player/main` 仍显示旧 `modCall()`；按用户确认的已编译新 Player 作为运行前提继续。
+- 已定位双仓库清理范围：tov5parser 的 `converter.js` 同时含两类补偿；VxEditor41 的 `src/utils/convertV4ToV5/index.js` 只有较早的延时变量补偿，未同步过 Phase 44 tree-for 补偿。
+- 原始 `block.delay` 转换出的前置延时仍是 V4 业务语义，将保留；只移除变量动作完成后的额外无参数 delay。
+- tov5parser 两个相关测试将转为负向回归，明确新 Player 前提下不再生成额外刷新动作。
+- 已从 tov5parser 删除 `VARIABLE_COMPONENT_TYPES`、`asyncCallbackDepth`、`addDelayedVariableRefresh`、`addAsyncTreeRefresh` 及动作后的无参数 `genActionDelay()`；`block.delay` 的前置业务延时保持不变。
+- 已从 VxEditor41 `src/utils/convertV4ToV5/index.js` 删除旧的延时变量刷新补偿和已无用途的变量类型集合。
+- tov5parser 回归测试已改为验证新行为：带延时的变量方法只保留原始前置延时，异步 tree-for `setValue` 不生成刷新 delay。
+- 定向测试 18/18 通过，项目全量测试 48/48 通过。
+- VxEditor41 目标转换文件 ESLint 通过，0 errors/0 warnings。
+- VxEditor41 production webpack build 成功；33 条 warning 均来自仓库其他既有文件，目标转换文件没有新增 warning。
+- 双仓库 `git diff --check` 通过；VxEditor41 构建未额外改动受版本控制的产物，目标仓库仍只新增 `src/utils/convertV4ToV5/index.js` 这一处本任务差异。
+- 下一步使用库入口在内存中重转真实 frp-pad，核对目标 BID 后不再有无参数刷新 delay，并统计两类补偿的实际消失数量；不覆盖当前 `app.v5.json`。
+- 已完成真实 frp-pad 内存重转且未覆盖产物：旧 `app.v5.json` 有 321 个系统 delay，其中 99 个无 `time` 刷新补偿；当前转换结果为 222 个系统 delay、0 个无 `time` 补偿。
+- 目标 BID `chpqsw7a3j50000jzy1g` 后已从刷新 delay 恢复为原始 switch；业务 delay 数量与参数均保留。
+- 最终静态检查通过：tov5parser 两个修改文件 `node --check`、双仓库 `git diff --check` 均无错误；补偿标识符在两个转换目录中均已清零。
+- VxEditor41 只修改了 `src/utils/convertV4ToV5/index.js`；用户原有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录保持不动。
+- **Phase 46 Status:** complete。

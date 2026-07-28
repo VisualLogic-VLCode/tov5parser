@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 38（同步 VxEditor41 并提交推送双仓库）— complete
+Phase 45（V5 变量写入与树组件刷新根因审计）— in progress
 
 ## Phases
 
@@ -339,6 +339,70 @@ Phase 38（同步 VxEditor41 并提交推送双仓库）— complete
 - [x] 分别 push 当前分支并验证远程状态
 - **Status:** complete
 
+### Phase 39: 选择部门弹窗首次打开列表为空诊断（2026-07-28）
+- [x] 在最新 V5 预览中从全新页面复现首次打开
+- [x] 检查加载提示、部门服务请求及返回数据
+- [x] 检查树组件 value、可见状态和相关变量更新
+- [x] 对比首次加载缓存分支及 V4 的动作时序
+- [x] 锁定首个分叉点并给出修复建议
+- **Status:** complete
+
+### Phase 40: 复核当前 Chrome 中持续空白状态（2026-07-28）
+- [x] 读取用户当前 V5 弹窗的真实 DOM 状态
+- [x] 用同一 URL、账号和四条数据行做全新页面对照
+- [x] 对照 V4 children/status 与 V5 `let`，定位部门赋值后的第二个错误等待
+- [x] 解释全新页“延迟出现”与现有页“永久空白”的不同结果
+- [x] 将根因从单一 toast 延时修正为“无回调子块动作被错误 await”
+- **Status:** complete
+
+### Phase 41: 排查生成 path 动作组内部真实阻塞点（2026-07-28）
+- [x] 撤销“无 status child 的 callback 调用本身不会返回”的错误推断
+- [x] 展开 `生成path` 及递归子动作组的完整 V4/V5 动作链
+- [x] 检查递归终止条件、循环边界和内部所有阻塞式动作
+- [x] 用实际部门数据重放并确认新实例不存在静态未结束分支
+- [x] 给出永久空白的修正后根因
+- **Status:** complete
+
+### Phase 42: 首开空白、二次打开正常的刷新链诊断（2026-07-28）
+- [x] 用独立 Playwright 重放刷新、首开、关闭、二次打开
+- [x] 对比两次打开的部门服务、path 与房间登记日志
+- [x] 对比树 DOM、组件 value 与模块部门数据
+- [x] 判断变量已赋值但 UI 未刷新，还是首次动作未完成
+- [x] 给出转换器可实施的最小兼容修复
+- **Status:** complete
+
+### Phase 43: 全部列表第二页空部门行精确复现（2026-07-28）
+- [x] 进入“全部”并翻到第二页
+- [x] 定位第一行空白量体部门及搜索图标
+- [x] 记录已选部门、服务、path、房间和树 DOM
+- [x] 对比非空部门行为何能触发额外刷新
+- [x] 收敛最小转换兼容条件
+- **Status:** complete
+
+### Phase 44: 异步树数据写入后补 UI 刷新让步（2026-07-28）
+- [x] 明确异步回调上下文在转换遍历中的最小传递方式
+- [x] 为命中与非命中场景补回归测试
+- [x] 实施受限的零时长 `delaysMethod` 插入规则
+- [x] 运行定向测试与项目全量测试
+- [x] 重转 frp-pad，核验目标 AST、紧凑 JSON 和影响范围
+- **Status:** complete
+
+### Phase 45: V5 变量写入与树组件刷新根因审计（2026-07-28）
+- [x] 定位预览页实际加载的 V5 运行时脚本与对应本地源码
+- [x] 追踪 `data-obj-arr.setValue/arrUpdate` 到状态写入和依赖通知链
+- [x] 追踪 `ih5-tree-for` 的绑定订阅、挂载及重渲染条件
+- [x] 比较同步、异步回调和额外让步三种执行时序
+- [x] 判断转换规则是否应移除异步回调限制，并给出证据
+- **Status:** complete
+
+### Phase 46: Player 修复后移除变量刷新临时兼容（2026-07-28）
+- [x] 核对两类变量刷新补偿的实现、测试和双仓库对应文件
+- [x] 从 tov5parser 移除异步 tree-for `setValue` 补偿
+- [x] 从 tov5parser 移除 V4 变量方法延时后的额外刷新补偿
+- [x] 同步修改 VxEditor41 转换器
+- [x] 运行双仓库定向测试、静态检查和影响面验证
+- **Status:** complete
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -363,6 +427,11 @@ Phase 38（同步 VxEditor41 并提交推送双仓库）— complete
 | system 条件首版测试落入 sysutil/jsfn fallback | 1 | 测试夹具使用了非 20 位伪节点 ID，而旧公式判型严格要求组件 ID 长度为 20；改用真实案例 ID 后重试，生产实现不变 |
 | Chrome 接管当前 V5 预览两次超时 | 2 | 停止重复扩展路径，改用预置 sessionStorage 的独立 Playwright 完成 V4/V5 DOM、交互和 React fiber 对比 |
 | Phase 35 接管最新 V5 `192cX76o` 再次超时 | 1 | 不重复接管；按 Chrome 故障指南切换独立页面，以同一 sessionStorage 做只读复现 |
+| Phase 44 真实产物审计脚本把 `walk` 误写为 `w` | 1 | 修正遍历回调后重跑；转换产物不受影响 |
+| 初版集合白名单在 frp-pad 新增 223 个让步动作 | 1 | 根据真实影响面撤回 `data-for/ih5-grid-for`，只保留有运行证据的 `ih5-tree-for` |
+| Web 工具拒绝直接打开 V5 预览 URL（safe URL 校验） | 1 | 不重复 Web 打开；改为只读下载 HTML 并解析实际 player/widgets 构建地址 |
+| 项目 Node 环境无法 resolve `playwright` | 1 | 不安装项目依赖；使用 Codex workspace dependency bundle 提供的 Playwright |
+| Workspace Playwright 未安装配套 Chromium headless shell | 1 | 不下载浏览器；改用本机 Google Chrome 可执行文件作为 Playwright `executablePath` |
 | 同步更新三份规划文件时补丁上下文格式错误 | 1 | 拆分为标准多文件 patch 后成功，不重复原补丁 |
 | 用临时日志抑制 frp-pad 大量既有转换日志时命令被安全策略拒绝 | 1 | 不再删除临时文件；改为直接运行转换并限制返回输出 |
 | 查询最新 work_id 时本机没有 `mysql` CLI | 1 | SSH 隧道正常；改用交接包支持的 Python `pymysql` 只读连接查询 |
@@ -390,3 +459,4 @@ Phase 38（同步 VxEditor41 并提交推送双仓库）— complete
 | Chrome 按横坐标扫描全部正文 `.text_inner` 导致读取超时并重置控制会话 | 1 | 不重复宽范围 DOM 扫描；先从本地 JSON 锁定正文节点 ID，再按精确 class 在页面读取 |
 | Chrome 重新 claim 已打开的 V5 预览页连续超时 | 2 | 扩展轻量 openTabs 正常，页面接管卡住；停止重复 claim，尝试复用 browser session 中已有受控 tab，否则转为 JSON 与运行时代码静态定因 |
 | Chrome 已受控 V5 页的定向开发日志读取仍超时 | 1 | 停止页面读取；用案例中的完整行高事件链与 V4/V5 布局生命周期实现交叉定因 |
+| Browser runtime 返回对象没有 `documentation()` 方法 | 1 | 不重复调用该接口；当前页面已能用独立 Playwright + 本机 Chrome稳定复现，继续沿用该只读诊断路径 |

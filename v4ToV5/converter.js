@@ -27,17 +27,6 @@ import { genDbServiceInfo, genDbServiceList } from './utils/dbService.js'
 import { nodeIsModuleInstance } from './utils/nodeType.js'
 import { genLoopCon, genShuffleAst, genLoopBody } from './utils/loop.js'
 
-const VARIABLE_COMPONENT_TYPES = new Set([
-  'data-var',
-  'data-num',
-  'data-bool',
-  'data-arr',
-  'data-arr-2d',
-  'data-obj-arr',
-  'data-obj-1d',
-  'data-obj-json'
-])
-
 export default class ConvertV4ToV5 {
   constructor() {
     this.caseData = {}
@@ -940,20 +929,12 @@ export default class ConvertV4ToV5 {
     let isFakeNode = checkIsFakeNode({ object: block.object })
     let isDbStageMethod = false // 是否是前台直接调用后台数据库方法
     let skipInfiniteAnimatePlay = false
-    let addDelayedVariableRefresh = false
     // 前台直接调后台用户数据库组件的发起微信公众号登录(wxLogin_stage)方法，需要在前面额外加一个动作块获取code参数
     let { action, relatedBid } = block
     if (action) {
       let objNode = ConvertV4ToV5.getNodeById(actionObject)
       let isLoopObj = actionObject.startsWith('_loopObj')
       let actionName = action.name
-      // V5 运行时中，带延时的变量方法虽能成功更新变量值，但其绑定 UI
-      // 可能不会在同一轮任务中重新渲染。变量方法后补一个零时长系统延时，
-      // 让出一次事件循环，使绑定更新被消费。
-      addDelayedVariableRefresh =
-        block.enable !== false &&
-        !!block.delay &&
-        VARIABLE_COMPONENT_TYPES.has(objNode?.type)
       // v4 的组件动作使用回调模型；v5 转为 async/await 后，等待 infinite
       // 动画的 play 永远不会结束。此类案例本身已由 infinite 属性启动循环，
       // 转换时跳过重复的 play 动作，避免阻塞后续动作链。
@@ -1362,9 +1343,6 @@ export default class ConvertV4ToV5 {
       cbList = cbList[0].args[1].args
     }
     let result = [_block]
-    if (addDelayedVariableRefresh) {
-      result.push(genActionDelay())
-    }
     result.push(...cbList)
     if (block.delay) {
       // 在前添加延时

@@ -483,7 +483,7 @@ test('infinite data-animate play actions are skipped to avoid awaiting forever',
   assert.equal(finitePlay.skip, undefined);
 });
 
-test('delayed variable methods yield once after updating bindings', (t) => {
+test('delayed variable methods keep only the original business delay', (t) => {
   if (!ensureIvxMapNodeEnv()) {
     t.skip('missing optional fixture: ivxMap.txt');
     return;
@@ -561,12 +561,12 @@ test('delayed variable methods yield once after updating bindings', (t) => {
   );
   const actionAsts = controller.events.list[0].ast.args;
 
-  assert.equal(actionAsts.length, 6);
+  assert.equal(actionAsts.length, 5);
   assert.equal(actionAsts[1].ln, 'delayed-bool-method');
-  assert.equal(actionAsts[4].ln, 'delayed-text-method');
-  assert.equal(actionAsts[5].ln, 'plain-bool-method');
+  assert.equal(actionAsts[3].ln, 'delayed-text-method');
+  assert.equal(actionAsts[4].ln, 'plain-bool-method');
 
-  const assertDelayAst = ({ ast, time, hasTimeValue }) => {
+  const assertDelayAst = ({ ast, time }) => {
     assert.equal(ast.op, 'let');
     assert.deepEqual(ast.val, [`${ast.ln}Rtn`, 'JsonVal']);
     const getAst = ast.args[0];
@@ -579,20 +579,204 @@ test('delayed variable methods yield once after updating bindings', (t) => {
     assert.equal(methodAst.op, 'method');
     assert.equal(methodAst.val, 'delaysMethod');
     assert.equal(methodAst.args.length, 1);
-    assert.deepEqual(
-      methodAst.args[0],
-      hasTimeValue
-        ? { key: 'time', op: 'val', val: time }
-        : { key: 'time', op: 'val' },
-    );
+    assert.deepEqual(methodAst.args[0], {
+      key: 'time',
+      op: 'val',
+      val: time,
+    });
   };
 
-  // 原有延时仍在变量方法前。
-  assertDelayAst({ ast: actionAsts[0], time: 1.5, hasTimeValue: true });
-  // 变量方法后新增一次无 time 值的零时长让步。
-  assertDelayAst({ ast: actionAsts[2], hasTimeValue: false });
-  // 非变量组件只有原有前置延时，不追加刷新让步。
-  assertDelayAst({ ast: actionAsts[3], time: 2, hasTimeValue: true });
+  assertDelayAst({ ast: actionAsts[0], time: 1.5 });
+  assertDelayAst({ ast: actionAsts[2], time: 2 });
+});
+
+test('async tree-bound variable setValue does not synthesize refresh delays', (t) => {
+  if (!ensureIvxMapNodeEnv()) {
+    t.skip('missing optional fixture: ivxMap.txt');
+    return;
+  }
+
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push(
+    {
+      id: 'async-bound-list',
+      type: 'data-obj-arr',
+      rootId: 'stage1',
+      uis: { name: '异步树数据' },
+      props: { value: [] },
+      binds: {},
+      children: [],
+      _cited: {
+        props: {
+          'async-tree': ['value'],
+        },
+      },
+    },
+    {
+      id: 'async-unbound-list',
+      type: 'data-obj-arr',
+      rootId: 'stage1',
+      uis: { name: '未绑定数据' },
+      props: { value: [] },
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'async-text-bound-list',
+      type: 'data-obj-arr',
+      rootId: 'stage1',
+      uis: { name: '普通文本绑定数据' },
+      props: { value: [] },
+      binds: {},
+      children: [],
+      _cited: {
+        props: {
+          'async-bound-text': ['text'],
+        },
+      },
+    },
+    {
+      id: 'async-tree',
+      type: 'ih5-tree-for',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'async-bound-text',
+      type: 'ih5-text',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'async-source',
+      type: 'data-funcGroup',
+      rootId: 'stage1',
+      uis: {},
+      props: { inParams: [], outParams: [] },
+      binds: {},
+      children: [],
+    },
+    {
+      id: 'async-refresh-controller',
+      type: 'ih5-text',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      binds: {},
+      children: [],
+      events: {
+        list: [
+          {
+            tree: {
+              bid: 'async-refresh-root',
+              type: 'root',
+              trigger: { name: 'click' },
+              children: [
+                {
+                  bid: 'plain-bound-set',
+                  type: 'action',
+                  object: 'async-bound-list',
+                  action: { name: 'setValue', params: [] },
+                  children: [],
+                },
+                {
+                  bid: 'async-source-call',
+                  type: 'action',
+                  object: 'async-source',
+                  action: {
+                    name: 'fireFuncGroup',
+                    callback: true,
+                    params: [],
+                  },
+                  children: [
+                    {
+                      bid: 'async-source-status',
+                      type: 'status',
+                      option: null,
+                      children: [
+                        {
+                          bid: 'async-bound-set',
+                          type: 'action',
+                          object: 'async-bound-list',
+                          action: { name: 'setValue', params: [] },
+                          children: [],
+                        },
+                        {
+                          bid: 'async-unbound-set',
+                          type: 'action',
+                          object: 'async-unbound-list',
+                          action: { name: 'setValue', params: [] },
+                          children: [],
+                        },
+                        {
+                          bid: 'async-text-bound-set',
+                          type: 'action',
+                          object: 'async-text-bound-list',
+                          action: { name: 'setValue', params: [] },
+                          children: [],
+                        },
+                        {
+                          bid: 'async-bound-clear',
+                          type: 'action',
+                          object: 'async-bound-list',
+                          action: { name: 'clearValue', params: [] },
+                          children: [],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  );
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const controller = v5CaseJson.stage.children.find(
+    (node) => node.id === 'async-refresh-controller',
+  );
+  const eventAst = controller.events.list[0].ast;
+
+  const findSiblingArgs = (ast, ln) => {
+    if (!ast || typeof ast !== 'object') return undefined;
+    if (Array.isArray(ast.args)) {
+      if (ast.args.some((item) => item?.ln === ln)) return ast.args;
+      for (const item of ast.args) {
+        const found = findSiblingArgs(item, ln);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  const isYieldAst = (ast) =>
+    ast?.op === 'let' &&
+    ast.args?.[0]?.args?.[0]?.val?.[0] === 'sobj' &&
+    ast.args?.[0]?.args?.[1]?.val === 'delaysMethod';
+
+  const rootArgs = findSiblingArgs(eventAst, 'plain-bound-set');
+  const plainIndex = rootArgs.findIndex((ast) => ast.ln === 'plain-bound-set');
+  assert.equal(rootArgs[plainIndex + 1].ln, 'async-source-call');
+
+  const callbackArgs = findSiblingArgs(eventAst, 'async-bound-set');
+  assert.deepEqual(
+    callbackArgs.map((ast) => ast.ln),
+    [
+      'async-bound-set',
+      'async-unbound-set',
+      'async-text-bound-set',
+      'async-bound-clear',
+    ],
+  );
+  assert.equal(callbackArgs.some(isYieldAst), false);
 });
 
 test('getWidgetMethodMap resolves methods from runtime maps', (t) => {
