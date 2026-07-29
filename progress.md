@@ -732,3 +732,219 @@
 - 最终静态检查通过：tov5parser 两个修改文件 `node --check`、双仓库 `git diff --check` 均无错误；补偿标识符在两个转换目录中均已清零。
 - VxEditor41 只修改了 `src/utils/convertV4ToV5/index.js`；用户原有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录保持不动。
 - **Phase 46 Status:** complete。
+
+## 2026-07-28 日期范围选择器缺少时间面板诊断
+
+- 用户提供最新 V5 预览 `JGTvx7MG`：点击“量体师委派”单元格图标，弹窗中再点击“开始-完成日期”单元格日历图标，日期选择器能出现，但 V5 缺少 V4 正常显示的时间选择面板。
+- 本轮先只读诊断，不修改转换器；将对照 V4 `wt5RnwSK@10000590`、V5 DOM、React props 与两份案例 JSON。
+- **Phase 47 Status:** in progress。
+## 2026-07-28 Phase 47 进展
+
+- 已在 V5 预览 `JGTvx7MG` 中复现并打开“量体师委派”弹窗。
+- 表格中 x≈1175 的文件图标打开“款式信息”，x≈1295 的图标打开“量体师委派”。
+- “开始-完成日期”行的日历图标资源为 `1818c9215ea79f1a8e600c851f64f2c2_1095.svg`，下一步对比 V4/V5 展开后的日期选择器 DOM、组件参数和对应 JSON 节点。
+- 已完成 V4/V5 运行时对照：V4 底部选择器高度为 278px、滚轮区 192px；V5 根节点仅 96px、滚轮区仅 10px，三个滚轮容器计算高度均为 0。
+- V4 根节点没有内联 `height`，V5 根节点额外出现 `height: fit-content`。两边 React 组件的 64 个基础 props 除当前日期值外完全一致，均为 `height: ""`；问题已收敛到 V5 尺寸模式/样式生成，不是日期参数或事件缺失。
+- 已定位组件节点 ID `ccpjtcha3j50000c5f50`，名称“量体委托日期”，类型 `ih5-date-picker-tab`。
+- V4/V5 使用完全相同的 player 与 widgets 构建；组件公共 CSS 固定高度为 278px。V5 的版本化通用尺寸逻辑把空高度写成内联 `height: fit-content`，覆盖了公共 CSS。
+- 在 V5 页面现场将根节点高度改为 278px 后，根节点、滚轮区和滚轮容器立即恢复为与 V4 完全一致的 278/192/182px，证明根因。
+- 当前案例另有同类型节点 `cctnpfsa3j50000qww90`（“日期选择器手机版”）同样没有显式高度，也有相同风险。
+- 本轮为只读诊断，未修改转换生产代码。**Phase 47 Status: complete。**
+
+## 2026-07-28 VxEditor41-widgets 版本化高度逻辑核对
+
+- 用户要求进一步从 `VxEditor41-widgets` 源码解释同一日期组件为何只在 V5 生成 `fit-content`。
+- 仓库当前已有用户修改：`src/components/ih5/core/rel/iconButton/iconButton.jsx`，本轮只读检查，不触碰该文件。
+- 初步检索已锁定 `src/utils/adaptiveWH.js::isV5/processAdaptiveWH` 与 `src/components/ih5/base/base/base.jsx` 的 V5 分支。
+- 已完成源码闭环：日期组件继承 `BasePicker → Ih5Base`，render 直接将 `this.getStyle()` 作为内联样式；公共基础样式只在 V5 合并 `adaptiveWHStyle`。
+- V4 `isV5()` 为 false，空高度不产生内联 `height`；V5 为 true，`processAdaptiveWH` 默认 `sizeMode='fit'`，把空高度变成 `auto`，再变成 `fit-content`。
+- 日期组件自身虽声明 `defaultProps.height='260px'`，但案例运行时显式传入 `height: ""`，React defaultProps 不会替换显式空字符串。
+- V4 因没有内联高度，由高优先级公共 CSS `.iwx-time-picker.weui-picker { height: 278px }` 生效；V5 的内联 `fit-content` 覆盖该 CSS。
+- Git 历史确认 `129e9e555` 在 2024-10-27 引入“V5 所有组件空宽高自动包裹”；`3742ebd19` 在 2025-12-29 为避免 `fit-content` 覆盖 class 样式引入 `sizeMode:'auto'`，但只在 nativeHTML 使用，日期选择器未接入。
+- 影响面已精确收敛到四个使用 `this.getStyle()` 且依赖 Picker class 固定高度的组件：日期、日期时间、时间、月份 Picker Tab；cascade/city/cols/radio Picker 使用 `wrapStyle()`，不经过该高度分支。
+- 推荐运行时修复：让基础组件把可配置的 `sizeMode` 传给 `processAdaptiveWH`，上述四类 Picker Tab 设为 `sizeMode:'auto'`，空高度时不输出内联高度，继续使用 CSS 默认值。
+- 本轮只读检查，未修改 `VxEditor41-widgets`；其原有 `iconButton.jsx` 修改保持不动。**Phase 48 Status: complete。**
+## 2026-07-28：VxEditor41-widgets 日期类选择器组件侧修复
+
+- 用户已确认采用组件侧方案。
+- 目标是保留日期/时间选择器 CSS 中的固定高度，避免 V5 通用自适应逻辑把空高度转成内联 `fit-content`。
+- 本次只修改组件基础逻辑与选择器公共基类，不增加属性面板字段。
+- `VxEditor41-widgets` 中现有的 `iconButton.jsx` 修改属于用户，需保持不变。
+- 已完成两处源码修改；日期、日期时间、时间、月份选择器通过公共基类获得内部 `sizeMode: 'auto'`。
+- 目标文件 ESLint、`git diff --check` 和生产 Webpack 构建均通过。
+- 未修改任何组件映射文件，未触碰现有 `iconButton.jsx` 变更，尚未提交。
+
+## 2026-07-28：同步 VxEditor5-widgets 并提交两个组件仓库
+
+- 用户明确要求将相同组件修复同步至 `VxEditor5-widgets`，随后提交并推送两个项目。
+- 两个仓库当前均为 `master` 分支；`VxEditor5-widgets` 工作区干净。
+- `VxEditor41-widgets` 仍有用户已有的 `iconButton.jsx` 修改，本轮提交只包含两处日期选择器尺寸修复文件。
+- 两个仓库均存在对应的基础组件与 Picker 公共基类，开始核对源码差异并同步。
+- 已核对两仓库目标源码：除 `VxEditor41-widgets` 本次尚未提交的修复外，两处文件内容一致，可以原样同步。
+- 已在 `VxEditor5-widgets` 同步 `adaptiveWHStyle` 的 `sizeMode` 透传和 Picker 基类的 `sizeMode: 'auto'`。
+- 两仓库目标文件 ESLint、`git diff --check` 均通过，且同步后的两份目标源码逐字一致。
+- 两仓库生产 Webpack 构建均成功；构建未运行 `genmap.js`，避免改写组件映射生成文件。
+- 远端检查结果：`VxEditor41-widgets` ahead/behind 为 0/0；`VxEditor5-widgets` 为 0/7，暂缓提交，先审计并合并远端更新。
+- 已确认 `VxEditor5-widgets` 的 7 个远端提交与目标文件不重叠，并用 fast-forward merge 同步到 `origin/master`；未使用 rebase。
+- 合并远端后重新执行 VxEditor5 目标 ESLint、`git diff --check` 和生产构建，均通过。
+- 两仓库均已只暂存 `src/components/ih5/base/base/base.jsx` 与 `src/components/ih5/extra/rel/timePickerGroup/basePicker/index.jsx`。
+- `VxEditor41-widgets` 的 `iconButton.jsx` 仍保持为未暂存状态，没有进入待提交范围。
+- `VxEditor41-widgets` 已提交并推送 `23e37580c`（`master`）。
+- `VxEditor5-widgets` 已提交并推送 `5294a630e`（`master`）。
+- 两仓库 `HEAD` 均与各自 `origin/master` 一致（ahead/behind 0/0）。
+- `VxEditor5-widgets` 工作区干净；`VxEditor41-widgets` 仅保留用户原有、未提交的 `iconButton.jsx` 修改。
+- **Phase 50 Status:** complete。
+
+## 2026-07-29：量体师委派选择人员确认无效诊断
+
+- 用户反馈：V5 点击量体师委派图标，在弹窗“量体师”列点“新增”，选择人员后点击“确定”没有反应，选择人员弹窗也不关闭；V4 正常。
+- 本轮先只读诊断，不修改转换器或运行时。
+- 运行复现沿用已知 V4 `wt5RnwSK@10000590` 与 V5 `JGTvx7MG`，优先使用 Playwright，避免 Chrome 插件超时。
+- 将同时核对确定按钮事件是否触发、动作组是否结束、数据是否写入，以及关闭弹窗动作是否抵达。
+- 旧 V5 地址已失效；从当前 Chrome 标签确认最新 V5 地址为 `VdtnQAjZ`，V4 地址仍为 `wt5RnwSK@10000590`。
+- AppleScript 读取 Chrome 标签因系统权限被拒，已切换到浏览器只读接口，不再重试该失败路径。
+- 隔离 V5 页面已加载完成，确认“量体师委派”首行入口为 x≈1295/y≈166.5；下一步打开委派弹窗并定位“新增”。
+- 已打开首行 `D.043847` 的量体师委派弹窗并唯一定位“+新增”；准备进入选择人员弹窗。
+- 已触发“+新增”：人员服务成功返回 13 条数据，但隔离页未出现第二层选择人员弹窗。下一步从“+新增”DOM 节点和案例 JSON 追踪完整动作链，确认显示弹窗动作是否位于未完成动作之后。
+- 已确认“+新增”事件挂在其父 layout-row 的 `onTap`；开始提取运行时 fiber 标识并反查 JSON。
+- 已反查确认“+新增”只负责追加空行，且 V5 已成功执行；下一步点击新空行的量体师选择框进入用户所述选择人员界面。
+- 已打开真正的“选择人员”弹窗：入口是已有量体师行右侧搜索图标。下一步勾选一个当前未选人员并点击“确定”，同时记录动作、请求与弹窗状态。
+- 已唯一定位“新FRP-王工”行及其图片勾选状态，准备执行勾选和确定。
+- V5 已完整复现：勾选成功，确定事件也执行并写入 `connetTemp`，但之后动作链停止，第二层弹窗不关闭。开始从“量体师确定”日志反查节点/BID和后续阻塞动作。
+- 已锁定动作组 `chze6kja3j500008jr60` 与首个可疑 BID `chze6kja3j500008jrj0`；下一步精确对比该动作的 V4 公式和 V5 AST。
+- `jrj0` 静态 AST 未见参数丢失；开始从选择弹窗 React 模块实例读取定位索引、量体师委派数组和 connetTemp 的实际值。
+- 已取得根运行容器 `_rc`，继续解析其 r/m/t 索引以读取三个目标变量。
+- 已确认变量存储结构，准备沿 `_rc.r` 运行树读取目标数组和索引。
+- 运行数据证明 `jrj0` 已成功写回；阻塞点进一步收敛到 `jrjg/jrk0` 的 reduce 公式，开始核对 reduce lambda 参数转换。
+- 两个 reduce AST 均确认缺少 `acc` lambda 声明，开始对照 map 与 AST 编译器验证这是可执行错误而非 schema 特例。
+- map 与运行函数已确认 `arr_reduce` 必须声明 `acc,item,index`；当前转换器只声明 `item,index`，根因基本确定。下一步补 V4 运行对照，并统计同类 reduce 影响面。
+- V4 对照弹窗已打开，继续执行“选择王工 → 确定”验证正常链路。
+- V4 已进入同一选择人员弹窗，准备勾选王工并确认。
+- V4 正常完成确认、关闭和回填，并执行全部后续日志。根因已验证，接下来统计 frp-pad 中同类 reduce 转换影响面并整理修复点。
+- 已完成同类影响面统计：当前 frp-pad 有 79 个 `arr_reduce`，其中 57 个 lambda 缺少 `acc` 形参，涉及 42 个 BID、31 个节点。
+- 已确定首个中断点为“量体师确认”动作组中的两个 reduce 动作 `chze6kja3j500008jrjg` / `chze6kja3j500008jrk0`；确定按钮、人员选择和前一连接数据写回动作均正常。
+- 根因是 `V4FormulaCodeConverter.processArrowFunctionExpression()` 一边按方法映射把源回调参数翻译为 `acc/item`，一边把生成 lambda 的声明固定成 `item/index`，最终产生引用未声明 `acc` 的函数。
+- V4 同一路径能正常关闭弹窗并回填王工，验证数据和业务动作本身没有问题；tov5parser 与 VxEditor41 的转换器均存在相同硬编码。
+- 本轮没有修改转换生产代码。**Phase 51 Status: complete。**
+
+## 2026-07-29：修复 reduce 回调形参转换
+
+- 用户确认实施修复；本轮只修改 tov5parser，暂不提交 Git。
+- 修复目标是让 lambda 的参数声明与方法映射驱动的回调引用保持一致，并用真实 frp-pad 重新转换验证。
+- 已修改 `processArrowFunctionExpression()`：从系统方法映射首个函数参数的 `inParams` 生成 lambda 声明，无有效映射时才回退到原 `item/index`。
+- 已新增两条回归：reduce 必须声明 `acc,item,index`，普通 map 仍声明 `item,index`；定向测试 13/13 通过。
+- 项目全量测试 50/50 通过。
+- 已用最新 V4 源重新转换 frp-pad，并将压缩产物与诊断报告归位到 `localCases/v5/frp-pad/`；转换成功，控制台输出的均为案例中既有公式降级日志。
+- 新产物共有 79 个 `arr_reduce`，其中 57 个正文使用 `acc`；缺少 `acc` 声明的数量已从 57 清零。目标 BID `chze6kja3j500008jrjg` / `chze6kja3j500008jrk0` 的 lambda 均为 `acc,item,index`。
+- `app.v5.json` 保持紧凑格式：29,959,162 bytes、0 个换行，SHA-256 `3573170a2e4f3c72f8a536f77baa32b39a2d05b5fb552707e29e9af0487421c3`。
+- 回归测试进一步覆盖 `ast2js` 生成的 `function(acc,item,index)` 并实际执行 reduce；定向测试 13/13、项目全量测试 50/50 再次通过。
+- 新产物 2,589/2,589 个 jsfn 均通过 JavaScript 编译审计。
+- 本轮只修改 tov5parser，VxEditor41 同类转换代码尚未同步；没有创建 Git 提交。
+- **Phase 52 Status:** complete。
+
+## 2026-07-29：重新下载并转换最新 frp-pad
+
+- 用户确认 V4 案例 JSON 已变化，要求重新调用项目文档中的接口下载并转换。
+- 将覆盖 `localCases/v4/frp-pad/app.json`，再生成压缩版 `localCases/v5/frp-pad/app.v5.json` 和诊断报告；不提交 Git。
+- 已确认导出链路必须先查当前 `work_id`，再调用中文服编辑器 `/work/load/{workId}?nid=11064050`，并按 VxEditor41 的 codec 解密解压。
+- 当前本地源对应 `work_id …-2920`、版本 745，紧凑 JSON 为 41,697,293 bytes；中文服只读数据库隧道已在 `127.0.0.1:13306` 监听。
+- 首次元数据查询调用交接包的 `mysql-shell.sh` 失败，因为本机没有 `mysql` 客户端（exit 127）；不重复该路径，改用交接包已提供的 PyMySQL 只读连接方式。
+- PyMySQL 方式首次执行又发现当前 Python 环境没有安装 `pymysql`；本机也没有其他 MySQL 客户端或可复用 Node MySQL 包。下一步只在临时目录安装 PyMySQL，查询完成后不写入项目依赖。
+- 临时 PyMySQL 查询成功：当前 `work_id` 为 `cbt1eskpeu4lef3h2330-2921`，相较本地记录的 `…-2920` 已更新；案例仍为 V4.1、`ntype=1`、版本字段 745。
+- 首次 `/work/load/…-2921` 下载返回 `text/plain` 而非预期二进制，临时文件已清理且旧 V4 源未被覆盖。下一步读取不含凭据的状态与响应摘要，区分登录失效、接口提示或 Work ID 状态问题。
+- 响应摘要确认文档 Cookie 已失效：HTTP 203，提示“请先登陆”。当前 Chrome 已打开并登录 `dev.ivx.cn/#11064050`，因此改用该现有登录态。
+- Chrome 页面内首次完整读取二进制超过 30 秒控制时限并重置连接；不再经控制结果回传大二进制，下一次改为在页面内触发浏览器下载。
+- 页面内 `fetch → blob → 下载` 仍在 60 秒处超时且下载目录没有落盘，说明页面脚本方式本身被请求/CORS链路卡住；停止重复该方式，改为让已登录 Chrome 直接导航到二进制 URL，由浏览器原生下载处理响应。
+- Chrome 原生导航到二进制 URL 也等待 30 秒后超时，下载目录没有新文件；不再重复直接导航。接下来从已正常加载的编辑器页读取 performance 网络条目，确认实际 `/work/load` 请求 URL、耗时和页面所用链路。
+- performance 条目读取也因 Chrome 页面控制超时而中止；停止使用需要等待页面返回的大读取。
+- 已从 VxEditor41 实际 `stageProxy.js` 确认 V4 加载就是跨域 `XMLHttpRequest GET`、`responseType=arraybuffer`，没有额外请求头。下一次将在已登录编辑页异步启动同样的 XHR，立即返回控制权，并通过短轮询等待完成后由页面落盘下载。
+- Chrome 编辑页连“启动异步 XHR”这一步也超时，且对应渲染进程持续高占用；停止继续控制该用户标签。按用户此前允许的替代方案，切换到隔离 Playwright，并在页面初始化时写入已知 session，再使用其请求通道下载。
+- 用户提醒继续按 `raw` 文档获取。复核 `raw/SecretRoot.local.env` 的键名后发现还提供 `PLATFORM_COOKIE_CN` / `PLATFORM_COOKIE_CN_IH5BEARER`，可替代文档默认但已过期的 cookie 文件；下一步优先用中文服 Cookie 环境变量直接执行文档链路，无需再走浏览器。
+- `PLATFORM_COOKIE_CN` 对 `/work/load` 同样返回 HTTP 203，说明这份普通中文服 Cookie 也已失效；临时下载文件已清理，旧 V4 源仍未覆盖。下一步分别验证 raw 中两个 IH5 bearer Cookie 变量的状态，只输出状态码，不输出凭据。
+- `PLATFORM_COOKIE_CN_IH5BEARER` 与 `PLATFORM_COOKIE_IH5BEARER` 也均返回 HTTP 203；raw 中现有三份中文服认证材料全部失效。
+- 最后尝试利用用户此前提供的 session 在隔离 Playwright 打开编辑器，由页面完成登录初始化后再请求二进制；若仍失败，将需要用户更新文档默认的 `.platform_cookie`。
+- 隔离 Playwright 写入该 session 后仍被 `dev.ivx.cn` 重定向到登录页，确认预览 session 不能替代平台登录 Cookie。
+- 共享 Chrome 登录态的直接下载尝试也因浏览器控制超时/空白页沙箱限制未能落盘；未读取或导出浏览器 Cookie。
+- 已确认最新元数据为 `work_id=cbt1eskpeu4lef3h2330-2921`，但在获得有效 Cookie 前不能安全下载完整 V4 JSON；原 `app.json` 和上一次 V5 产物均未被本轮失败尝试覆盖。
+- **Phase 53 Status:** blocked，等待更新 `/Users/lianghuang/Documents/docs/auth/.platform_cookie`。
+- 用户已更新文档指定 Cookie 文件，修改时间为 2026-07-29 10:33:30；Phase 53 恢复执行。
+- 使用更新后的 Cookie 成功下载 `work_id=cbt1eskpeu4lef3h2330-2921`：HTTP 二进制 3,314,392 bytes，解码为 2 个分段，顶层完整包含 `case/server/stage`。
+- 新 V4 紧凑 JSON 为 41,697,291 bytes，SHA-256 `6f447cbb17457d0b5f194129f5d7d8e164d23f02156eb57657f64095764deb5a`；旧摘要为 `e64600…caf6`，确认内容已变化。根类型仍为 `ih5-case/ih5-stage/data-server`。
+- 已用当前转换器生成 V5 并归位 `app.v5.json`、`app.convert-errors.json`、`app.convert-errors.md`；转换成功，诊断为 2,722 次 jsfn 兜底、2,372 条去重、0 条空值降级。
+- 新 V5 为 29,959,160 bytes、0 个换行，SHA-256 `490c6fe106aabed34887a8baa7ae6238ef97e287487c3230c035b58d22d02fea`。
+- 真实产物审计通过：79 个 reduce、57 个使用 acc、0 个遗漏声明；两个目标 BID 均为 `acc,item,index`；2,589/2,589 个 jsfn 可编译。
+- **Phase 53 Status:** complete。
+
+## 2026-07-29：reduce 修复后的选择人员列表回归
+
+- 用户反馈最新转换产物中，打开“量体师选择”弹窗后人员列表完全不显示；修改 reduce 前列表正常。
+- 本轮按转换器回归排查，先确定打开弹窗动作链中首个受影响的 reduce，再实施最小修复；不提交 Git。
+- 已定位打开链路中的首个 reduce：动作 `cqbb8paa3j50000p0zt0` 处理“量体师列表”的 `roleList`，源回调只有 `(total,cur)` 两个形参，最新转换却声明为 `acc,item,index` 三个形参。
+- 下一步核对实际 V5 Player 的 lambda 编译/执行约定，确认是否应保留源回调形参数量，仅用方法映射替换对应位置的参数名。
+- 隔离预览已完整复现并取得运行数据：reduce 正确得到 7 个角色 ID、角色服务正常返回 2 条；最终人员列表在动作 `cqbc6hja3j50000p122g` 的嵌套 `filter/find` 中从 13 条变成 0 条。
+- 根因改判为嵌套回调局部参数重名：外层 `i` 与内层 `j` 均转为 `item`。V5 编辑器原生做法是给每个函数型系统块生成 `_blockId` 并用其后缀隔离参数。
+- 已开始按原生规则给转换器生成回调块 ID，同时保留 reduce 的 `acc` 修复，并新增嵌套 `filter/find` 执行回归。
+- 转换器已完成修复：所有函数型系统块生成 `_blockId`，lambda 形参与局部引用统一追加块 ID 后缀；reduce 的累加器声明继续保留。
+- 新增嵌套 `filter/find` 实际执行回归，并更新 reduce、普通 map 回归；定向测试 14/14、全量测试 51/51 通过。
+- 已重新生成 frp-pad：目标动作外层/内层回调块 ID 不同，内层正文能同时引用正确的外层人员和内层角色。
+- 新产物审计：2,424/2,424 个回调块的 ID/形参匹配，79 个 reduce 中 0 个累加器声明遗漏，2,589/2,589 个 jsfn 可编译。
+- `app.v5.json` 保持紧凑格式：30,204,305 bytes、0 个换行，SHA-256 `5334e4c07393e148c9957fd05f5405650e08c4df9039e7892f15d9d0416d38bf`。
+- 当前线上预览仍是导入旧产物的版本；需要重新导入该新文件后做最终页面确认。
+- **Phase 54 Status:** complete。
+
+## 2026-07-29：新增量体师后责任量体师下拉无数据
+
+- 用户确认上一轮选择人员列表问题已修复；新增问题为量体师委派弹窗新增量体师后，右上角“责任量体师”下拉没有选项，V4 正常。
+- 本轮只做诊断，不修改转换器；将对比新增前后委派数组、责任量体师选项变量、下拉组件绑定值及 V4/V5 动作链。
+- 已完成会话恢复检查；上一轮转换器和测试修改仍在工作区，未提交，本轮不会混入新的生产代码修改。
+- 已在隔离 V5 预览复现：点击“+新增”出现空白量体师行，右上角责任量体师仍显示原始 userId 且下拉无姓名数据。
+- 关键运行值：`责任量体师ID` 正常为 `0559655439-1344896399`，但初始化阶段“量体师选项”已连续两次为空；人员服务和 `userInfoArray` 均有数据。
+- 初步排除接口空返回，继续定位责任量体师组件节点、选项变量和对应计算动作。
+- 已定位责任量体师选择组件 `cby9x8da3j50000db710`：对象选项绑定 `ccpnp0ga3j50000c5peg`，选中值绑定 `ccpnhsqa3j50000c5p40`。
+- 已锁定可疑动作 `ceckgb1a3j500000z14g`：转换后的 `arr_reduce` 回调只剩空 `return`，未能从 `ccp1mrva3j50000pefvg` 汇总 `measureUserIds`，导致后续姓名回填循环没有输入。
+- 已核实该动作在 V4 中的完整公式和所属事件，并结合 V4 正常表现确认分叉发生在转换后的块体回调。
+- `localCases/v5/frp-pad` 当前只保存转换产物和错误报告，V4 源 JSON 位于项目其他下载/缓存位置，正在按动作 BID 反查源文件。
+- `/Users/lianghuang/Downloads/case_12225413.json` 命中该 BID，但它本身也是 V5 AST；其 `reduce` 回调同样为空，不能用来还原 V4 公式。
+- 已从错误报告还原 V4 原公式：`reduce((pre,cur)=>{ if (...) pre=...; return pre }, [])`，确认 V5 丢失的是完整块体回调，而不是接口数据。
+- 所属小模块实例为 `cdf85dda3j50000w883g`（`FRP_选择弹窗_部门_new`），转换记录阶段为 `custom-expr-fallback`。
+- 已追到转换器的具体失效路径：完整 JS 遍历从 `SpreadElement` 进入 `NewExpression` 后，参数分支未避开“内部含函数”的 `reduce` 子树，导致它被旧结构化转换提前替换；旧箭头函数转换不支持块体，于是回调只剩空返回。
+- 已用实现代码验证上述路径：旧箭头函数转换没有块体语句支持，`BlockStatement` 会落入默认空值 AST。
+- V4 预览页已在隔离浏览器正常加载；首次沿用 V5 的固定坐标未取得弹窗后的 DOM 输出，下一步改按 V4 实际 DOM/图标位置定位，不依赖坐标。
+- 已确认 V4 “量体师委派”表头位于 `x=1270.5, y=98.5`，页面首行业务号为 `D.043847`；将从该列首行 DOM 层级定位实际图标。
+- 已定位 V4 首行委派图标 DOM：图片资源尾部为 `4fba9930c32dd7c69ccfdfd260ac72b5_1447.svg`，父节点为可点击的 `.ih5-rel-image`；后续用该节点触发，避免固定坐标误差。
+- V4 图标点击已真实触发（共识别 12 个同资源图标并点击首个）；旧运行时在打开弹窗期间使自动化页面读取长时间无响应，未继续依赖该读数。V4 正常结果已有用户侧现象与 V4 原公式共同佐证，根因判断不受影响。
+- 已确认动作归属：数据小模块实例 `cdf85dda3j50000w883g`（类 `C_cd1wmz3a3j50000jwv8g`）响应内部事件 `cd1x281a3j50000jwyng` 时执行选项初始化。
+- 内部事件名称已确认是“选择部门”；同事件中表达式体 `reduce` 正常，只有含语句块的 `reduce` 回调被清空。
+- 已更正直接触发链：首次点击“量体师委派/点击框”时，BID `cep0rtva3j500007pyk0` 与 `ccpnpcsa3j50000c5pn0` 就会把空回调的 `reduce` 结果写入“量体师选项”；`ceckgb1...` 是选择部门后的同类后续动作。
+- 同模板入口 `cm21x2wa...`、`d0dcr6ra...` 也受影响，后续修复需覆盖表达式结构而不是硬编码 BID。
+- 已核对完整动作顺序：空选项先进入人员查询/回填，再进入姓名补全循环，所有后续动作均可正常结束但结果仍为空，因此运行时没有服务错误。
+- 修复入口已精确到 `walkCustomExprParsed()` 的 `CallExpression/NewExpression` 参数处理：完整 JS 模式需用 `containsFunctionExpression()` 保护嵌套块体回调。
+- V4/V5 组件绑定一致，但 `ccpnp0ga...` 默认空且没有自身绑定；弹窗中另一个同名变量 `cdgbn0ca...` 才有 `{id,name}` 计算公式。已确认 `ccpnp0ga...` 由点击动作写入，首个写入结果即因空回调变成空数组。
+- **Phase 55 Status:** complete。
+
+## 2026-07-29：修复 full-JS 嵌套块体回调被清空
+
+- 用户确认需要实施修复。
+- 本轮目标：在完整 JS 转换路径保留 `new Set(reduce((...) => { ... }))` 内部块体回调，同时不破坏外部 V4 引用参数化；补回归测试并重转 frp-pad 验证相关 BID。
+- 已执行会话恢复检查；下一步先核对工作区已有未提交修改，再在其基础上做最小增量修改。
+- 已核对工作区：`V4FormulaCodeConverter.js` 与 `jsepWrap.test.js` 中现有未提交内容是上一轮 `_blockId`/嵌套回调作用域修复及其测试，本轮将在其上做小范围增量，不覆盖或回退。
+- 已修改 `walkCustomExprParsed()`：完整 JS 模式下，`CallExpression/NewExpression` 的参数子树只要包含函数表达式，就保留为 JS 子树递归处理，不再提前结构化。
+- 已新增 `new Set(items.reduce((pre,cur)=>{...;return pre},[]))` 回归，要求块体代码完整保留、不会生成原生 `arr_reduce` 空回调，并执行验证去重后的 `{userId}` 结果。
+- 定向公式测试 15/15 通过；项目全量测试 52/52 通过。
+- 已复核计划，当前仅剩 frp-pad 重转和目标 BID AST 审计；本地转换脚本支持按案例文件名定向执行并输出诊断报告。
+- 已确认最新 V4 源文件为 `localCases/v4/frp-pad/app.json`，转换产物要求写入 `localCases/v5/frp-pad/app.v5.json` 且保持紧凑单行。现有批量脚本对嵌套输入使用 basename 输出，需沿用此前的定向重转方式，避免误写 `localCases/v5/app.v5.json`。
+- 已复核历史做法：对 frp-pad 直接调用与批量脚本相同的 `loadRuntimeMaps()` / `convertV4CaseJsonToV5CaseJson()` 转换库，并将 `JSON.stringify()` 的紧凑结果写回既有嵌套产物路径。
+- 已重新生成 `localCases/v5/frp-pad/app.v5.json`；转换成功，控制台仍有案例既有的公式 fallback 日志。
+- 产物格式审计通过：30,192,242 bytes、0 个换行、可重新解析且等于紧凑序列化结果，SHA-256 `c9fb3c13224e681181309683c424e15fae0dc432c8feda63cdebec5297ca3a56`；`git diff --check` 通过。
+- 首次目标 BID 审计脚本因输出对象误用了未声明变量 `globalEmptyReduce` 而失败；产物本身未受影响。下一次改为直接输出已声明的 `emptyReduce` 字段，不重复错误写法。
+- 修正审计脚本后验证通过：`cep0rtva...`、`ccpnpcsa...`、`cm21x2wa...`、`d0dcr6ra...`、`ceckgb1...`、`chze6kja...` 六条相关动作均不再生成原生 `arr_reduce`，完整块体 `reduce` 保留在 `jsfn` 中。
+- 全案例 `arr_reduce` 空回调计数为 0；2,589 个 `jsfn` 全部可编译，错误 0。
+- **Phase 56 Status:** complete。
+
+## 2026-07-29：提交 tov5parser 并同步 VxEditor41
+
+- 用户明确授权：提交并 push tov5parser 当前修改；随后将最近的转换器修复同步到 VxEditor41，验证后提交并 push。
+- 本轮将先完成 tov5parser，再进入 VxEditor41；遵守两仓库现有分支和远端，不使用 rebase、不改写历史。
+- tov5parser 位于 `main`，上游为 `origin/main`；待提交范围是两份转换器/测试文件及三份项目规划记录，`git diff --check` 已通过。
+- **Phase 57 Status:** in progress。
+- **Phase 56 Status:** in progress。

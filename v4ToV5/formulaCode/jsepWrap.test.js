@@ -3,9 +3,27 @@ import assert from 'node:assert/strict'
 import jsep from './jsepWrap.js'
 import V4FormulaCodeConverter from './V4FormulaCodeConverter.js'
 import ExprAstToString from './ExprAstToString.js'
+import { loadRuntimeMaps } from '../../index.js'
+import { ast2js } from '../ast2js.js'
 
 const assertSingleLineJsfn = jsfn => {
   assert.equal(/[\r\n]/.test(jsfn.val[0]), false)
+}
+
+const findAst = (ast, predicate) => {
+  if (!ast || typeof ast !== 'object') return
+  if (predicate(ast)) return ast
+  for (const value of Object.values(ast)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findAst(item, predicate)
+        if (found) return found
+      }
+    } else {
+      const found = findAst(value, predicate)
+      if (found) return found
+    }
+  }
 }
 
 test('jsepWrap registers the v4 formula syntax plugins', () => {
@@ -26,6 +44,154 @@ test('jsepWrap registers the v4 formula syntax plugins', () => {
 
   const templateAst = jsep('`hello ${name}`')
   assert.equal(templateAst.type, 'TemplateLiteral')
+})
+
+test('reduce lambda declares the accumulator from the sysutil callback map', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.reduce((pre, cur) => pre.concat(cur.department), [])',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const reduce = findAst(
+    ast,
+    item => item.op === 'sysutil' && item.val === 'arr_reduce'
+  )
+  const lambda = findAst(ast, item => item.op === 'lambda')
+  assert.equal(typeof reduce?._blockId, 'string')
+  assert.deepEqual(lambda?.val, [
+    `acc_${reduce._blockId}`,
+    `item_${reduce._blockId}`,
+    `index_${reduce._blockId}`
+  ])
+  assert.match(
+    JSON.stringify(lambda),
+    new RegExp(`"local","acc_${reduce._blockId}"`)
+  )
+  assert.match(
+    JSON.stringify(lambda),
+    new RegExp(`"local","item_${reduce._blockId}"`)
+  )
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'test-node',
+    getNodeByIdFunc() {}
+  })
+  assert.match(
+    code,
+    new RegExp(
+      `function\\(acc_${reduce._blockId},item_${reduce._blockId},index_${reduce._blockId}\\)`
+    )
+  )
+  const result = new Function('$sys', 'param', `return ${code}`)(
+    {
+      util: {
+        arr_reduce: (value, fn, initVal) => value.reduce(fn, initVal),
+        arr_concat: (value, next) => value.concat(next),
+        obj_item: (value, key) => value[key]
+      }
+    },
+    {
+      items: [{ department: 1 }, { department: 2 }]
+    }
+  )
+  assert.deepEqual(result, [1, 2])
+})
+
+test('ordinary array callbacks use block-scoped item and index parameters', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.map((entry, position) => entry.id + position)',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const map = findAst(
+    ast,
+    item => item.op === 'sysutil' && /(?:^|_)map$/.test(item.val)
+  )
+  const lambda = findAst(ast, item => item.op === 'lambda')
+  assert.equal(typeof map?._blockId, 'string')
+  assert.deepEqual(lambda?.val, [
+    `item_${map._blockId}`,
+    `index_${map._blockId}`
+  ])
+  assert.match(
+    JSON.stringify(lambda),
+    new RegExp(`"local","item_${map._blockId}"`)
+  )
+  assert.match(
+    JSON.stringify(lambda),
+    new RegExp(`"local","index_${map._blockId}"`)
+  )
+})
+
+test('nested array callbacks keep outer and inner item references distinct', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str:
+      'fParamgroup.users.filter(i => !!fParamgroup.roles.find(j => i.roleList.includes(j.id)))',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const callbacks = []
+  const collectCallbacks = value => {
+    if (!value || typeof value !== 'object') return
+    if (
+      value.op === 'sysutil' &&
+      ['objArr_filter', 'objArr_find'].includes(value.val)
+    ) {
+      callbacks.push(value)
+    }
+    for (const child of Object.values(value)) {
+      if (Array.isArray(child)) child.forEach(collectCallbacks)
+      else collectCallbacks(child)
+    }
+  }
+  collectCallbacks(ast)
+
+  const filter = callbacks.find(item => item.val === 'objArr_filter')
+  const find = callbacks.find(item => item.val === 'objArr_find')
+  assert.equal(typeof filter?._blockId, 'string')
+  assert.equal(typeof find?._blockId, 'string')
+  assert.notEqual(filter._blockId, find._blockId)
+  const innerLambda = findAst(find, item => item.op === 'lambda')
+  const innerJson = JSON.stringify(innerLambda)
+  assert.match(innerJson, new RegExp(`"local","item_${filter._blockId}"`))
+  assert.match(innerJson, new RegExp(`"local","item_${find._blockId}"`))
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'test-node',
+    getNodeByIdFunc() {}
+  })
+  const result = new Function('$sys', 'param', `return ${code}`)(
+    {
+      util: {
+        objArr_filter: (value, fn) => value.filter(fn),
+        objArr_find: (value, fn) => value.find(fn),
+        obj_item: (value, key) => value[key],
+        arr_includes: (value, item) => value.includes(item)
+      }
+    },
+    {
+      users: [
+        { id: 1, roleList: [10] },
+        { id: 2, roleList: [20] }
+      ],
+      roles: [{ id: 20 }]
+    }
+  )
+  assert.deepEqual(result, [{ id: 2, roleList: [20] }])
 })
 
 test('full JavaScript fallback preserves block arrows as parameterized jsfn', () => {
@@ -212,6 +378,44 @@ test('full parser keeps callback subtrees intact while parameterizing external r
   assert.doesNotThrow(() => {
     new Function(...jsfn.val.slice(1), `return (${jsfn.val[0]});`)
   })
+})
+
+test('full parser keeps block reduce callbacks nested inside new expressions', () => {
+  const ast = new V4FormulaCodeConverter({
+    str:
+      '[...new Set(fParamgroup.items.reduce((pre,cur)=>{if(!!cur.measureUserIds)pre=pre.concat(cur.measureUserIds);return pre},[]))].map(item=>{return {userId:item}})',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = ast.args[0]
+  assert.equal(jsfn.op, 'jsfn')
+  assertSingleLineJsfn(jsfn)
+  assert.match(jsfn.val[0], /new Set\(\$v1\.reduce\(\(pre, cur\) => \{/)
+  assert.match(jsfn.val[0], /pre = pre\.concat\(cur\.measureUserIds\);/)
+  assert.match(jsfn.val[0], /return pre;/)
+  assert.equal(
+    findAst(
+      ast,
+      item => item.op === 'sysutil' && item.val === 'arr_reduce'
+    ),
+    undefined
+  )
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.deepEqual(
+    evaluate([
+      { measureUserIds: ['u1', 'u2'] },
+      { measureUserIds: null },
+      { measureUserIds: ['u2', 'u3'] }
+    ]),
+    [{ userId: 'u1' }, { userId: 'u2' }, { userId: 'u3' }]
+  )
 })
 
 test('full parser keeps block callbacks nested in conditional branches', () => {

@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 45（V5 变量写入与树组件刷新根因审计）— in progress
+Phase 54（reduce 修复导致选择人员列表缺失回归）— in progress
 
 ## Phases
 
@@ -403,6 +403,22 @@ Phase 45（V5 变量写入与树组件刷新根因审计）— in progress
 - [x] 运行双仓库定向测试、静态检查和影响面验证
 - **Status:** complete
 
+### Phase 47: 日期范围选择器缺少时间面板诊断（2026-07-28）
+- [x] 在 V5 `JGTvx7MG` 精确复现量体师委派日期选择器
+- [x] 在 V4 对照页复现并记录时间面板 DOM 差异
+- [x] 从页面节点 class/React props 定位日期组件 ID
+- [x] 对比 V4 原始 JSON 与最新 V5 转换结构
+- [x] 判定是转换属性缺失、组件运行时差异还是业务动作影响
+- **Status:** complete
+
+### Phase 48: VxEditor41-widgets 版本化高度逻辑核对（2026-07-28）
+- [x] 定位 `ih5-date-picker-tab` 源组件及继承的基础类
+- [x] 追踪 `getStyle()` 对空高度的 V4/V5 分支
+- [x] 核对 `vxConfig.ver` 的来源和 V5 判断条件
+- [x] 解释默认 props、公共 CSS 与内联样式的优先关系
+- [x] 判断最合理的运行时修复位置及同族组件影响面
+- **Status:** complete
+
 ## Future Work（不属于当前任务）
 - v3 → v5：调研 3.x 数据结构并新增 `v3ToV5/` 转换入口。
 - GitHub 推送、Access Key 轮换及调用方对接；涉及外部状态变更时另行取得用户授权。
@@ -460,3 +476,96 @@ Phase 45（V5 变量写入与树组件刷新根因审计）— in progress
 | Chrome 重新 claim 已打开的 V5 预览页连续超时 | 2 | 扩展轻量 openTabs 正常，页面接管卡住；停止重复 claim，尝试复用 browser session 中已有受控 tab，否则转为 JSON 与运行时代码静态定因 |
 | Chrome 已受控 V5 页的定向开发日志读取仍超时 | 1 | 停止页面读取；用案例中的完整行高事件链与 V4/V5 布局生命周期实现交叉定因 |
 | Browser runtime 返回对象没有 `documentation()` 方法 | 1 | 不重复调用该接口；当前页面已能用独立 Playwright + 本机 Chrome稳定复现，继续沿用该只读诊断路径 |
+| 误猜 BasePicker 文件名为 `basePicker.jsx` | 1 | 目录实际入口是 `basePicker/index.jsx`，改读真实入口；未修改任何源码 |
+| 首轮全仓 `rg` 命中生成的 `player.js/locale.js` 导致输出过大 | 1 | 后续改为精确源文件和排除生成文件的定向检索 |
+| AppleScript 读取 Chrome 标签失败 | 2 | 首次语法错误，修正后被 macOS 权限拒绝；停止重试，改用浏览器只读标签列表取得当前预览 URL |
+| 在压缩 JSON 上使用 `rg -n` 输出整行 | 1 | 输出约 18MB 并被截断；后续改用 JSON 解析后按字符串/ln 精确提取，不再对单行产物直接打印命中行 |
+| 检索 reduce 实现时误用不存在的 `test/`、`vendor/` 路径 | 1 | 用 `rg --files` 重新确认真实目录，后续只检索 `v4ToV5/`、根 map 与明确测试文件 |
+### Phase49：VxEditor41-widgets 日期类选择器尺寸模式修复
+
+- [x] 在 `Ih5Base.adaptiveWHStyle` 中向 `processAdaptiveWH` 透传内部 `sizeMode`
+- [x] 为日期/时间选择器公共基类设置内部默认值 `sizeMode: 'auto'`
+- [x] 核对未修改属性面板映射，并完成 lint、构建与差异检查
+
+**Status:** completed
+
+### Phase 50：同步日期类选择器尺寸修复并提交推送（2026-07-28）
+
+- [x] 核对 `VxEditor5-widgets` 对应基础组件、选择器继承链和工作区状态
+- [x] 同步 `sizeMode` 透传及 Picker 内部默认值
+- [x] 分别完成两个仓库的 ESLint、构建与差异检查
+- [x] 分别只暂存本次修复文件并创建提交
+- [x] 推送两个仓库当前分支并核对远程状态
+
+**Status:** complete
+
+### Phase 51：量体师委派中选择人员确认无效诊断（2026-07-29）
+
+- [x] 在 V5 复现“量体师委派 → 量体师新增 → 勾选人员 → 确定”无效
+- [x] 在 V4 执行同一路径并记录正常关闭、回填行为
+- [x] 从 DOM/React fiber 定位选择人员弹窗、确定按钮及相关节点 ID
+- [x] 对比 V4/V5 JSON 中确定事件的完整动作链和编译 AST
+- [x] 识别首个阻塞、异常或语义分叉点，给出根因与责任范围
+
+**Status:** complete
+
+### Phase 52：修复 reduce 回调形参转换（2026-07-29）
+
+- [x] 按系统方法映射的 `inParams` 生成 lambda 形参，移除固定 `item/index`
+- [x] 增加 reduce 累加器及普通数组回调的回归测试
+- [x] 运行定向测试与项目全量测试
+- [x] 重新转换 frp-pad，并核验目标 BID 与同类 `arr_reduce`
+- [x] 检查最终差异并记录修复结果
+
+**Status:** complete
+
+### Phase 53：重新下载并转换最新 frp-pad（2026-07-29）
+
+- [x] 按 `raw` 文档确认案例导出接口、参数与凭据读取方式
+- [x] 调接口下载最新 V4 JSON并覆盖本地源文件
+- [x] 核对下载结果的案例标识、结构和版本变化
+- [x] 用当前转换器生成紧凑 V5 JSON及诊断报告
+- [x] 核验 reduce 修复、jsfn 可编译性与最终产物格式
+
+**Status:** complete
+
+### Phase 54：reduce 修复导致选择人员列表缺失回归（2026-07-29）
+
+- [x] 复现最新 V5 中打开“量体师选择”后列表为空
+- [x] 定位打开弹窗动作链及其中受 reduce 修改影响的公式
+- [x] 对比修复前后 AST、编译代码与运行时回调约定
+- [x] 实施最小修复并补回归测试
+- [x] 重转 frp-pad，验证列表与确定动作对应 AST 同时正常
+
+**Status:** complete
+
+### Phase 55：新增量体师后责任量体师下拉无数据诊断（2026-07-29）
+
+- [x] 在最新 V5 复现“量体师委派 → 新增量体师 → 责任量体师下拉为空”
+- [x] 记录新增前后委派数据、责任量体师选项变量及组件绑定值
+- [x] 从运行日志/DOM 定位相关节点 ID、动作组和首个数据分叉点
+- [x] 对比 V4 同路径与 V4/V5 JSON 的公式、动作顺序及 AST
+- [x] 给出根因、影响范围和建议修复位置，不修改转换代码
+
+**Status:** complete
+
+### Phase 56：修复 full-JS 嵌套块体回调被清空（2026-07-29）
+
+- [x] 核对当前未提交修改，避免覆盖上一轮工作
+- [x] 修复完整 JS 遍历中 `CallExpression/NewExpression` 参数子树的回调保护
+- [x] 补充 `new Set(reduce(blockArrow))` 及 frp-pad 原公式回归测试
+- [x] 运行公式转换单测与项目相关测试
+- [x] 重新转换 frp-pad，核对责任量体师相关 BID 的回调 AST
+
+**Status:** complete
+
+### Phase 57：提交 tov5parser 并同步 VxEditor41（2026-07-29）
+
+- [x] 核对 tov5parser 分支、远端和待提交范围
+- [ ] 提交并推送 tov5parser 当前累计修复
+- [ ] 核对 VxEditor41 仓库状态及转换器对应差异
+- [ ] 同步最近的回调作用域与 full-JS 块体回调修复
+- [ ] 运行 VxEditor41 相关验证
+- [ ] 提交并推送 VxEditor41 转换器修改
+
+**Status:** in_progress

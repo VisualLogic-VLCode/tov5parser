@@ -4,6 +4,7 @@ import { generate } from 'astring'
 import ParseError from './ParseError.js'
 import ExprAstToString from './ExprAstToString.js'
 import { reportDiagError } from '../utils/convertDiag.js'
+import { genXid } from '../env.js'
 // 原 4.1 编辑器内的 formulaCode/MapCreator 是 vlparser utils/MapCreator 的同源阉割版
 // （从 window 读映射），移植后直接使用 vlparser 完整版（支持 Node 的 global 读取）
 import MapCreator from '../../utils/MapCreator.js'
@@ -173,7 +174,9 @@ export default class V4FormulaCodeConverter {
     sysutilInfo, // 系统工具函数信息
     identity, // 身份，用于标识jsep的ast的来源。eg: callee
     args = [], // 函数调用的参数，当identity为callee时有效
-    customExprContext // 自定义表达式的上下文
+    customExprContext, // 自定义表达式的上下文
+    callbackParamInfo, // 当前函数型参数的定义
+    callbackBlockId // V5 用于隔离嵌套回调局部参数的块 ID
   }) => {
     let { type } = parsed || {}
     try {
@@ -208,7 +211,9 @@ export default class V4FormulaCodeConverter {
         case 'ArrowFunctionExpression': // 箭头函数
           return this.processArrowFunctionExpression({
             parsed,
-            sysutilInfo
+            sysutilInfo,
+            callbackParamInfo,
+            callbackBlockId
           })
         case 'Compound': // 复合表达式 (typeof aaa)
           return this.processCompound({ parsed })
@@ -580,8 +585,24 @@ export default class V4FormulaCodeConverter {
       ]
     }
   }
-  processArrowFunctionExpression = ({ parsed, sysutilInfo }) => {
+  processArrowFunctionExpression = ({
+    parsed,
+    sysutilInfo,
+    callbackParamInfo,
+    callbackBlockId
+  }) => {
     let { params, body } = parsed || {}
+    let { inParams = [] } =
+      callbackParamInfo || sysutilInfo?.params?.[0] || {}
+    let lambdaParams = inParams
+      .map(param => param?.name)
+      .filter(name => typeof name === 'string' && name)
+    if (lambdaParams.length === 0) {
+      lambdaParams = ['item', 'index']
+    }
+    if (callbackBlockId) {
+      lambdaParams = lambdaParams.map(name => `${name}_${callbackBlockId}`)
+    }
     let innerGetCtx = (...ps) => {
       let str = ps[0]
       let index = -1
@@ -589,8 +610,7 @@ export default class V4FormulaCodeConverter {
         index = params.findIndex(p => p.name === str)
       }
       if (index < 0) return
-      let { inParams } = sysutilInfo?.params?.[0] || {}
-      let { name: paramName } = inParams?.[index] || {}
+      let paramName = lambdaParams[index]
       return {
         varType: 'arrCallbackParam',
         paramName
@@ -601,7 +621,7 @@ export default class V4FormulaCodeConverter {
     this.innerGetCtxQueue.pop()
     return {
       op: 'lambda',
-      val: ['item', 'index'],
+      val: lambdaParams,
       args: [
         {
           op: 'block',
@@ -1344,12 +1364,25 @@ export default class V4FormulaCodeConverter {
   // 将函数参数追加到反包函数ast中
   appendFuncArgs = ({ sysUtilFuncAST, funcArgs, funcName }) => {
     if (Array.isArray(funcArgs) && funcArgs.length > 0 && sysUtilFuncAST) {
+      const sysutilInfo = this.getSysutilInfoFromFuncName({ funcName })
+      const hasFuncParam = sysutilInfo?.params?.some(
+        param => param?.uType === 'func'
+      )
+      const callbackBlockId = hasFuncParam ? genXid() : undefined
+      if (callbackBlockId) {
+        sysUtilFuncAST._blockId = callbackBlockId
+      }
       // 处理函数参数
-      sysUtilFuncAST.args = funcArgs.map(item =>
+      sysUtilFuncAST.args = funcArgs.map((item, index) =>
         this.processParsedTree({
           gateway: true, // 是否为公式编辑器的入口位置
           parsed: item,
-          sysutilInfo: this.getSysutilInfoFromFuncName({ funcName })
+          sysutilInfo,
+          callbackParamInfo: sysutilInfo?.params?.[index],
+          callbackBlockId:
+            sysutilInfo?.params?.[index]?.uType === 'func'
+              ? callbackBlockId
+              : undefined
         })
       )
     }
@@ -1732,8 +1765,14 @@ export default class V4FormulaCodeConverter {
             args.map(item => {
               let { type } = item || {}
               let ast
-              if (type === 'ArrowFunctionExpression') {
-                // 箭头函数
+              if (
+                type === 'ArrowFunctionExpression' ||
+                (context.fullJsMode &&
+                  this.containsFunctionExpression({ parsed: item }))
+              ) {
+                // 完整 JavaScript 中，参数子树可能是 reduce(blockArrow) 这类
+                // “调用中嵌套回调”的表达式。必须保留整棵 JS 子树，仅递归
+                // 参数化其中的外部引用；提前结构化会把块体回调转成空 return。
                 this.walkCustomExprParsed({ parsed: item, context })
               } else {
                 ast = this.processParsedTree({

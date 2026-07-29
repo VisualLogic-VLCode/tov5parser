@@ -728,3 +728,195 @@
 - 使用当前转换器在内存中重转真实 frp-pad 后，`delaysMethod` 总数从现有产物的 321 降为 222；所有 99 个缺少 `time` 值的刷新补偿 delay 均已消失，而有明确时间值的原始业务延时保留。
 - 99 个被移除的无参数 delay 包含 Phase 44 的 35 个异步 tree-for 补偿，以及更早规则生成的 64 个延时变量方法补偿。
 - 目标 BID `chpqsw7a3j50000jzy1g` 在旧产物后接无参数 `delaysMethod`，当前转换结果后直接进入原始 `switch`，证明目标临时兼容已撤销。
+
+## 2026-07-28 日期选择器缺少时间面板
+
+- 待验证路径：V5 `JGTvx7MG` → “量体师委派”单元格图标 → 弹窗“开始-完成日期”单元格日历图标。
+- 对照 V4 地址沿用 `wt5RnwSK@10000590`；重点区分日期组件的 `showTime/timePicker/format` 等属性转换缺失与运行时组件渲染差异。
+## 日期范围选择器缺少时间面板（2026-07-28）
+
+- V5 `JGTvx7MG` 中已确认目标入口是表格“量体师委派”列的图标，不是“款式信息”列图标。
+- “量体师委派”弹窗内目标字段标题为“开始-完成日期”，日历触发图标资源为 `1818c9215ea79f1a8e600c851f64f2c2_1095.svg`。
+- 待确认：V4/V5 日期选择器渲染 DOM 差异、时间面板相关 props，以及转换后 JSON 是否丢失或误映射相关属性。
+- V4 `.iwx-time-picker.date-picker-tab`：根高度 278px，`.picker_wrap` 高度 192px，三个 `.weui-picker__bd` 均为 182px。
+- V5 同一结构：根高度 96px，`.picker_wrap` 高度 10px，三个 `.weui-picker__bd` 均为 0px；日期滚轮 DOM 实际存在，只是被压缩/裁切。
+- 唯一直接样式差异：V4 根节点无 `height` 内联样式，V5 根节点为 `height: fit-content`。
+- V4/V5 日期组件的 64 个基础 React props 除日期数据外一致，均有 `height: ""`、`visibleItemCount: 11`、`itemHeight: 34`、`btnHeight: 36`、`tabHeight: 50`。因此不是 props 中时间配置丢失，而是 V5 对空高度应用了内容自适应尺寸模式。
+- 目标节点：`ccpjtcha3j50000c5f50`，名称“量体委托日期”，类型 `ih5-date-picker-tab`。
+- V4/V5 加载同一 player `20230911190146/player.js` 和同一 widgets `20260728173119/widgets.js`，排除组件版本不一致。
+- 公共 CSS `.iwx-time-picker.weui-picker` 提供 `height: 278px`。V4 空高度不生成内联高度，CSS 正常生效；V5 版本化尺寸逻辑为同一个空高度生成 `height: fit-content`，其内联优先级覆盖公共 CSS，导致 flex 滚轮区塌陷。
+- 现场验证：仅将 V5 根 DOM 高度设为 `278px`，布局立即变为根 278px、`.picker_wrap` 192px、`.weui-picker__bd` 182px，与 V4 完全一致。
+- 转换层可兼容的方向：对无显式高度的 `ih5-date-picker-tab` 写入 V4 实际固定高度 `278px`；同时审计同族 `ih5-date-time-picker-tab`、`ih5-time-picker-tab`。更根本的运行时修复是让这类内置固定高度选择器在高度为空时不输出 `fit-content`，继续使用组件 CSS 默认高度。
+
+## VxEditor41-widgets 源码核对（2026-07-28）
+
+- `src/components/ih5/base/base/base.jsx` 明确导入 `isV5`、`processAdaptiveWH`。
+- `src/utils/adaptiveWH.js` 中 `isV5()` 以 `config.current.ver === 2` 判断 V5；空高度且不纵向拉伸时，适配逻辑会输出 `height: fit-content`。
+- 待继续核对：`base.jsx` 仅在 V5 调用该适配逻辑的精确位置、日期选择器继承链，以及公共 CSS/默认 props 为什么在 V4 保留、在 V5 被内联样式覆盖。
+- 日期组件源码为 `src/components/ih5/extra/rel/timePickerGroup/datePickerTab/datePickerTab.jsx`，继承链是 `Ih5RelDatePickerTab → BasePicker → Ih5Base`；render 的根节点直接使用 `style={this.getStyle()}`。
+- `Ih5Base.adaptiveWHStyle` 在 `isV5()` 为 true 时才调用 `processAdaptiveWH`，之后 `baseStyle` 把结果合并进最终样式。
+- `processAdaptiveWH` 默认 `sizeMode='fit'`：空高度先变成 `auto`，`adaptWH` 再在未纵向撑开时返回 `{height:'fit-content'}`。
+- `isV5()` 的判断为 `config.current.ver === 2`；预览页 V5 的 `vxConfig.ver=2`，V4 不满足，所以同一组件构建会进入不同基础样式分支。
+- 日期组件声明 `defaultProps.height='260px'`，但 frp-pad 节点未保存 height，运行时包装层给组件显式传入 `height: ""`。React 的 defaultProps 只补 `undefined`，不会覆盖空字符串，因此 260px 未生效。
+- 两条类样式同时存在：`.date-picker-tab {height:260px}` 与特异性更高的 `.iwx-time-picker.weui-picker {height:278px}`。V4 无内联高度时后者生效；V5 的内联 `fit-content` 优先级最高。
+- Git 历史：`129e9e555` 引入 V5 通用空宽高“包裹/撑开”逻辑；`3742ebd19` 的提交说明就是“处理自动添加 fit-content 样式覆盖 classname 的样式表中的样式问题”，新增 `sizeMode`，但仅 nativeHTML 显式传 `sizeMode:'auto'`，通用基础组件没有把 `this.props.sizeMode` 下传，Picker Tab 也未设置该模式。
+- 因此根因是 V5 通用自适应尺寸规则误伤依赖 class 固定高度的旧 Picker，不是 V4/V5 加载了不同日期组件。
+- Picker Group 逐个核对后，受同一机制影响的是四类根节点使用 `style={this.getStyle()}` 的组件：`ih5-date-picker-tab`、`ih5-date-time-picker-tab`、`ih5-time-picker-tab`、`ih5-month-picker-tab`。cascade/city/cols/radio Picker 使用 `wrapStyle()`，不合并 `adaptiveWHStyle`。
+- 推荐窄修：`Ih5Base.adaptiveWHStyle` 读取并传递 `sizeMode`；上述四类 Picker Tab 设置 `sizeMode:'auto'`。这样仅在 height 为空时不生成内联值，显式高度与撑开配置仍按现有逻辑工作。
+## 2026-07-28：日期类选择器组件侧尺寸修复结论
+
+- `Ih5Base.adaptiveWHStyle` 原先未把组件内部的 `sizeMode` 传给 `processAdaptiveWH`，因此选择器无法选择已有的 `auto` 模式。
+- 日期/时间选择器公共基类增加 `sizeMode: 'auto'` 后，空高度不再生成内联 `height: fit-content`，组件原有 CSS 固定高度可以正常生效。
+- `sizeMode` 未加入任何 `*.map.json`，因此不会出现在属性面板，也不会成为案例 JSON 中的编辑器属性。
+- 生产构建与目标文件 ESLint 均通过；用户原有 `iconButton.jsx` 修改保持不变。
+
+## 2026-07-28：VxEditor5-widgets 同步核对
+
+- `VxEditor5-widgets` 的 `Ih5Base.adaptiveWHStyle` 与 Picker 公共基类在本次修改前和 `VxEditor41-widgets` 对应代码一致，可直接同步相同的两处最小改动。
+- 两个仓库均使用 `master` 分支并配置各自 GitHub `origin`。
+- `VxEditor5-widgets` 工作区干净；`VxEditor41-widgets` 另有用户现存的 `iconButton.jsx` 修改，必须排除在本次暂存和提交之外。
+- 两仓库的 Picker 映射文件均无需修改，`sizeMode` 保持内部 React 默认属性。
+- 提交前 fetch 发现 `VxEditor41-widgets/master` 与远端一致；`VxEditor5-widgets/master` 落后 `origin/master` 7 个提交。按仓库安全规则不能 rebase，需要先检查这 7 个提交是否触碰目标文件，再用 merge 方式同步。
+- `VxEditor5-widgets` 的 7 个远端提交只修改 `locale.js`、backendSecurity 和 ucClient，未触碰本次两个目标文件；已在保留工作区改动的情况下通过 `--ff-only` 快进到最新远端。
+- 快进后目标 ESLint、差异检查和生产构建再次通过，当前与远端 ahead/behind 为 0/0。
+
+## 2026-07-29：选择人员确认无效诊断
+
+- 旧 V5 地址 `JGTvx7MG` 当前返回 404，不能继续作为复现目标。
+- 本机 Chrome 当前打开的有效页面为：V5 `https://giupre.h5app.com/play/VdtnQAjZ`，V4 `https://giupre.h5app.com/play/wt5RnwSK@10000590`。
+- 直接用 AppleScript 列标签先遇到语法错误，修正后又被 macOS Apple Events 权限拒绝；已停止该路径，改用只读 Chrome 标签列表取得当前地址。
+- 后续交互仍使用隔离 Playwright，并在页面初始化时写入用户指定的 sessionStorage，避免刷新时被判断为未登录。
+- V5 `VdtnQAjZ` 已正常加载，案例 nid 为 `12226286`，首屏显示 4 行数据，初始化服务均返回成功。
+- “量体师委派”表头中心位于 x≈1300；每行对应文件图标位于 x≈1295，首行 y≈166.5。x≈1175 的同图标属于“款式信息”，需避免点错。
+- 本轮可直接使用首行 `D.043847` 复现，不必切页。
+- 点击首行委派图标后，V5 正常打开“量体师委派”弹窗；当前行已有两名量体师，弹窗内“+新增”唯一，位置约 x=1078/y=536。
+- 委派弹窗本身的打开链路正常，故障范围已缩小到“+新增”后的选择人员模块或其确定动作。
+- 点击 V5 “+新增”后，确实触发了“获取量体师列表”服务，服务成功返回 13 条人员数据，控制台变量“量体师列表”也更新为 13 项。
+- 但隔离复现中等待约 3.7 秒后仍只存在原“量体师委派”一个固定弹窗，尚未出现第二层选择人员弹窗；说明“+新增”的动作链在服务成功后还有一个未抵达的步骤，或 UI 提交与用户浏览器现场存在时序差异。
+- 该服务请求 `_sid=ccp00r3a3j50000peb70`，过滤条件是量体部门 `730697178`；请求本身不是阻塞点。
+- “+新增”文本位于量体师委派弹窗内一个可点击 layout-row；点击事件绑定在该行组件的 `onTap`，不是文本节点自身的独立事件。
+- React fiber 显示当前外层页面的 VL 模块名为“弹窗”，但转换后的 DOM class 不再携带源节点 ID；需要从 fiber 的 `data-vl-id/__events/$uses` 或本地 JSON 文本反查源节点。
+- 本地 V4/V5 JSON 已定位“+新增”父节点：`ce6tndxa3j50000z730g`，名称“新增行”；其唯一动作 BID 为 `ce6tpnaa3j50000z733g`。
+- 该动作在 V4/V5 中语义一致，只是向变量 `ccp1mrva3j50000pefvg`（“量体师委派”）当前行的 `connect` 数组追加 `{department:null,userIds:[]}`；它本来就不负责打开选择人员弹窗。
+- 点击后 UI 已正确新增一条空白委派行。新行“量体师”列是一个空的 `ih5-select`（约 x=964–1224/y=452–483）；下一步应点击这个空选择框继续复现，而不是把“+新增”动作误判为失败。
+- 新空行的普通下拉框因 department 为空显示 `No Data`，它不是用户所说的“选择人员”弹窗。
+- 关闭该下拉后，点击已有量体师行右侧搜索图标（首行约 x=1210/y=495）成功打开第二层“选择人员”弹窗；弹窗 z-index=10，列出 13 名人员并有“确定”按钮。
+- 用户所述故障路径应对应这个搜索图标/选择人员弹窗，而不是 `ce6tndx...` 的“+新增行”动作。
+- V5 选择人员弹窗中“新FRP-王工”唯一；整行是可点击 layout-row，右侧用图片模拟勾选框，未选图标资源为 `6eb70d0a689e0af5d42cdb2bc50d1014_1106.svg`，不是原生 checkbox。
+- 将选择“新FRP-王工”作为无副作用的本地弹窗状态测试对象，再点击“确定”观察是否回填/关闭。
+- V5 勾选“新FRP-王工”成功，右侧图标从未选 `6eb70d...svg` 切换为已选 `f96551...svg`，说明人员行点击和选择变量写入正常。
+- 点击“确定”后故障稳定复现：1.8 秒后选择人员弹窗仍存在，没有回填/关闭，也没有发起任何新请求或抛出 pageerror。
+- 确定事件已经触发，控制台依次输出“量体师确定”“已选列表=[Object,Object]”“connetTemp=[Object,Object]”，随后没有后续日志。首个停点位于 `connetTemp` 成功更新之后、关闭弹窗之前；不是按钮点击失效，也不是勾选值丢失。
+- 日志反查到动作组节点 `chze6kja3j500008jr60`，名称“量体师确认”，位于弹窗节点 `chze6kaa3j500008jpdg`（“量体师选择”）中。
+- V4 旧代码显示 `connetTemp.consoleData()` 后下一步就是 BID `chze6kja3j500008jrj0`：把重组后的 `connect` 写回“量体师委派”变量；随后还会更新 `measureDepartment/measureUserIds`、重建量体师选项并执行 `chze6kja3j500008jrrg setFalse` 关闭弹窗。
+- 当前 V5 从未输出后面的“求量体师选项”，所以首个可疑动作已经精确缩小到 `chze6kja3j500008jrj0`，或其写入参数公式求值。
+- 一次直接 `rg` 搜索压缩 JSON 导致整行约 18MB 输出，已停止该方式；后续统一用 JSON 递归脚本只输出命中路径与精确 AST。
+- `chze6kja3j500008jrj0` 的 V5 AST 表面结构完整：`setOneValue(index, 'connect', [...sliceBefore, ...connetTemp, ...sliceAfter])`；三个 spread 参数均有对应 AST，未出现空 `op:'val'`。
+- 该动作的两个 slice 被转换为 `arr_sliceV2(start,end?)`，定位索引来自变量 `ce6vc2ga3j50000z786g` 的“序号1/序号2”。下一步需读取运行时三个输入值，判断是数据/索引异常、`arr_sliceV2` 运行语义问题，还是动作 Promise 状态未完成。
+- 动作组更后方另发现一处既有可疑转换：BID `chze6kja3j500008jrn0` 的 `reduce((pre,cur)=>{...})` 回调在 V5 AST 内返回空值。但当前执行尚未到达“求量体师选项”，所以它不是本次首个阻塞点，需避免提前归因。
+- 已从选择人员弹窗 React fiber 找到 V5 运行根实例；其 `_rc` 运行数据容器存在 `r/m/t` 三个分区，组件映射 `_cm` 也包含本案所有云端小模块。
+- 根实例不直接暴露 `_sf/_fm`；运行变量和模块实例需继续从 `_rc.r/_rc.m/_rc.t` 定向读取，不能假设旧字段名。
+- 对照本地 `v6core.js`：运行变量实际保存在运行树节点 `p` 中，key 形如 `${nodeId}_value`；`getVar()` 会从当前运行节点向所属 scope 定位。可沿 `_rc.r.c` 递归查找目标 key，不需要调用或修改运行时。
+- `setVar()` 只做依赖重算和 dirty 标记；这再次说明本次没有“求量体师选项”日志时，动作链是在 UI 提交之前就已中断。
+- 运行值证明 `chze6kja3j500008jrj0` 实际已经成功：定位值为 `{序号1:0, 序号2:0}`，`connetTemp` 为“谭工+王工”两项，写回后的 `connect` 已变为 4 项并包含王工。
+- 因此首个停点需后移到下一动作 `chze6kja3j500008jrjg`（更新 `measureDepartment`）或其后的 `jrk0`（更新 `measureUserIds`）。
+- `measureDepartment` 运行值仍为 `[730697178]`，与新计算结果相同，无法单凭值判断 `jrjg` 是否执行；但 `measureUserIds` 仍只有原“谭工+吴工”，未包含王工，确定 `jrk0` 尚未成功完成。
+- `jrjg/jrk0` 都依赖 `connect.reduce((pre,cur)=>pre.concat(...),[])`；当前 V5 AST 的 reduce lambda 外观为 `val:['item','index']`，函数体却引用 `local 'acc'`，需核对转换器/运行时对 reduce 累加参数的约定。
+- 精确提取确认 `jrjg` 和 `jrk0` 均为同一错误形态：`arr_reduce` 的 lambda `val` 只有 `['item','index']`，但 return AST 从 `ref ['local','acc']` 开始调用 `arr_concat`。
+- 若编译器仅按 lambda `val` 声明局部参数，则 `acc` 未定义会在 `jrjg` 求值时报错，完全吻合“connect 已写回、measureUserIds 未更新、后续 console 不执行”的运行证据。
+- 初次检索误用了不存在的 `test/、vendor/` 路径；实际测试文件是 `v4ToV5/v4ToV5.test.js`，映射资产是根目录 `ivxMap.txt` 和 `legacyMaps/legacyIvxMap.txt`。
+- `arr_reduce` 定义位于 `ivxMap.txt` 的 `$SF_arr_reduce` 映射，转换器源码不直接硬编码该字符串；下一步需核对映射参数顺序和公式转换器生成 lambda 的通用参数规则。
+- 根因已由 map、转换器与运行函数三方闭环：
+  - `ivxMap.txt::$SF_arr_reduce.params[0].inParams` 正确声明 `acc,item,index`；
+  - `processArrowFunctionExpression()` 虽用 map 把源 `pre/cur` 引用映射为 `acc/item`，最终 lambda 的 `val` 却硬编码成 `['item','index']`；
+  - `VxEditor41-widgets::arr_reduce()` 直接调用原生 `array.reduce(fn, initVal)`，实际会按 `(acc,item,index,array)` 传参。
+- 因此当前编译出的函数形如 `function(item,index){ return acc.concat(item.department) }`：`acc` 未声明，第一次 reduce 迭代即抛 `ReferenceError`；动作组 Promise 中断，后续 `measureUserIds`、`setFalse` 全部不执行。
+- 该缺陷不是案例业务阻塞或 Player fini 问题，而是 V4→V5 公式转换器对 reduce 回调参数声明的通用错误；上游 VxEditor41 转换器存在相同硬编码。
+- V4 对照页已加载同一首行 `D.043847`，量体师委派弹窗正常打开；数据内容与 V5 对应，便于执行同一人员选择确认链。
+- V4 中同一已有量体师行的搜索图标位于约 x=1205/y=490；点击后打开的“选择人员”弹窗尺寸、人员列表和确定按钮与 V5 一致。
+- V4 同样勾选“新FRP-王工”后点击确定，选择人员弹窗在 1.8 秒内关闭，委派列表立即新增“新FRP开发1 : 新FRP-王工”。
+- V4 日志在 connetTemp 后继续输出“求量体师选项”、量体师委派/选项/userInfoArray，完整走过后续动作；没有新网络请求。这与 V5 在 connetTemp 后停止形成精确对照。
+- 因为两边数据、操作与服务返回一致，已排除业务数据异常；差异完全落在转换后的 reduce AST。
+- 选择人员弹窗节点为 `chze6kaa3j500008jpdg`，确定按钮节点为 `chze6kja3j500008jq4g`；确定事件调用动作组 `chze6kja3j500008jr60`（“量体师确认”）。
+- V5 中点击确定和选中人员均有效：`connetTemp` 已写入王工，动作 `chze6kja3j500008jrj0` 也已把连接数据写回；动作链在后续两个 reduce 动作 `chze6kja3j500008jrjg` / `chze6kja3j500008jrk0` 处中断，因此最终关闭弹窗的 `setFalse` 没有执行。
+- V4 源公式分别为 `connect.reduce((pre,cur)=>pre.concat(cur.department),[])` 和 `connect.reduce((pre,cur)=>pre.concat(cur.userIds),[])`。V5 AST 的回调正文把 `pre/cur` 正确映射成 `acc/item`，但 lambda 的 `val` 被转换器硬编码成 `['item','index']`，遗漏 `acc` 声明。
+- `ast2js` 按 lambda `val` 生成函数形参，实际得到的代码等价于 `function(item,index){ return acc.concat(...) }`；首次 reduce 迭代引用未声明的 `acc` 后，动作组 Promise 被拒绝，后续 `measureUserIds`、选项重算和关闭弹窗动作都不会执行。
+- 根因位于 `v4ToV5/formulaCode/V4FormulaCodeConverter.js::processArrowFunctionExpression()`：回调引用翻译已使用方法映射中的 `inParams`，返回的 lambda 形参却仍固定为 `item,index`。`arr_reduce` 的方法映射和运行时实现都明确要求 `acc,item,index`。
+- VxEditor41 内置转换器的对应文件存在相同硬编码，修复时应同步。最新 frp-pad 产物共有 79 个 `arr_reduce`，其中 57 个缺失 `acc`，涉及 42 个 BID、31 个节点，属于通用转换缺陷。
+- 本轮只读诊断，没有修改转换生产代码。**Phase 51 Status: complete。**
+
+## 2026-07-29：reduce 回调形参转换修复
+
+- `processArrowFunctionExpression()` 现在从 `sysutilInfo.params[0].inParams` 生成 lambda 的 `val`，并让回调正文中的源参数映射复用同一份 `inParams`；仅在映射缺失时回退到原 `item,index`。
+- 该实现不是 reduce 名称特判：`arr_reduce` 自然生成 `acc,item,index`，`map/find/filter` 等普通数组回调继续按各自映射生成 `item,index`。
+- 回归测试不仅检查 AST，还经 `ast2js` 编译并用原生 `reduce` 语义执行，确认两个 department 值能累加成 `[1,2]`。
+- frp-pad 重转后 79 个 `arr_reduce` 中有 57 个正文引用 `acc`，这 57 个 lambda 均已声明 `acc`；遗漏数由 57 降为 0。
+- 目标动作 `chze6kja3j500008jrjg` 与 `chze6kja3j500008jrk0` 均生成 `val:['acc','item','index']`，解决确定动作组在首个 reduce 处中断的问题。
+- 新产物全部 2,589 个 jsfn 均能通过 JavaScript 编译；紧凑 JSON 约束保持不变。
+- 本轮只修复 tov5parser，VxEditor41 中同位置的旧硬编码尚未同步。**Phase 52 Status: complete。**
+
+## 2026-07-29：最新 frp-pad V4 下载与重转
+
+- 中文服只读元数据确认最新 `work_id` 为 `cbt1eskpeu4lef3h2330-2921`，案例仍为 V4.1、`ntype=1`。
+- 用户更新文档指定的 Cookie 后，`/work/load/{workId}?nid=11064050` 成功返回 3,314,392-byte 二进制；解码得到两个分段和完整 `case/server/stage`。
+- 最新 V4 紧凑 JSON 为 41,697,291 bytes，SHA-256 `6f447cbb17457d0b5f194129f5d7d8e164d23f02156eb57657f64095764deb5a`。
+- 最新 V5 紧凑 JSON 为 29,959,160 bytes、0 个换行，SHA-256 `490c6fe106aabed34887a8baa7ae6238ef97e287487c3230c035b58d22d02fea`。
+- 转换诊断仍为 2,722 次 jsfn 兜底、2,372 条去重记录、0 条空值降级，与上一份产物指标一致。
+- 79 个 `arr_reduce` 中 57 个使用 `acc`，缺少 `acc` 声明的数量为 0；目标 BID `chze6kja3j500008jrjg` / `chze6kja3j500008jrk0` 均声明 `acc,item,index`。
+- 2,589 个 jsfn 全部通过 JavaScript 编译审计。**Phase 53 Status: complete。**
+
+## 2026-07-29：reduce 修复后的选择人员列表回归
+
+- “量体师选择”弹窗节点为 `chze6kaa3j500008jpdg`，列表变量为 `chze6kja3j500008jq70`，获取列表动作组为 `chze6kja3j500008jqb0`。
+- 打开弹窗后的数据处理链中，动作 `cqbb8paa3j50000p0zt0` 会执行 `量体师列表.reduce((total,cur)=>total.concat(cur.roleList),[])`；这是打开链路中首个受上一轮 lambda 参数修改影响的 reduce。
+- 最新 V5 将这个源代码只有两个形参的回调扩展成了 `val:['acc','item','index']`。虽然仓库内 `ast2js` 可把它编译成合法原生 JavaScript，但回归恰好从这次“按映射声明全部形参”的修改后出现，需要继续核对实际 Player 编译器是否要求 lambda 形参数量与源回调一致。
+- 隔离预览复现证明三形参不是故障：`cqbb8paa3j50000p0zt0` 已正确算出 7 个角色 ID，服务也正常返回 2 个量体角色；列表是在随后的 `cqbc6hja3j50000p122g` 被过滤为空。
+- 该动作的 V4 公式为 `users.filter(i => !!roles.find(j => i.roleList.includes(j.id)))`。当前 V5 把外层 `i` 和内层 `j` 都映射成 `local item`，实际执行等价于在内层访问 `j.roleList.includes(j.id)`，因此全部返回假。
+- V5 编辑器自行创建函数型系统块时会为系统块生成 `_blockId`，并把回调参数命名为 `item_<blockId>`、`index_<blockId>`；converter 未生成 `_blockId`，才导致嵌套回调局部变量重名。
+- 旧 reduce 错误会提前中断动作组，保留此前已写入的 13 人原始列表；reduce 修复后动作链继续执行，才暴露出后续嵌套回调作用域缺陷。因此不能回退 reduce 修复，应补齐 V5 的 `_blockId` 作用域规则。
+- 转换器现已按 V5 编辑器原生规则为每个函数型系统块生成 `_blockId`，lambda 声明和正文引用均使用同一后缀；reduce 同时保留 `acc_<blockId>`。
+- 重转产物共有 2,424 个函数型系统块和 2,424 个 lambda，全部带匹配的块 ID 后缀；回调作用域审计没有发现未声明的 `acc/item/index` 引用。
+- 目标动作的外层 `objArr_filter` 与内层 `objArr_find` 已生成不同块 ID；内层正文同时正确引用外层人员 `item_<filterId>` 与内层角色 `item_<findId>`。
+- 79 个 reduce 中 57 个正文使用累加器，57 个均声明对应的 `acc_<blockId>`；2,589 个 jsfn 全部可编译。
+- 新 `app.v5.json` 为紧凑单行 JSON，30,204,305 bytes，SHA-256 `5334e4c07393e148c9957fd05f5405650e08c4df9039e7892f15d9d0416d38bf`。
+
+## 2026-07-29：新增量体师后责任量体师下拉无数据
+
+- 最新 V5 已复现：打开首行 `D.043847` 的“量体师委派”弹窗后点击“+新增”，表格出现一条空白量体师行；右上角“责任量体师”仍只显示原始 userId `0559655439-1344896399`，没有显示姓名。
+- 运行日志显示异常在点击“+新增”之前已经存在：初始化读到 `责任量体师ID=0559655439-1344896399`，但两次输出的“量体师选项”均为 `[]`。
+- 同一时段 `userInfoArray` 已有 4 个当前订单相关人员；获取量体师列表并完成角色过滤后，完整人员缓存也有数据。因此不是人员服务无返回，而是“量体师选项”的计算/写入链路没有产出。
+- 点击“+新增”后“量体师委派”仍为一条业务行，界面额外出现一条空白编辑行；下一步确认责任量体师下拉组件绑定的具体变量和选项计算动作。
+- 右上角责任量体师选择组件 ID 为 `cby9x8da3j50000db710`。它使用 `dataMode=objectArray`、`listID=userId`、`listName=name`：
+  - `objectArrayList` 绑定变量 `ccpnp0ga3j50000c5peg`（“量体师选项”，默认空数组且自身无属性绑定）；
+  - `selectValue` 绑定 `ccpnhsqa3j50000c5p40`（“责任量体师ID”）；
+- 已进一步定位到选项初始化动作 `ceckgb1a3j500000z14g`：V5 AST 会从委派数组 `ccp1mrva3j50000pefvg` 汇总每行的 `measureUserIds`，再写入“量体师选项”变量 `ccpnp0ga3j50000c5peg`。
+- 该动作的 V5 `arr_reduce` 回调体异常，只剩一个无值的 `return`；因此无法累计 `measureUserIds`。紧随其后的 `ceckgb1a3j500000z150` 输出空选项，`ceckgb1a3j500000z16g` 原本用于按 `userInfoArray` 回填姓名的循环也不会执行。
+- 这与运行时现象一致：人员服务和 `userInfoArray` 均已有数据，但责任量体师选项在姓名回填前就已经为空。下一步核对该 BID 的 V4 原公式和所属事件，并用 V4 运行时确认正确选项结果。
+- 对比 `/Users/lianghuang/Downloads/case_12225413.json` 与最新 `app.v5.json` 后确认，两者在动作 `ceckgb1a3j500000z14g` 上都已是 V5 AST，且都存在同一个空 `reduce` 回调；该下载文件不能作为 V4 原公式来源。
+- 最新转换只是给 `arr_reduce` 增加了 `_blockId` 并修正回调参数名（`acc/item/index`），但回调块仍是 `return undefined`，所以之前针对嵌套回调的修复并没有补回本动作丢失的回调函数体。
+- 错误报告已给出 V4 原公式。动作 `ceckgb1a3j500000z14g` 的完整代码是：
+  `[...]reduce((pre,cur)=>{if(!!cur.measureUserIds)pre=pre.concat(cur.measureUserIds);return pre},[])...`
+  也就是回调块本应把每行 `measureUserIds` 累加到 `pre` 并返回 `pre`；V5 AST 将整段 `{ if...; return pre }` 丢成了空返回。
+- 该记录的转换阶段是 `custom-expr-fallback`（“full JavaScript expression fallback”），说明不是运行时 `reduce` 或数据问题，而是转换器在处理带块体箭头函数的混合表达式时，虽然进入了完整 JS 兜底路径，仍然把可结构化的 `reduce` 子表达式错误转换成空回调。
+- 动作所属节点为小模块实例 `cdf85dda3j50000w883g`，类型 `data-module-instance`，模块名 `FRP_选择弹窗_部门_new`；事件触发标识为 `cd1x281a3j50000jwyng`。
+- 转换器入口 `processFullJsExpression()` 会先用完整 ESTree 解析整段公式，再由 `walkCustomExprParsed()` 把 V4 `$refs` 子树抽成 `jsfn` 参数。
+- 当前遍历器只在 `walkOrReplaceCustomExpr()` 和部分 `MemberExpression` 场景检查 `containsFunctionExpression()`。本公式从 `ArrayExpression → SpreadElement → NewExpression` 递归后，进入 `CallExpression/NewExpression` 的参数遍历；这里仅判断参数本身是否为 `ArrowFunctionExpression`，没有判断参数子树是否“包含”箭头函数。
+- 因此 `new Set(...)` 的参数——整个 `reduce(blockCallback, [])` 调用——被提前交给 `processParsedTree()` 结构化为 `$v2`。该结构化过程调用旧的 `processArrowFunctionExpression()`；它只按“表达式体”处理箭头函数，把 `BlockStatement` 交给普通 AST 转换后得到空值，最终生成 `return undefined`。外层完整 JS 生成器随后无法恢复 `reduce` 的函数体。
+- 代码核对确认 `processArrowFunctionExpression()` 固定把 `body` 转成单个 `return [rtnAst]`，并没有 `BlockStatement` 分支；而 `processParsedTree()` 对未知 `BlockStatement` 默认返回 `{op:'val'}`。这正是当前空返回 AST 的直接生成路径。
+- 该动作不是责任量体师下拉组件自身事件，而是数据小模块实例 `cdf85dda3j50000w883g` 对模块事件 `cd1x281a3j50000jwyng` 的响应。实例绑定类 `C_cd1wmz3a3j50000jwv8g`，模块名 `FRP_选择弹窗_部门_new`，事件 AST 位于 `stage.children[5].children[36].events.list[0]`。
+- 类定义显示 `cd1x281a3j50000jwyng` 的事件名称是“选择部门”。同一事件里还有多条类似的去重汇总公式，其中表达式体 `reduce((pre,cur)=>pre.concat(...),[])` 可保留；带 `{ if...; return pre }` 块体的 `ceckgb1a3j500000z14g` 才会丢回调体，进一步证明故障条件是“full-JS + spread/new Set + 块体回调”的组合，而不是所有 `reduce`。
+- 继续全局核对后确认，`ceckgb1a3j500000z14g` 是同类问题的一个后续触发点，但**弹窗首次打开时的直接故障动作**是：
+  - `ccpnpcsa3j50000c5pn0`（节点“点击框”的 tap）；
+  - 同一单元格另一点击入口 `cep0rtva3j500007pyk0`（节点“量体师委派”的 tap）。
+- 这两条动作原本把当前行 `measureUserDetail.data` 中每项的 `measureUserIds` 转成 `{userId}` 并去重，然后写入 `ccpnp0ga3j50000c5peg`。最新 V5 中两条动作的 `arr_reduce` 回调同样都只剩空 `return`，所以弹窗一打开“量体师选项”就已被写成 `[]`；点击“+新增”不是致因，只是让问题更明显。
+- 相同模板的另外两处入口 `cm21x2wa3j5000036w9g`、`d0dcr6ra3j5000080s80` 也存在同样空回调，说明这是可批量影响其他列表/页面入口的转换缺陷，修复不应只按一个 BID 特判。
+- 两个直接入口的后续动作链一致：先写 `ccpnp0ga...`，再用该数组调用人员查询/回填结果，随后遍历为每项补 `name`，最后显示弹窗。由于第一步已经得到空数组，后面的查询、回填和循环都会合法完成但仍为空，这解释了为何没有明显报错、弹窗却只显示责任人原始 ID。
+- 转换器的最小通用修复点应在 `walkCustomExprParsed()` 的 `CallExpression/NewExpression` 参数分支：完整 JS 模式下，只要参数子树 `containsFunctionExpression(item)`，就必须保留为 JS 子树并递归参数化外部引用，不能先调用旧结构化转换。还应为这类 `new Set(reduce(blockArrow))` 公式增加回归测试。
+- 已按上述通用入口完成修复。新增回归确认输出仍是单行 `jsfn`，外部数据被参数化为 `$v1`，`reduce((pre,cur)=>{...;return pre},[])` 和外层 `map` 块体均完整保留；执行结果正确得到去重后的 `{userId}` 数组。
+- 重转后两个首次打开入口的公式均已变为：
+  `...new Set($v2.reduce((pre, cur) => { var temp=...; ...; return [...pre, ...temp.measureUserIds]; }, []))`
+  不再出现空 lambda。
+- 选择部门后的 `ceckgb1a3j500000z14g` 和确认后的 `chze6kja3j500008jrn0` 也完整保留 `if (!!cur.measureUserIds) ...; return pre;`，同模板入口同步恢复。
+  - `optionList` 另绑定委派数组中 `measureUserIds` 的扁平去重结果。
+- V4 与当前 V5 的上述组件绑定结构一致；V5 不是把对象数组绑定丢失，而是被绑定的 `ccpnp0ga...` 运行值没有被填充。
+- 弹窗内另有变量 `cdgbn0ca3j50000sv610`（同名“量体师选项”），其值属性用委派数据和 `userInfoArray` 计算 `{id,name}`；但右上角组件并不绑定这个变量。需要继续查 `ccpnp0ga...` 应由哪个动作写入，以及 V4 为何能得到数据。
