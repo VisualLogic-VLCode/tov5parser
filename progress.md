@@ -946,5 +946,16 @@
 - 用户明确授权：提交并 push tov5parser 当前修改；随后将最近的转换器修复同步到 VxEditor41，验证后提交并 push。
 - 本轮将先完成 tov5parser，再进入 VxEditor41；遵守两仓库现有分支和远端，不使用 rebase、不改写历史。
 - tov5parser 位于 `main`，上游为 `origin/main`；待提交范围是两份转换器/测试文件及三份项目规划记录，`git diff --check` 已通过。
-- **Phase 57 Status:** in progress。
+- tov5parser 已提交 `acd4ed2`（`fix: preserve v4 callback semantics in formulas`）并成功推送到 `origin/main`。
+- VxEditor41 位于 `master`、上游 `origin/master`。仓库已有用户修改 `.gitignore`、`src/stores/event.js` 及多批未跟踪组件目录，本轮全部保留不动；同步目标限定为 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js` 及必要的转换器测试（若仓库已有对应测试入口）。
+- VxEditor41 对应转换器已具备此前的 full-JS 解析和 `containsFunctionExpression()` 基础，但仍缺少两项最近修复：函数型系统块 `_blockId`/回调参数隔离，以及 `CallExpression/NewExpression` 参数子树的嵌套函数保护。
+- VxEditor41 没有独立的转换器单测入口；本轮仅同步一份生产转换器文件，验证采用静态差异检查、仓库构建及针对公式的最小执行脚本，不新增规划文档或测试文件。
+- 已同步到 VxEditor41 转换器：引入 `genXid`，按系统方法映射生成带 `_blockId` 的 lambda 参数并隔离嵌套回调；full-JS 调用参数内含函数时保留完整 JS 子树。
+- VxEditor41 目标文件 `git diff --check` 通过，差异仅包含预期的两项转换逻辑；仓库构建已启动，当前在独立命令会话中继续运行。
+- VxEditor41 生产构建成功（webpack 编译完成）；输出包含仓库既有的 34 类 warning，其中目标转换器新增 1 条换行格式 warning，已按仓库 Prettier 规则收拢为单行，待定向 lint 复核。
+- 目标转换器定向 ESLint 通过，0 warning/0 error；VxEditor41 没有可直接运行的转换器测试框架，语义回归由 tov5parser 同源实现的 52/52 测试与 frp-pad 重转审计覆盖，VxEditor41 再以生产 webpack 构建确认模块解析和打包兼容。
+- 构建后仓库状态复核确认没有新增构建产物；仅目标转换器文件被本轮修改并已单独暂存，用户原有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录均未暂存。
+- VxEditor41 已创建提交 `0dc5cd863`（`fix: preserve v4 callback semantics in formulas`），提交仅包含转换器文件。
+- VxEditor41 提交已成功推送到 `origin/master`；用户原有未提交内容仍保留在工作区且未进入提交。
+- **Phase 57 Status:** complete。
 - **Phase 56 Status:** in progress。

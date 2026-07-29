@@ -917,6 +917,12 @@
   `...new Set($v2.reduce((pre, cur) => { var temp=...; ...; return [...pre, ...temp.measureUserIds]; }, []))`
   不再出现空 lambda。
 - 选择部门后的 `ceckgb1a3j500000z14g` 和确认后的 `chze6kja3j500008jrn0` 也完整保留 `if (!!cur.measureUserIds) ...; return pre;`，同模板入口同步恢复。
+
+## 2026-07-29：最近公式修复同步 VxEditor41
+
+- tov5parser 累计修复提交为 `acd4ed2`，已推送 `origin/main`。
+- VxEditor41 同步范围仅为 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`，提交 `0dc5cd863` 已推送 `origin/master`。
+- VxEditor41 验证：目标文件 ESLint 0 warning/0 error，webpack 生产构建成功；仓库原有 warning 与用户未提交内容未作修改。
   - `optionList` 另绑定委派数组中 `measureUserIds` 的扁平去重结果。
 - V4 与当前 V5 的上述组件绑定结构一致；V5 不是把对象数组绑定丢失，而是被绑定的 `ccpnp0ga...` 运行值没有被填充。
 - 弹窗内另有变量 `cdgbn0ca3j50000sv610`（同名“量体师选项”），其值属性用委派数据和 `userInfoArray` 计算 `{id,name}`；但右上角组件并不绑定这个变量。需要继续查 `ccpnp0ga...` 应由哪个动作写入，以及 V4 为何能得到数据。

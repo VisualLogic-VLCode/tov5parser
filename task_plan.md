@@ -562,10 +562,10 @@ Phase 54（reduce 修复导致选择人员列表缺失回归）— in progress
 ### Phase 57：提交 tov5parser 并同步 VxEditor41（2026-07-29）
 
 - [x] 核对 tov5parser 分支、远端和待提交范围
-- [ ] 提交并推送 tov5parser 当前累计修复
-- [ ] 核对 VxEditor41 仓库状态及转换器对应差异
-- [ ] 同步最近的回调作用域与 full-JS 块体回调修复
-- [ ] 运行 VxEditor41 相关验证
-- [ ] 提交并推送 VxEditor41 转换器修改
+- [x] 提交并推送 tov5parser 当前累计修复
+- [x] 核对 VxEditor41 仓库状态及转换器对应差异
+- [x] 同步最近的回调作用域与 full-JS 块体回调修复
+- [x] 运行 VxEditor41 相关验证
+- [x] 提交并推送 VxEditor41 转换器修改
 
-**Status:** in_progress
+**Status:** complete
