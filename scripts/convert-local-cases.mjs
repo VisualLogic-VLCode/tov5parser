@@ -1,8 +1,9 @@
-// 本地批量转换：localCases/v4/*.json → localCases/v5/<原名>.v5.json
+// 本地批量转换：localCases/v4/**/*.json → localCases/v5/<相对目录>/<原名>.v5.json
 //
 // 用法：
-//   node scripts/convert-local-cases.mjs                  # 转换 v4/ 下全部 *.json
+//   node scripts/convert-local-cases.mjs                  # 递归转换 v4/ 下全部 *.json
 //   node scripts/convert-local-cases.mjs demo.json other  # 只转换指定文件（可省略 .json 后缀）
+//   node scripts/convert-local-cases.mjs case/app.json    # 保留案例名称目录
 //   node scripts/convert-local-cases.mjs demo --ntype 5   # 显式指定案例类型
 //   node scripts/convert-local-cases.mjs demo --diag      # 额外输出公式转换报错报告
 //
@@ -22,8 +23,9 @@ import {
 } from '../v4ToV5/utils/convertDiag.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const V4_DIR = path.join(__dirname, '..', 'localCases', 'v4');
-const V5_DIR = path.join(__dirname, '..', 'localCases', 'v5');
+const repoRoot = path.join(__dirname, '..');
+const V4_DIR = path.join(repoRoot, 'localCases', 'v4');
+const V5_DIR = path.join(repoRoot, 'localCases', 'v5');
 
 function parseArgs(argv) {
   const files = [];
@@ -211,9 +213,36 @@ function renderDiagMarkdown(report) {
 fs.mkdirSync(V4_DIR, { recursive: true });
 fs.mkdirSync(V5_DIR, { recursive: true });
 
+function normalizeTargetName(file) {
+  const withExt = file.endsWith('.json') ? file : `${file}.json`;
+  const normalized = path.normalize(withExt);
+  if (
+    path.isAbsolute(normalized) ||
+    normalized === '..' ||
+    normalized.startsWith(`..${path.sep}`)
+  ) {
+    throw new Error(`案例路径必须位于 localCases/v4 内: ${file}`);
+  }
+  return normalized;
+}
+
+function collectJsonTargets(dir, relativeDir = '') {
+  const targets = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue;
+    const relativePath = path.join(relativeDir, entry.name);
+    if (entry.isDirectory()) {
+      targets.push(...collectJsonTargets(path.join(dir, entry.name), relativePath));
+    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+      targets.push(relativePath);
+    }
+  }
+  return targets;
+}
+
 const targets = requested.length
-  ? requested.map((f) => (f.endsWith('.json') ? f : `${f}.json`))
-  : fs.readdirSync(V4_DIR).filter((f) => f.endsWith('.json')).sort();
+  ? requested.map(normalizeTargetName)
+  : collectJsonTargets(V4_DIR).sort();
 
 if (!targets.length) {
   console.log(`localCases/v4 下没有 .json 文件。把 4.x 案例 JSON 放进去再运行：\n  ${V4_DIR}`);
@@ -225,7 +254,11 @@ loadRuntimeMaps();
 let failed = 0;
 for (const name of targets) {
   const inPath = path.join(V4_DIR, name);
-  const outPath = path.join(V5_DIR, `${path.basename(name, '.json')}.v5.json`);
+  const outPath = path.join(
+    V5_DIR,
+    path.dirname(name),
+    `${path.basename(name, '.json')}.v5.json`,
+  );
   const started = Date.now();
   try {
     const raw = JSON.parse(fs.readFileSync(inPath, 'utf8'));
@@ -235,9 +268,12 @@ for (const name of targets) {
     if (diag) enableConvertDiag();
     const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson, ntype });
     // 案例产物可能很大，统一输出紧凑 JSON；诊断报告仍保留美化格式便于阅读。
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
     fs.writeFileSync(outPath, JSON.stringify(v5CaseJson));
     const kb = (fs.statSync(outPath).size / 1024).toFixed(1);
-    console.log(`✔ ${name} → localCases/v5/${path.basename(outPath)} (${kb} KB, ${Date.now() - started}ms)`);
+    console.log(
+      `✔ ${name} → ${path.relative(repoRoot, outPath)} (${kb} KB, ${Date.now() - started}ms)`,
+    );
     if (diag) {
       const records = getDiagRecords();
       disableConvertDiag();
@@ -252,7 +288,7 @@ for (const name of targets) {
       fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2));
       fs.writeFileSync(mdPath, renderDiagMarkdown(report));
       console.log(
-        `  诊断：${report.total} 条公式报错（空值降级 ${report.droppedTotal} · jsfn 兜底 ${report.customExprTotal} · 去重 ${report.uniqueTotal}）→ localCases/v5/${path.basename(mdPath)} / .json`
+        `  诊断：${report.total} 条公式报错（空值降级 ${report.droppedTotal} · jsfn 兜底 ${report.customExprTotal} · 去重 ${report.uniqueTotal}）→ ${path.relative(repoRoot, mdPath)} / .json`,
       );
     }
   } catch (err) {

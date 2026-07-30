@@ -923,6 +923,101 @@
 - tov5parser 累计修复提交为 `acd4ed2`，已推送 `origin/main`。
 - VxEditor41 同步范围仅为 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`，提交 `0dc5cd863` 已推送 `origin/master`。
 - VxEditor41 验证：目标文件 ESLint 0 warning/0 error，webpack 生产构建成功；仓库原有 warning 与用户未提交内容未作修改。
+
+## 2026-07-29：最新 tov5parser 生产 Lambda 部署
+
+- 生产目标沿用项目固定配置：账号 `587849590304`、宁夏 `cn-northwest-1`、函数 `vl-case-json-converter`、别名 `prod`。
+- 部署脚本流程为：AWS 身份校验 → 测试 → 重建运行包 → 上传 S3 → 更新 `$LATEST` → 等待成功 → 发布版本 → 切换 `prod` → 可选版本冒烟。
+- 部署前 `prod` 版本为 `5`，代码摘要 `9VKApPpDo88aEbhc8bJKuCVCA4oKhf1kQbVIEi+qcss=`，可作为回滚目标。
+- 最新代码包摘要为 `R+UAtPoTTeUEVMrBemRlzAxxWg5qDty859jHgzWO/YQ=`，已发布 Lambda 版本 `6` 并切换 `prod`。
+- 版本 `6` 冒烟调用返回成功，实际执行版本与别名目标一致，无 FunctionError。
+- 最终远端状态：版本 `6` 为 Active/Successful，描述 `tov5parser 2edbfdd callback semantics fixes`；`prod` 无 weighted routing，全部流量进入版本 `6`。
+
+## 2026-07-30：11023063 案例目录与重抓
+
+- 案例名称确定为 `frp-后台`，来源同时由现有 README 和 V4 JSON 的 `case.uis.name` 交叉确认。
+- 源标识为 nid `11023063`、workId `calcup52uhpcud8vv3h0-2502`；下载应走中文服编辑器只读 `/work/load/{workId}?nid={nid}` 完整案例链路。
+- README 中的 workId 只能视为上一次下载记录；重新下载前需通过只读数据库查询 nid `11023063` 的当前 work_id。
+- 2026-07-30 只读查询得到当前 workId `calcup52uhpcud8vv3h0-2503`，相比本地记录 `…-2502` 已更新；案例名称仍为 `frp-后台`。
+- `/work/load/...-2503` 下载解码成功，新 V4 完整包含 `case/server/stage`，案例根名称仍为 `frp-后台`；新旧 JSON 摘要不同，确认不是重复抓取旧文件。
+
+## 2026-07-29：重新获取并转换案例 11023063
+
+- 用户确认案例 11023063 的 V4 数据已更新，要求重新获取完整 V4 JSON、转换为 V5，并检查转换过程错误。
+- 当前本地 V4/V5 文件均为 2026-07-24 产物；本轮将重新查询数据库确认最新 `work_id`/版本，不能复用旧元数据。
+- 仓库当前代码 HEAD 为 `2edbfdd`，与 `origin/main` 一致；现有三份规划文档含另一轮 7 月 29 日未提交记录，本轮会保留并在其后追加记录。
+- 最新数据库元数据：版本从 1016 更新到 1017，`work_id` 从 `calcup52uhpcud8vv3h0-2496` 更新为 `calcup52uhpcud8vv3h0-2502`；编辑器仍为 4.1，`ntype=1`。
+- 最新 V4 下载和解码成功：顶层完整包含 `case/server/stage`，前台节点 128、后台节点 641、case 根 1；紧凑 JSON 29,273,170 bytes。
+- 新 V4 SHA-256 为 `1c4f3d2cdaf690fd9dfde2838ceab345fba8b4b0be296da1c34ca0fc6a2ef5a0`，与旧文件 `a2d8a3e5...` 不同；后台节点比旧版增加 3 个。
+- 最新转换成功：V5 为紧凑 JSON、26,785,443 bytes，SHA-256 `50a4d8d7d524694342fc49d2fc6bc502df1e7a4cd78d58da1e481b2a50941aa5`。
+- 诊断从 1,023 增至 1,027（去重 1,003），dropped 仍为 0；变化仅为 `||` +3、full JavaScript fallback +2、unknown varType -1。
+- 最新产物含 1,008 个 jsfn，1,008/1,008 全部可编译；参数数目不匹配 0，旧 `$refs/fParam/cbParams/_loop/$P_` 源语法残留 0。
+- 结构审计通过：770/770 源节点保留、5,079/5,079 普通动作有 V5 `ln` 落点。
+- 29 次 runsvc 涉及 22 个唯一目标，仍有 `d2qayvka3j500007z9qg`、`d3r5bcna3j50000075d0` 两个源案例已有悬空目标；不是本轮转换新增。
+- `app.convert-errors.analysis.md` 已更新到版本 1017 的诊断数、jsfn/节点/动作审计和前后变化。
+- 项目全量测试 52/52 通过；最终 V4/V5/诊断 JSON 可解析，V5 为 0 换行紧凑 JSON，`server.props.v2=1`，目标 `(1).toString()` jsfn 仍正确。
+- 本轮开始前数据库隧道已在运行，因此完成后保持原状态，没有终止其他任务可能复用的隧道。
+
+## 2026-07-29：诊断 `/work/saveAs` 另存为 V5 报错
+
+- 用户提供 dev.ivx.cn 对 `POST /work/saveAs?nid=11023063&newVer=2` 的完整 curl，要求定位接口所在项目（重点核对 VxServer）并查明该案例另存时报错原因。
+- 本轮只做诊断，不修改服务端或转换器代码；附件中的 Cookie/鉴权信息不在输出中回显。
+- curl 没有显式 `-X`，但 `--data-raw` 会使 curl 默认使用 POST；附件携带约 5.2 MB `application/octet-stream` 二进制 body，查询参数只有 `nid=11023063&newVer=2`。附件没有附带 HTTP 响应状态或响应正文。
+- `/work/saveAs` 是写接口，直接重放可能创建新案例或改变线上状态；本轮不重放，优先从本地服务实现、请求解码和数据库约束定位。
+- 附件文本包含 888,094 个 `U+FFFD` 替换字符，说明复制出来的二进制 body 已不可逆损坏；它不能用于重放或判断浏览器原始上传是否可解码，但这不是编辑器原请求失败的证据。
+- 前端实现位于 `VxEditor41`：`caseApi.js` 声明 `/work/saveAs`，`tree.js` 以 POST、`application/octet-stream` 调用；V4→V5 入口在 `FileIntro.jsx` 转换后追加 `newVer=2`。
+- 实际后端项目是 `VxServer` 的 `stable` 分支。公开 `/work/saveAs` 由生成的 `vxstack` 映射到 `/ih5/resource/saveAsWork`；`resource/resapp.SaveAsWork` 上传 `work/work_server` 后调用 `editor.Work.CopyAs`，后者在 `copyWorkToUid` 中复制元数据、配置和数据库。
+- 当前登录 uid 为 `10000590`；只读库确认其是 gid `25391` 的组拥有者，也是 nid `11023063` 的 developer，因此 `checkAuth`、`CopyAs` 权限和“仅组拥有者可另存到同组”检查都会通过。原案例也没有 `instance` 复制限制。
+- 当前案例函数元数据有 140 个数据库定义：126 个组级 `data-db`、14 个案例级 `data-league-db`；转换后的 V5 保持相同数量、scope、dbId 和类型，没有由转换器新增数据库定义或改变 scope。
+- Chrome 当前错误框保留了服务端真实错误：`数据库操作失败，错误码：1054，详情： Unknown column 'styleOrigin' in 'field list'。` 因而首个失败点已确定为 VxServer 的数据库复制，不是转换器 JS 编译、鉴权、二进制解码或 OSS 上传。
+- `copyWorkToUid` 对 Save As 传 `copyData=true`，`copyTable` 先 `CREATE TABLE IF NOT EXISTS`，随后 `CopyRecords2` 按源表返回的完整列名执行 `REPLACE INTO`。若目标同名表是旧结构，建表不会补列，插入源数据时就会触发 1054 缺列。
+- 本案例在同一 gid 内由组拥有者另存，但原 work uid 是 `10006977`、新 uid 是 `10000590`。`getNeedCopyTables` 只有在“owner 相同且表名相同”时才跳过复制；因此 126 个物理表名不变的 `g25391_*` 组库仍被当成跨用户复制，目标库选择 `10000590` 的 `user_20190401`。
+- 源函数 DB 列表的第 0 项就是 `g25391_ccg4m68bl5op4abqfplg`，其 canonical 源库为 `user_20190701`，列元数据已包含 `styleOrigin`；另有 6 张组表也包含该列。结合 CopyRecords2 的 SQL 形态，最早失败候选即这张第 0 项表：目标库中已有旧版同名表但缺少 `styleOrigin`。
+- 根因是 VxServer 组级数据库 Save As 的复制/结构同步逻辑：同 gid 的 `g` scope 表不应因 work uid 改变而复制到另一个用户分片；即使必须复制，也应在写数据前对齐目标表结构，而不能只使用 `CREATE TABLE IF NOT EXISTS`。
+- 前端还会放大问题：`FileIntro.jsx` 在检查 HTTP status 前直接 `JSON.parse(response)`，非 JSON 错误会抛异常；非 200 分支仍是 TODO。这会隐藏部分网关错误，但本次真实后端 1054 已从现存错误框取得。
+
+## 2026-07-29：修复 VxServer 同 gid 组级表误复制
+
+- 用户确认先修复判断逻辑：old/new work 位于同一个 gid 时，`g` scope 数据库应复用现有组表，不因 work uid 不同而进入复制。
+- 本轮只修改 VxServer/stable 的相关实现和测试；完成验证后不提交，等待用户确认。
+- 现有 `TestGetNeedCopyTables` 已覆盖 gid `4 → 44` 时组表必须复制，但没有覆盖 gid 相同、uid 不同的复用场景。
+- 最小修复应位于 `getNeedCopyTables` 生成 old/new 物理表名之后、查询目标用户分片之前：当 `newDb.Scope == "g"` 且 old/new gid 相同时直接跳过复制，同时仍将原数据库定义保留在 `newDbs`。
+- 已实现为“物理表名相同，并且 owner 相同或属于同 gid 组表”时跳过。这样不同 gid 的组表仍进入复制，`n/u/e` scope 的既有逻辑不变。
+- 新回归测试使用 old uid `1`、new uid `11`、old/new gid 均为 `4`，断言复制表清单为空且 `newDbs` 原样保留。
+- `gofmt`、`git diff --check` 和四场景条件矩阵检查通过：同 gid 组表复用、不同 gid 组表复制、不同 nid 案例表复制、同 owner 用户表复用。
+- 完整 Go 定向测试无法在当前 checkout 编译：`go.mod` 将内部模块 replace 到被 `.gitignore` 排除且本机不存在的 `./edtgo`、`./extgo`。未伪造或拉取内部依赖；新增测试留给具备完整构建依赖的环境执行。
+- 最终 VxServer 差异仅为 `editor/work/work_copy.go` 和 `editor/work/work_copyi_test.go`，没有 go.mod/go.sum 或其他生成文件变化。
+- VxServer 修复已提交为 `f743f740`（`fix: reuse group tables within same work group`）并推送到 `origin/stable`；提交只包含上述实现与测试两个文件。
   - `optionList` 另绑定委派数组中 `measureUserIds` 的扁平去重结果。
 - V4 与当前 V5 的上述组件绑定结构一致；V5 不是把对象数组绑定丢失，而是被绑定的 `ccpnp0ga...` 运行值没有被填充。
 - 弹窗内另有变量 `cdgbn0ca3j50000sv610`（同名“量体师选项”），其值属性用委派数据和 `userInfoArray` 计算 `{id,name}`；但右上角组件并不绑定这个变量。需要继续查 `ccpnp0ga...` 应由哪个动作写入，以及 V4 为何能得到数据。
+- 2026-07-30：案例 `nid=11023063` 的真实名称为 `frp-后台`。本地案例目录已统一为 `localCases/v4/frp-后台` 和 `localCases/v5/frp-后台`；数字目录 `11023063` 已移除。
+- 2026-07-30：`scripts/convert-local-cases.mjs` 原先只扫描 `localCases/v4` 根目录并把输出扁平化到 V5 根目录。现改为递归扫描并保留相对目录，因此 `frp-后台/app.json` 会稳定生成 `frp-后台/app.v5.json`。
+- 2026-07-30：最新 V4 work 为 `calcup52uhpcud8vv3h0-2503`。重新转换的 V5 主文件为紧凑单行 JSON，大小 26,789,501 字节，SHA-256 为 `d72c764949bd10a3c65a5bbfcb30ec9d4790f01f197fa9a8b64b2b897a0b438b`。
+- 2026-07-30：服装业务案例统一归档到 `localCases/<v4|v5>/clothing/<案例名>`。当前分类包含 `frp-pad` 和 `frp-后台`，V4/V5 层级完全一致；递归转换脚本会保留 `clothing/<案例名>` 两级相对路径。
+
+## 2026-07-30：frp-后台 V5 导出数据减少
+
+- 用户提供的文件顺序与文件体量一致：`exported.xlsx`（V4）约 28 KB，`exported (1).xlsx`（V5）约 7.1 KB。
+- 两份文件均只有 `Sheet1`，字段完全一致，都是 `code`、`oldCode`。
+- V4 共 1239 条数据；V5 只有 50 条，相差 1189 条。V5 的前 21 条 `code` 为 `D.041655` 至 `D.041680` 附近且 `oldCode` 为空，之后才出现 V4 首条 `D.041733 / XS202602120020`。
+- artifact-tool 可完整读取两份表；初次视觉渲染失败是因为 V4 表高约 24820 px，限制渲染范围到前 40 行后正常，不影响数据读取。
+- 精确集合关系：两份导出共有 30 条，且两列值完全一致；V5 独有 20 条（全部 `oldCode=null`）；V4 独有 1209 条，从 `D.041763` 开始。因此 V5 不是随机漏行，而是旧数据查询被截断在 30 条。
+- “新旧导出”按钮 ID `d3t514ma3j50000bj4rg`，调用同名云端服务 `d3t54esa3j50000bj4v0`。该服务的旧数据逻辑为：`dbCount(oldCode != null)` → `dbSelect(range 1..统计结果, cols code/oldCode)` → 返回对象数组。
+- V5 服务 AST 中 `dbCount` 行 `d3t55yza3j50000bj52g` 返回类型为 `IvxResult<Long>`；但 `dbSelect` 的 limit 直接转换为 `d3t55yza3j50000bj52gRtn - 0`，没有从返回包装中读取实际 count。若运行时对无效 limit 使用默认分页大小 30，正好解释 Excel 中只有前 30 条旧数据。
+- V4 生成代码明确使用 `parseFloat(cbParams) - 0`，其中 dbCount 回调的 `cbParams` 是计数数值；V5 生成代码则是 `d3t55yza...Rtn - 0`。同一 V5 AST 把该局部变量声明为 `IvxResult<Long>`，因此这里应读取其实际结果字段而不是直接做数值运算。
+- 转换路径位于 `V4FormulaCodeConverter.genActionResultAST()`：当前只有 `varCompScope === 'stage'` 且动作映射为 `singleParam` 时才追加 `result` 索引；该案例的 `dbCount` 位于 server 服务事件中，因此 server 单返回值没有解包，随后被 `convertDbRange()` 原样用于 limit。
+- 第二个确定分叉位于 `CON_OP_MAP`：映射包含旧键 `notE -> neq`，但该案例的 26 个数据库条件使用 `notEqual`。导出服务中的 dbCount、dbSelect 两个 `oldCode != null` 条件因此都生成 `{op: undefined, col: "oldCode", val: null}`。
+- VxServer 的 `newWhere()` 对未知/空 `op` 返回 `nil`，所以 `oldCode != null` 被整条忽略；`PlayerDBManager.Select()` 在 limit 为 0/无效时设为 `DefaultSelectRows=50`。
+- 两个错误叠加后的实际行为是“无筛选取全表前 50 条”。表中前 20 条恰好 `oldCode=null`，接下来的 30 条正好是 V4 导出的前 30 条，因此与 V5 Excel 的 20+30 构成逐条吻合。
+- V4 正确逻辑是：筛选 `oldCode != null`，先 count 得到 1239，再用该数值作为 dbSelect 范围上限，最终导出全部 1239 条。
+
+## 2026-07-30：数据库条件与后台单值回调转换修复
+
+- `CON_OP_MAP` 同时保留旧键 `notE`，并补充案例实际使用的 `notEqual: 'neq'`；两种 V4 表达都能稳定生成 V5 数据库操作符 `neq`。
+- 后台动作中的裸 `cbParams` 不能直接按 V5 局部变量使用。转换器现在复用 V4 组件动作映射里的 `singleParam` 元数据；只有明确为单返回值的动作才追加 `result` 访问，普通对象结果动作保持原结构。
+- 新增回归测试先在旧实现上分别失败，修复后定向测试 35/35、项目完整测试 54/54 通过。
+- 重转 `clothing/frp-后台` 后，目标服务 `d3t54esa3j50000bj4v0` 的 `dbCount` 与 `dbSelect` 条件均为 `oldCode / neq / null`。
+- `dbSelect` 的 limit AST 已读取 `d3t55yza3j50000bj52gRtn["result"]`，编译代码不再把 `IvxResult<Long>` 包装对象直接参与减法。
+- 当前 V4 中 `notE` 条件 31 处、`notEqual` 条件 26 处；新 V5 共生成 57 个 `neq`，与两类来源总数一致。
+- 新 `app.v5.json` 为 26,794,575 bytes、0 个换行，SHA-256 为 `7ebac0bf004a2307739cb2871796800f37e528416c9ab36a8037b10c06667be3`。

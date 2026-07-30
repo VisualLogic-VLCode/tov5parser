@@ -700,8 +700,9 @@ export default class V4FormulaCodeConverter {
         }
       ]
     }
-    if (varCompScope === 'stage') {
-      // 处理当个返回值情况：cbParams
+    if (['stage', 'server'].includes(varCompScope)) {
+      // V4 的组件动作映射记录了 cbParams 是否直接代表单个返回值。
+      // 后台动作转成 V5 后也会包装成 IvxResult，需要取 result 才能保持 V4 语义。
       let stageCompActionMap = MapCreator.genStageCompActionMap()
       let key = `${varCompName}$${action}`
       let { singleParam } = stageCompActionMap[key] || {}

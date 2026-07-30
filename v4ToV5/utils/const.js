@@ -99,6 +99,7 @@ const FAKE_NODES_METHOD_MAP = {
 const CON_OP_MAP = {
   equal: 'eq',
   notE: 'neq',
+  notEqual: 'neq',
   greater: 'gt',
   less: 'lt',
   ge: 'gte',

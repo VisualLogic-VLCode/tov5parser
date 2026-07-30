@@ -9,6 +9,7 @@ import {
 import { convertV4CaseJsonToV5CaseJson } from './index.js';
 import { loadRuntimeMaps } from '../index.js';
 import { getLegacyFormulaTextValue } from './utils/action.js';
+import { convertDbCons } from './utils/actionUtils/actionParamConvert.js';
 import { genConObj, getLegacyConditionTextValue } from './utils/con.js';
 import {
   compileV5ServerAst,
@@ -194,6 +195,29 @@ test('createV4ConvertEnv maps fake node types with inferred prefix', () => {
     ntype: 5,
   });
   assert.equal(typedEnv.getNodeType('$sobj_base'), 'iwx-system');
+});
+
+test('convertDbCons maps the legacy notEqual operator to V5 neq', () => {
+  ensureIvxMapNodeEnv();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson: buildV4CaseJson() }));
+  try {
+    const ast = convertDbCons(
+      [
+        {
+          flag: 'and',
+          field: 'oldCode',
+          opt: 'notEqual',
+          value: { code: 'null' },
+        },
+      ],
+      'svc1',
+      'unused-block',
+    );
+
+    assert.equal(ast.args[0].args[1].val, 'neq');
+  } finally {
+    clearActiveEnv();
+  }
 });
 
 test('convertV4CaseJsonToV5CaseJson converts structure without touching input', () => {

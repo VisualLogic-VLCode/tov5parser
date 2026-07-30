@@ -958,4 +958,115 @@
 - VxEditor41 已创建提交 `0dc5cd863`（`fix: preserve v4 callback semantics in formulas`），提交仅包含转换器文件。
 - VxEditor41 提交已成功推送到 `origin/master`；用户原有未提交内容仍保留在工作区且未进入提交。
 - **Phase 57 Status:** complete。
-- **Phase 56 Status:** in progress。
+
+## 2026-07-29：部署最新 tov5parser 到生产 Lambda
+
+- 用户明确授权将 tov5parser 当前最新版本更新至 Lambda。
+- 将先核对项目部署脚本中配置的函数名/区域和本机 AWS 身份，再打包、部署并做远端只读验证；不修改其他云资源。
+- 已确认部署目标配置：AWS 中国区账号 `587849590304`、区域 `cn-northwest-1`、函数 `vl-case-json-converter`、别名 `prod`，部署包经 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/latest.zip` 中转。
+- 当前代码 HEAD 为已推送的 `2edbfdd`；工作区仅因本轮文件化计划新增 `task_plan.md`、`progress.md` 修改，运行包白名单不包含这些文档。部署时可使用 `--allow-dirty`，但会先确认所有运行时代码与 HEAD 一致。
+- 已确认运行包白名单内的所有源码/依赖清单相对 HEAD 无差异；仅三份规划文档为工作区修改。
+- AWS 身份验证通过：账号 `587849590304`，用户 `vl-case-json-converter-deployer`，与脚本预期完全一致。
+- 部署前 `prod` 指向版本 `5`，状态 Active/Successful，代码摘要 `9VKApPpDo88aEbhc8bJKuCVCA4oKhf1kQbVIEi+qcss=`，已记录为直接回滚目标。
+- 正式部署成功：全量测试 52/52 通过，运行包重建并校验为 1.9 MB，上传 S3 后更新函数代码并发布版本 `6`，`prod` 已切换到 `6`。
+- 别名冒烟调用成功：HTTP/Lambda StatusCode 200，ExecutedVersion=`6`，FunctionError=null；`action:"version"` 返回包名 `@visuallogic-vlcode/tov5parser`、版本 `1.1.0`。
+- 部署后独立查询确认：版本 `6` 状态 Active、LastUpdateStatus Successful，更新时间 `2026-07-29T03:55:43Z`，代码摘要与更新返回一致；`prod` 只指向版本 `6`，没有加权分流。
+- **Phase 58 Status:** complete。
+
+## 2026-07-30：按案例名称重抓并转换 11023063
+
+- 用户指出 `localCases/v4/11023063` 不应以 nid 命名，要求 V4/V5 均改用案例名称，并重新下载 V4 后转换 V5。
+- 本轮先从现有 JSON/README 与 `raw` 下载文档确认案例名称、nid/workId 和下载方式，再迁移目录、重抓并转换；V5 继续使用紧凑单行格式。
+- 已确认案例真实名称为 `frp-后台`（现有 README 标题及 `case.uis.name` 一致），目标目录应为 `localCases/v4/frp-后台` 与 `localCases/v5/frp-后台`。
+- 现有元数据：nid `11023063`、workId `calcup52uhpcud8vv3h0-2502`、ntype `1`；当前 V4/V5 均位于 `11023063` 目录。
+- 工作区另有用户未跟踪文件 `VxServer-saveAs-same-gid-group-db-fix.md`，本轮不触碰。
+- 已完整复核 `raw/中文服完整案例JSON导出.md`：必须先查询目标 nid 的当前 `work_id`，再用权限为 600 的平台 Cookie 请求 `/work/load`，复用 VxEditor41 的 `sjcl`/`pako` 解码，并严格校验顶层 `case/server/stage`。
+- 下载前置均存在：Cookie 文件权限为 600、VxEditor41 的 `sjcl`/`pako` 已安装、中文服只读数据库交接包存在。下一步查询当前 `work_id`，避免沿用 README 中可能过期的 `…-2502`。
+- 中文服只读数据库隧道已在 `127.0.0.1:13306` 监听；系统 Python 当前未安装 PyMySQL，沿用此前成功方式时需使用临时依赖目录，不写入项目依赖。
+- 平台 Cookie 仍是 2026-07-29 10:33 更新的 204-byte 文件；先尝试该登录态，只有接口明确返回 203 时才需要用户再次更新。
+- 已复核数据库交接包：账号被限定为 SELECT/SHOW VIEW，只读查询符合任务边界。已创建临时依赖目录 `/tmp/tov5parser-pymysql.uSACWC`，仅用于加载 PyMySQL 查询当前 work_id。
+- 只读元数据查询成功：案例标题仍为 `frp-后台`，编辑器版本 4.1、ntype 1；当前 work_id 已由本地 README 的 `…-2502` 更新为 `calcup52uhpcud8vv3h0-2503`，必须下载新版本。
+- 其余元数据保持一致：nid `11023063`、uid `10006977`、eid `10000586`、gid `25391`、版本 `1017`、链接 `nL0DIwFE`、员工熊维祥。
+- 更新后的 Cookie 下载成功：HTTP `application/octet-stream` 1,485,776 bytes，解码为 2 个分段；新 V4 已写入 `localCases/v4/frp-后台/app.json`。
+- 新 V4 为紧凑 JSON 29,278,113 bytes，SHA-256 `e6b1c434b6e77203792d1c7d58f08daa9885e27aba17e4bcc37551920a0bc227`，顶层与根类型完整，案例名校验为 `frp-后台`。
+- 旧 V4 摘要 `1c4f3d…ef5a0`、29,273,170 bytes；新旧内容确有变化，但节点数量仍为前台 128、后台 641、case 1。旧目录暂时保留，待 V5 生成与最终核验后再移除。
+- **Phase 59 Status:** in progress。
+
+## 2026-07-29：重新获取并转换案例 11023063
+
+- 已确认本地案例仍是 7 月 24 日版本，开始 Phase 59。
+- 将按只读数据库元数据 → 编辑器 `/work/load` → 解码 → `--diag` 转换 → 全量审计的顺序执行。
+- 已确认隧道、平台 cookie 和解码依赖可用；旧临时 pymysql 包无效，将换新临时目录，不修改项目依赖。
+- 新临时数据库驱动查询成功，确认目标案例已更新为版本 1017、work `calcup52uhpcud8vv3h0-2502`。
+- 已通过编辑器加载接口取得并验证完整新 V4，覆盖 `localCases/v4/11023063/app.json`；文件散列和规模均确认发生变化。
+- 已用 HEAD `2edbfdd` 和 `ntype=1 --diag` 转换成功，覆盖 V5 及逐条诊断文件。
+- 全量审计完成：dropped 0、jsfn 1,008/1,008 可编译、节点和动作落点无丢失；仅保留两条源案例既有的悬空服务引用。
+- 已更新 V4 README 和 V5 错误分析文档；全量测试 52/52、最终解析/紧凑格式/关键公式检查均通过。
+- **Phase 59 Status:** complete。
+
+## 2026-07-29：诊断 `/work/saveAs` 另存为 V5 报错
+
+- 已开始 Phase 60；先脱敏读取请求/响应，再定位服务端实现和失败调用链。
+- 已确认 curl 的请求形态：`--data-raw` 隐式 POST + 二进制大 body，附件无响应正文；为避免外部写入，不直接重放。
+- 首次全仓检索命令因 shell 引号冲突未执行；下一次使用简化模式，不影响仓库。
+- 已确认实际实现位于 VxServer/stable：`/work/saveAs` → vxstack → `SaveAsWork` → `Work.CopyAs` → `copyWorkToUid/copyTable`。
+- 只读数据库核实登录人权限、案例组关系和函数数据库清单；权限与 instance 限制均排除，案例含 126 个组级库和 14 个案例级视图。
+- 通过现有 Chrome 编辑器页面只读取得真实错误：MySQL 1054，目标字段 `styleOrigin` 不存在。
+- 已将错误与代码路径闭环：同 gid 的组库因 old/new work uid 不同被错误复制到组拥有者的数据库分片，目标同名旧表未由 `CREATE TABLE IF NOT EXISTS` 补齐结构，`REPLACE INTO` 使用源表列时失败。
+- 未重放写接口、未修改 VxServer/VxEditor41/tov5parser 生产代码。
+- **Phase 60 Status:** complete。
+
+## 2026-07-29：修复 VxServer 同 gid 组级表误复制
+
+- 已开始 Phase 61；VxServer 当前位于 `stable`，跟踪 `origin/stable`，工作区干净。
+- 将先补回归测试锁定同 gid 组表复用语义，再修改 `getNeedCopyTables`，不扩展到表结构迁移。
+- 已找到现有测试文件 `editor/work/work_copyi_test.go`；其中不同 gid 组表复制用例可作为反向保护，新增用例只补同 gid + 不同 uid。
+- 已新增 `TestGetNeedCopyTablesReuseSameGroupTables`。修复前定向测试两次均卡在默认 Go 代理下载依赖，没有产生测试事件；确认不是用例通过，下一步清理遗留进程并更换单次代理。
+- 改用可达代理后测试进入编译，但仓库缺少 `go.mod` 本地 replace 所需的 `edtgo/`、`extgo/`，setup failed；这属于当前 checkout 的构建前置缺失，不是新增用例结果。
+- 已修改 `VxServer/editor/work/work_copy.go` 并新增对应测试；gofmt 和 `git diff --check` 通过，当前差异为 2 个文件、22 行新增、1 行删除。
+- 四场景条件矩阵静态/行为检查通过；最终工作区只包含预期的实现与测试两文件。
+- 完整 Go 包测试仍因缺少仓库忽略的 `edtgo/`、`extgo/` 本地依赖无法 setup，未重复失败命令或扩大修改范围。
+- **Phase 61 Status:** complete；VxServer 修改未提交，等待用户确认是否创建 Git commit。
+
+## 2026-07-29：提交并推送 VxServer 修复
+
+- 用户已明确授权 commit 并 push。
+- 提交范围限定为 VxServer 的 `editor/work/work_copy.go` 与 `editor/work/work_copyi_test.go`；不提交 tov5parser 的诊断规划文档。
+- VxServer `stable` 与 `origin/stable` 均位于 `e590ad45`，ahead/behind 为 `0/0`；远端没有新增提交，可直接在当前基线创建提交并推送。
+- 提交前差异检查通过，仅有预期两个文件，22 行新增、1 行删除。
+- 已创建提交 `f743f740`（`fix: reuse group tables within same work group`），提交内容复核为预期两个文件。
+- 已成功推送 `stable`；本地 HEAD 与 `origin/stable` 均为 `f743f74090d04ec686e50a278d0520616a85ecd6`，ahead/behind `0/0`，VxServer 工作区干净。
+- **Phase 62 Status:** complete。
+- 2026-07-30：已修改 `scripts/convert-local-cases.mjs`，无参数扫描时递归发现 `localCases/v4` 下的 JSON；指定 `frp-后台/app.json` 时会保留相对目录并输出到 `localCases/v5/frp-后台/app.v5.json`，同时增加相对路径越界校验和输出目录自动创建。
+- 2026-07-30：脚本修改过程中发现新使用的 `repoRoot` 尚未声明，已在执行转换前补充定义，未以错误状态运行脚本。
+- 2026-07-30：已新增 `localCases/v4/frp-后台/README.md`，记录最新工作版本 `calcup52uhpcud8vv3h0-2503` 和本次下载信息。
+- 2026-07-30：已用当前转换器将最新 V4 转换到 `localCases/v5/frp-后台/app.v5.json`（约 26161.6 KB，耗时约 1.45 秒）；诊断记录 1027 条公式降级为 jsfn、去重后 1003 条，诊断 JSON/Markdown 已生成到同名目录。
+- 2026-07-30：已验证 V4/V5 主 JSON 均可解析且换行数为 0；V5 为 26,789,501 字节，SHA-256 `d72c764949bd10a3c65a5bbfcb30ec9d4790f01f197fa9a8b64b2b897a0b438b`。
+- 2026-07-30：已将专项转换分析文档迁移到 `localCases/v5/frp-后台` 并更新为最新 work `calcup52uhpcud8vv3h0-2503`；已删除重复的 `localCases/v4/11023063`、`localCases/v5/11023063` 数字目录，内容均由案例名目录承接。
+- 2026-07-30：已复核 `scripts/convert-local-cases.mjs` 差异，指定文件和无参数批量模式都会保留 V4 下的相对案例目录；执行项目完整测试，52/52 通过。
+- 2026-07-30：开始 Phase 63。已核对 `frp-后台`、`frp-pad` 在 V4/V5 的现有目录和文件清单；四个源目录均存在，V4 `frp-pad` 还含 `.DS_Store`，迁移时将按原目录整体保留。
+- 2026-07-30：已创建 `localCases/v4/clothing`、`localCases/v5/clothing`，并将 V4/V5 的 `frp-后台`、`frp-pad` 四个案例目录整体迁移到对应分类下。
+- 2026-07-30：迁移后两个版本的 `clothing` 均只包含 `frp-pad`、`frp-后台`；四个主 JSON 均可解析且保持 0 换行紧凑格式，原顶层案例目录均已不存在。转换路径映射验证为 `clothing/frp-后台/app.json` → `localCases/v5/clothing/frp-后台/app.v5.json`。
+- 2026-07-30：开始 Phase 64。用户提供 V4/V5 预览地址及两份“新旧导出”Excel，先量化导出差异，再回查案例 JSON 和运行时数据链；本轮只诊断，不修改转换器。
+- 2026-07-30：首次用 `@oai/artifact-tool` 导入并渲染两份 XLSX 时进程失败；终端输出被包体源码淹没，尚未取得末尾真实异常。下一步将标准错误写入临时日志并只读取末尾，避免盲目重复。
+- 2026-07-30：捕获日志命令误用了 zsh 只读变量名 `status`，外层命令提前失败；分析进程已经执行并留下 stdout/stderr 文件，下一步直接读取现有日志，不重跑同一命令。
+- 2026-07-30：确认 artifact-tool 首次失败仅因整表渲染过高（`236x24820px`）；改为每张表渲染前 40 行后，两份工作簿均成功导入和读取。
+- 2026-07-30：Excel 初步统计：V4 `exported.xlsx` 为 1 张表、1240 行（含表头，即 1239 条数据）；V5 `exported (1).xlsx` 为 1 张表、51 行（50 条数据）。两者字段同为 `code, oldCode`，V5 前 21 条的 `oldCode` 为空，随后从 `D.041733` 开始。
+- 2026-07-30：已完成两份工作簿的视觉检查；表头和数据列布局一致，V5 确实先导出一批 `oldCode` 为空的新 code，再接续 V4 数据的起始段，不是 Excel 隐藏行、筛选或渲染造成的表面缺失。
+- 2026-07-30：精确集合对比：V4 1239 条、V5 50 条；共同 30 条且字段值完全一致，V5 独有 20 条（均 `oldCode=null`），V4 独有 1209 条。V5 由“20 条新数据 + V4 旧数据前 30 条”组成。
+- 2026-07-30：已定位按钮 `d3t514ma3j50000bj4rg`（新旧导出）调用云端服务 `d3t54esa3j50000bj4v0`（新旧导出）。服务先对数据库 `chz91y7a3j50000v65h0` 执行 `dbCount`，再把统计结果作为 `dbSelect` 的结束范围；V5 AST/编译代码当前将整个 `IvxResult<Long>` 局部变量直接参与减法生成 limit，疑似得到无效 limit 后回落到默认 30。
+- 2026-07-30：已取得精确生成代码：V4 limit 为 `parseFloat(cbParams) - 0`，V5 为 `d3t55yza...Rtn - 0`；V5 局部变量声明类型却是 `IvxResult<Long>`，证实数值包装未解包。随后代码检索命令因 zsh 展开不存在的 `test*` 报错，检索部分未执行；改用 `rg --glob` 继续，不重复该命令。
+- 2026-07-30：代码回溯到 `V4FormulaCodeConverter.genActionResultAST()`：单值回调只在 stage 组件动作时追加 `result`，server 侧 `dbCount` 回调未解包；`convertDbRange()` 再把该 AST 直接用于 limit。这是目前确认的首个转换分叉点。
+- 2026-07-30：Chrome 中已确认 V4/V5 两个预览页均处于打开状态。首次同时认领 V5 页、抓 DOM 和读取日志超过 30 秒，浏览器控制会话被重置；不重复组合操作，先读取故障处理指引，再拆分为最小只读检查。
+- 2026-07-30：拆分后成功认领 V5 预览页，DOM 确认页面存在唯一可操作的“新旧导出”按钮；现有页面日志没有该业务动作的报错。进一步读取按钮属性再次超时并重置会话，浏览器未提供请求体证据；停止追加浏览器探测，使用 Excel 的精确 30 条截断与静态 AST/生成代码完成根因闭环。
+- 2026-07-30：根因闭环完成：`notEqual` 条件键未映射导致筛选被 VxServer 丢弃；server `dbCount` 单值回调未从 `IvxResult<Long>.result` 解包导致查询 limit 回落为 50。最终执行“全表前 50 条”，与 V5 Excel 中 20 条空 oldCode + 30 条旧数据完全一致。
+- 2026-07-30：Phase 64 完成；已核对转换器与 VxServer 精确代码位置、运行全部计划完成检查，并清理临时 Excel 分析目录。本轮未修改转换器或运行时代码。
+- 2026-07-30：开始 Phase 65。用户授权修复已确认的两个转换器根因：数据库条件 `notEqual` 未映射，以及后台 `dbCount` 等单值回调未从 `IvxResult<T>` 解包。本轮会先补回归测试，再实施修复并重转 `clothing/frp-后台`。
+- 2026-07-30：已新增两个回归测试，并确认修复前分别失败：`notEqual` 生成空操作符；server `data-db$dbCount` 的裸 `cbParams` 没有 `result` 访问。
+- 2026-07-30：已在 `CON_OP_MAP` 增加 `notEqual: 'neq'`；`genActionResultAST()` 现在对 stage/server 都读取 V4 动作映射的 `singleParam`，仅对单返回值追加 `result` 索引。
+- 2026-07-30：定向测试 35/35、项目完整测试 54/54 通过；`git diff --check` 通过。
+- 2026-07-30：已重新生成 `localCases/v5/clothing/frp-后台/app.v5.json` 和诊断文件。目标服务两个条件均为 `neq`，range limit 使用 `d3t55yza3j50000bj52gRtn["result"] - 0`。
+- 2026-07-30：新 V5 主文件保持 0 换行紧凑格式，大小 26,794,575 bytes，SHA-256 `7ebac0bf004a2307739cb2871796800f37e528416c9ab36a8037b10c06667be3`。Phase 65 完成，未提交 Git，等待用户确认。
+- 2026-07-30：开始 Phase 66。用户明确授权提交并推送 tov5parser、部署生产 Lambda、同步 VxEditor41 转换器并提交推送。
+- 2026-07-30：tov5parser 当前分支为 `main`；待提交的已跟踪修改包括递归案例转换脚本、三份规划文档、本轮两项转换器修复和两项回归测试。未跟踪的 `VxServer-saveAs-same-gid-group-db-fix.md` 与本轮无关，将继续排除。
+- 2026-07-30：VxEditor41 当前分支为 `master`，已有用户修改 `.gitignore`、`src/stores/event.js` 及多个未跟踪目录；同步时只修改并提交 `src/utils/convertV4ToV5` 下对应的两个转换器源文件，不触碰其他内容。

@@ -46,6 +46,38 @@ test('jsepWrap registers the v4 formula syntax plugins', () => {
   assert.equal(templateAst.type, 'TemplateLiteral')
 })
 
+test('server action bare cbParams unwraps legacy single callback results', () => {
+  loadRuntimeMaps()
+  const converter = new V4FormulaCodeConverter({
+    str: 'cbParams',
+    getCtx() {},
+    scope: 'server'
+  })
+
+  const countAst = converter.genActionResultAST({
+    ctx: {
+      actionBlockId: 'count-block',
+      varCompName: 'data-db',
+      varCompScope: 'server',
+      action: 'dbCount'
+    }
+  })
+  assert.deepEqual(countAst.args[0].args[1], {
+    op: 'index',
+    args: [{ op: 'val', val: 'result' }]
+  })
+
+  const selectAst = converter.genActionResultAST({
+    ctx: {
+      actionBlockId: 'select-block',
+      varCompName: 'data-db',
+      varCompScope: 'server',
+      action: 'dbSelect'
+    }
+  })
+  assert.equal(selectAst.args[0].args.length, 1)
+})
+
 test('reduce lambda declares the accumulator from the sysutil callback map', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({

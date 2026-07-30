@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 54（reduce 修复导致选择人员列表缺失回归）— in progress
+Phase 62（提交并推送 VxServer 修复）— complete
 
 ## Phases
 
@@ -472,6 +472,13 @@ Phase 54（reduce 修复导致选择人员列表缺失回归）— in progress
 | 诊断汇总的一次性 Node 表达式括号拼写错误 | 1 | 产物移动已成功；改用分步语句重跑只读统计，不重复文件操作 |
 | 数字 receiver 首版测试通过完整 converter 时缺少运行时 sysutil map | 1 | 按现有测试分层改测 `jsep → ExprAstToString`；完整链路由真实案例重转覆盖 |
 | VxEditor41 Babel 默认输出保留 ES module import，CommonJS 内存重放失败 | 1 | 不重复默认转换；改为显式追加 modules-commonjs 插件后执行重放，构建单独记录退出状态 |
+| 旧 `/tmp/tov5parser-pymysql` 可导入但缺少 `connect` | 1 | 不复用损坏临时包；新建独立临时依赖目录后再执行只读查询 |
+| 全仓 saveAs 检索命令混合单双引号导致 zsh `unmatched \"` | 1 | 改用简单单引号模式分两步检索，不复用复杂 shell 正则 |
+| 查询用户分片时误假设 `users.db_name` 存在 | 1 | 改为按 `editor_tables` 最新记录读取 `db_name`，只读查询随后成功 |
+| 误用不存在的 `check-complete.py` | 1 | 技能实际提供 `check-complete.sh`；改用该脚本，64/64 阶段检查通过 |
+| VxServer 定向 Go 测试使用默认 `proxy.golang.org` 下载依赖长期无测试事件 | 2 | 终止本轮遗留的两个测试进程，后续单次改用可达代理并等待明确 PASS/FAIL |
+| VxServer 测试编译缺少本地 replace 目录 `edtgo`、`extgo` | 1 | 不伪造依赖；先检查仓库说明、忽略项和本机是否已有对应目录，再决定可用验证层级 |
+| zsh 展开不存在的 `README*` 导致依赖检索中止 | 1 | 改用 `rg --files` 获取真实文件名，并分别执行不含裸 glob 的检索 |
 | Chrome 按横坐标扫描全部正文 `.text_inner` 导致读取超时并重置控制会话 | 1 | 不重复宽范围 DOM 扫描；先从本地 JSON 锁定正文节点 ID，再按精确 class 在页面读取 |
 | Chrome 重新 claim 已打开的 V5 预览页连续超时 | 2 | 扩展轻量 openTabs 正常，页面接管卡住；停止重复 claim，尝试复用 browser session 中已有受控 tab，否则转为 JSON 与运行时代码静态定因 |
 | Chrome 已受控 V5 页的定向开发日志读取仍超时 | 1 | 停止页面读取；用案例中的完整行高事件链与 V4/V5 布局生命周期实现交叉定因 |
@@ -569,3 +576,107 @@ Phase 54（reduce 修复导致选择人员列表缺失回归）— in progress
 - [x] 提交并推送 VxEditor41 转换器修改
 
 **Status:** complete
+
+### Phase 58：部署最新 tov5parser 到生产 Lambda（2026-07-29）
+
+- [x] 核对本地提交、部署脚本、目标函数和 AWS 身份
+- [x] 重新生成 Lambda 运行包并验证压缩包内容
+- [x] 执行生产 Lambda 更新
+- [x] 等待函数更新完成并核对远端代码摘要/更新时间
+- [x] 调用线上版本或只读接口验证最新代码生效
+
+**Status:** complete
+
+### Phase 59：按案例名称重抓并转换 11023063（2026-07-30）
+
+- [x] 核对现有目录、案例元数据和下载接口文档
+- [x] 确认案例真实名称及合法目录名
+- [x] 将 V4/V5 目录统一迁移为案例名称
+- [x] 重新下载最新 V4 案例 JSON 并核验
+- [x] 用当前转换器生成同名目录下的压缩 V5 JSON
+- [x] 核对产物结构、格式和目录残留
+
+**Status:** complete
+
+### Phase 59：重新获取并转换案例 11023063（2026-07-29）
+
+- [x] 查询最新案例元数据、`work_id`、版本和 `ntype`
+- [x] 调编辑器加载接口重新下载并解码完整 V4 JSON
+- [x] 用当前转换器重新生成紧凑 V5 JSON与诊断报告
+- [x] 审计 dropped、jsfn 语法/参数、旧版引用和服务目标
+- [x] 更新错误分析文档并运行项目测试
+
+**Status:** complete
+
+### Phase 60：诊断 `/work/saveAs` 另存为 V5 报错（2026-07-29）
+
+- [x] 脱敏提取附件中的请求参数、HTTP 状态和响应错误
+- [x] 在 ivx_repos 全局定位 `/work/saveAs` 路由和实际处理项目
+- [x] 追踪 `nid=11023063,newVer=2` 的服务端调用链与数据依赖
+- [x] 结合案例元数据/数据库或安全复现定位首个失败点
+- [x] 给出确定根因、责任项目和修复建议，不修改代码
+
+**Status:** complete
+
+### Phase 61：修复 VxServer 同 gid 组级表误复制（2026-07-29）
+
+- [x] 核对 `getNeedCopyTables` 既有测试、scope 语义与 dirty worktree
+- [x] 实施同 gid 的 `g` scope 表复用判断
+- [x] 增加 old/new uid 不同但 gid 相同的回归测试
+- [x] 运行定向测试、相关包测试和格式检查（Go 包测试受 checkout 缺少本地 replace 依赖阻塞，已记录）
+- [x] 复核差异与风险，不提交，等待用户确认
+
+**Status:** complete
+
+### Phase 62：提交并推送 VxServer 修复（2026-07-29）
+
+- [x] 核对 VxServer 分支、上游、差异和提交范围
+- [x] 获取远端状态，确认可快进推送
+- [x] 仅暂存实现与回归测试两个文件
+- [x] 创建提交并复核提交内容
+- [x] 推送 `stable` 并确认本地/远端一致
+
+**Status:** complete
+
+### Phase 63：将服装案例归入 clothing 分类目录（2026-07-30）
+
+- [x] 核对 V4/V5 中 `frp-后台`、`frp-pad` 的现有文件
+- [x] 创建 `clothing` 分类并迁移两个案例目录
+- [x] 验证 V4/V5 目录结构一致且文件完整
+- [x] 验证转换脚本可按新层级生成对应 V5 路径
+
+**Status:** complete
+
+### Phase 64：诊断 frp-后台 V5 导出数据明显减少（2026-07-30）
+
+- [x] 对比 V4/V5 两份 XLSX 的工作表、维度、字段和缺失记录
+- [x] 定位“新旧导出”相关节点、动作链、服务和导出数据源
+- [x] 对比 V4/V5 JSON 转换结果，找到首个数据分叉点
+- [x] 必要时复现两个预览页并核对网络请求及运行时数据
+- [x] 给出确定根因、影响范围和修复建议，不修改代码
+
+**Status:** complete
+
+### Phase 65：修复数据库条件与后台单值回调转换（2026-07-30）
+
+- [x] 恢复文件化计划并核对当前未提交修改
+- [x] 为 `notEqual → neq` 与后台 `dbCount` 单值回调解包补充失败回归测试
+- [x] 实施最小转换器修复
+- [x] 运行定向测试与项目完整测试
+- [x] 重新转换 `clothing/frp-后台` 并核对目标服务 AST/生成代码
+- [x] 验证 V5 主文件保持紧凑单行格式并复核最终差异
+
+**Status:** complete
+
+### Phase 66：提交、部署 Lambda 并同步 VxEditor41（2026-07-30）
+
+- [x] 恢复文件化计划并核对两个仓库的未提交内容
+- [ ] 提交并推送 tov5parser 的已跟踪修改
+- [ ] 从已提交版本打包并部署生产 Lambda
+- [ ] 验证 Lambda 新版本、prod 别名和冒烟调用
+- [ ] 将两项转换器修复同步到 VxEditor41
+- [ ] 运行 VxEditor41 定向校验并复核仅修改转换器文件
+- [ ] 提交并推送 VxEditor41
+- [ ] 记录两边提交与部署版本并完成最终复核
+
+**Status:** in progress
