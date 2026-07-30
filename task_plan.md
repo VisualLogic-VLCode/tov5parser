@@ -671,12 +671,12 @@ Phase 62（提交并推送 VxServer 修复）— complete
 ### Phase 66：提交、部署 Lambda 并同步 VxEditor41（2026-07-30）
 
 - [x] 恢复文件化计划并核对两个仓库的未提交内容
-- [ ] 提交并推送 tov5parser 的已跟踪修改
-- [ ] 从已提交版本打包并部署生产 Lambda
-- [ ] 验证 Lambda 新版本、prod 别名和冒烟调用
-- [ ] 将两项转换器修复同步到 VxEditor41
-- [ ] 运行 VxEditor41 定向校验并复核仅修改转换器文件
-- [ ] 提交并推送 VxEditor41
-- [ ] 记录两边提交与部署版本并完成最终复核
+- [x] 提交并推送 tov5parser 的已跟踪修改
+- [x] 从已提交版本打包并部署生产 Lambda
+- [x] 验证 Lambda 新版本、prod 别名和冒烟调用
+- [x] 将两项转换器修复同步到 VxEditor41
+- [x] 运行 VxEditor41 定向校验并复核仅修改转换器文件
+- [x] 提交并推送 VxEditor41
+- [x] 记录两边提交与部署版本并完成最终复核
 
-**Status:** in progress
+**Status:** complete

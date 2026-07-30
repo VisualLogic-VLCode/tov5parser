@@ -1021,3 +1021,14 @@
 - `dbSelect` 的 limit AST 已读取 `d3t55yza3j50000bj52gRtn["result"]`，编译代码不再把 `IvxResult<Long>` 包装对象直接参与减法。
 - 当前 V4 中 `notE` 条件 31 处、`notEqual` 条件 26 处；新 V5 共生成 57 个 `neq`，与两类来源总数一致。
 - 新 `app.v5.json` 为 26,794,575 bytes、0 个换行，SHA-256 为 `7ebac0bf004a2307739cb2871796800f37e528416c9ab36a8037b10c06667be3`。
+
+## 2026-07-30：数据库查询语义修复部署
+
+- tov5parser 修复提交为 `8d052db0b4fce8c4807b3d09d3376ab0c888def3`，已推送到 `origin/main`。
+- 生产 Lambda `vl-case-json-converter` 已从版本 6 更新到版本 7，区域 `cn-northwest-1`，账号 `587849590304`。
+- 版本 7 描述为 `tov5parser 8d052db database query semantics`，代码摘要为 `rjHsGctWvxb6ltWHJJWVymes+XJZSFS9rac/s1ipXP0=`。
+- 部署前重新执行完整测试 54/54 通过；`prod` 冒烟调用返回 200，实际执行版本为 7，无 FunctionError。
+- 独立复核确认版本 7 为 Active/Successful，`prod` 仅指向版本 7，没有加权分流。
+- VxEditor41 已同步相同两处逻辑，提交为 `30182b4ea3c5d75bccb2d2f482a44966f7c40181`，已推送到 `origin/master`。
+- VxEditor41 两个目标文件 ESLint 为 0 error/0 warning；生产构建成功，输出仅包含仓库既有的 Sass/Prettier/导出告警。
+- VxEditor41 提交严格只包含 `V4FormulaCodeConverter.js` 和转换器 `utils/const.js`，未包含仓库中原有的 `.gitignore`、`src/stores/event.js` 或未跟踪组件目录。

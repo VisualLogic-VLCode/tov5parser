@@ -1070,3 +1070,13 @@
 - 2026-07-30：开始 Phase 66。用户明确授权提交并推送 tov5parser、部署生产 Lambda、同步 VxEditor41 转换器并提交推送。
 - 2026-07-30：tov5parser 当前分支为 `main`；待提交的已跟踪修改包括递归案例转换脚本、三份规划文档、本轮两项转换器修复和两项回归测试。未跟踪的 `VxServer-saveAs-same-gid-group-db-fix.md` 与本轮无关，将继续排除。
 - 2026-07-30：VxEditor41 当前分支为 `master`，已有用户修改 `.gitignore`、`src/stores/event.js` 及多个未跟踪目录；同步时只修改并提交 `src/utils/convertV4ToV5` 下对应的两个转换器源文件，不触碰其他内容。
+- 2026-07-30：tov5parser 提交前已获取 `origin/main`，ahead/behind 为 `0/0`；提交范围为 8 个已跟踪文件，未包含无关未跟踪文档。
+- 2026-07-30：已创建并推送提交 `8d052db`（`fix: preserve database query semantics in v5 conversion`）；本地 HEAD 与 `origin/main` 一致。
+- 2026-07-30：部署前确认 `prod` 指向版本 6，代码摘要 `R+UAtPoTTeUEVMrBemRlzAxxWg5qDty859jHgzWO/YQ=`；运行时代码相对提交 `8d052db` 无未提交差异。
+- 2026-07-30：已从提交 `8d052db` 重跑 54 项测试、构建 1.9 MB 运行包并上传留档路径 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-8d052db-20260730T102912Z.zip`。
+- 2026-07-30：生产 Lambda 已发布版本 7并切换 `prod`；冒烟调用 200、ExecutedVersion 7、FunctionError null。
+- 2026-07-30：独立复核版本 7 为 Active/Successful，代码摘要 `rjHsGctWvxb6ltWHJJWVymes+XJZSFS9rac/s1ipXP0=`，`prod` 无加权路由。
+- 2026-07-30：已在 VxEditor41 同步 `notEqual: 'neq'` 与 server 单值回调 `result` 解包；目标文件 ESLint、`git diff --check` 均通过。
+- 2026-07-30：VxEditor41 生产构建成功（webpack 0 error，保留仓库既有 33 类告警）；构建未引入额外待提交文件。
+- 2026-07-30：VxEditor41 已创建并推送提交 `30182b4ea`（`fix: preserve database query semantics in v5 conversion`），提交只含两个转换器源文件；本地 HEAD 与 `origin/master` 一致。
+- 2026-07-30：Phase 66 完成。tov5parser 修复提交 `8d052db` 已上线 Lambda 版本 7，VxEditor41 同步提交 `30182b4ea` 已推送。
