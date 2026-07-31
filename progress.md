@@ -1090,6 +1090,18 @@
 - 已恢复文件化计划；当前 tov5parser 在 `main`，与 `origin/main` 起始提交均为 `9d0e91c`，待提交代码为 `action.js` 与回归测试，另含三份规划记录。
 - 提交前已获取两个远端：tov5parser `main` 与 VxEditor41 `master` 均为 ahead/behind `0/0`。
 - tov5parser 完整测试 55/55 通过，`git diff --check` 通过；待提交文件共 5 个，范围符合预期。
+- tov5parser 已创建提交 `6591019`（`fix: preserve legacy service reason text`）并成功推送 `origin/main`；本地与远程分支精确一致，无关未跟踪文档仍未纳入。
+- 部署前确认生产 `prod` 指向版本 7；运行时源文件相对提交 `6591019` 无差异。
+- 已从 `6591019` 再跑 55/55 测试，构建 1,957,934-byte 运行包并留档至 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-6591019-20260731T095110Z.zip`。
+- 生产 Lambda 已发布版本 8 并切换 `prod`；冒烟调用返回 200、ExecutedVersion 8、FunctionError null。
+- 独立复核版本 8 为 Active/Successful，代码摘要 `efipXIWsIApfRh2bwyR0aaiPkrF5rkPKB4Dh7EgN87k=`，`prod` 无加权路由；可回滚版本为 7。
+- VxEditor41 `master` 起始点为 `30182b4ea`，转换器目录原本干净；用户已有 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录继续保持不动。
+- 已将等价修复同步至 VxEditor41 的 `src/utils/convertV4ToV5/utils/action.js`：`reason` 纯多词文本识别，以及 legacy 文本对象参数保留 `key`。
+- 目标文件 ESLint、Babel 解析、三项行为重放和 `git diff --check` 均通过。
+- VxEditor41 生产构建成功（webpack 0 error，保留仓库既有 33 类 warning）；下一步只暂存该转换器文件并提交推送。
+- VxEditor41 已创建并推送提交 `5d900d573`（`fix: preserve legacy service reason text`），提交仅含 `src/utils/convertV4ToV5/utils/action.js`；用户其他修改保持未提交。
+- 最终复核：tov5parser 代码提交 `6591019` 与 `origin/main` 一致；VxEditor41 `5d900d573` 与 `origin/master` ahead/behind `0/0`；Lambda 版本 8 仍为 Active/Successful，`prod` 无加权路由。
+- **Phase 69 Status:** complete。下一步回到 Phase 67，等待用户确认后继续第 4/51 例，不自动开始下一案例。
 
 ### Phase 68: 修复 reason 文本 Formula 生成空 jsfn
 

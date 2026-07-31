@@ -6,6 +6,13 @@
 - tov5parser 当前 `main` 起始点为 `9d0e91c`，无关未跟踪文档 `VxServer-saveAs-same-gid-group-db-fix.md` 不进入提交。
 - 本次需要同步的生产逻辑限定为 `reason` 多单词纯文本识别，以及 legacy 文本在 `paramsAsObj` 动作中保留参数键名；VxEditor41 需按其现有转换器结构做等价最小改动。
 - 两个仓库获取远端后均无 ahead/behind；tov5parser 提交前完整测试 55/55 通过且差异格式检查通过。
+- tov5parser 修复提交为 `6591019a4698c56a91246550d4f6e6bfb5b70afb`，已推送到 `origin/main`。
+- 生产 Lambda 由版本 7 更新至版本 8；版本 8 状态 Active/Successful，代码摘要 `efipXIWsIApfRh2bwyR0aaiPkrF5rkPKB4Dh7EgN87k=`，`prod` 100% 指向版本 8，别名冒烟成功。
+- 部署包以 1,957,934 bytes 留档在 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-6591019-20260731T095110Z.zip`；如需回滚，上一稳定版本为 7。
+- VxEditor41 对应源文件在同步前无未提交差异；本次只需修改 `src/utils/convertV4ToV5/utils/action.js`，其他用户改动不进入提交。
+- VxEditor41 定向验证覆盖：`reason="db error"` 命中文本、真实公式反例不命中、`paramsAsObj` 输出保留 `key:"reason"`；生产构建 0 error、33 类既有 warning。
+- VxEditor41 同步提交为 `5d900d5739f4147f16d2ae5cb5b5ff9980e2b3a6`，已推送 `origin/master`，提交只含一个转换器源文件。
+- 最终状态：两个代码提交均已在远端，Lambda `prod` 指向版本 8；Phase 69 完成，批量案例流程仍按用户要求暂停在 3/51。
 
 ## 2026-07-31 修复 reason 文本 Formula 生成空 jsfn
 
