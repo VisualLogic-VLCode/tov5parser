@@ -239,6 +239,61 @@ test('convertV4CaseJsonToV5CaseJson converts structure without touching input', 
   assert.equal(v5CaseJson.stage.classes.length, 1);
 });
 
+test('service return keeps legacy reason text literal and empty values empty', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  const serviceNode = v4CaseJson.server.children.find(
+    (node) => node.id === 'svc1',
+  );
+  serviceNode.events = {
+    list: [
+      {
+        name: 'callService',
+        tree: {
+          bid: 'return-root',
+          type: 'root',
+          children: [
+            {
+              bid: 'return-action',
+              type: 'action',
+              object: 'curObj',
+              action: {
+                name: 'paramResult',
+                paramsAsObj: true,
+                params: [
+                  {
+                    name: 'reason',
+                    type: 'Formula',
+                    value: { code: 'db error' },
+                  },
+                  {
+                    name: 'data',
+                    type: 'Formula',
+                    value: { code: '', str: [] },
+                  },
+                ],
+              },
+              children: [],
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const convertedService = v5CaseJson.server.children.find(
+    (node) => node.id === 'svc1',
+  );
+  const returnAst = convertedService.events.list[0].ast.args[0];
+
+  assert.equal(returnAst.op, 'return');
+  assert.deepEqual(returnAst.args, [
+    { op: 'val', val: 'db error', key: 'reason' },
+    { op: 'val', key: 'data' },
+  ]);
+});
+
 test('compileV5ServerAst makes server class services registrable', () => {
   ensureIvxMapNodeEnv();
   const serviceNode = {
@@ -899,6 +954,12 @@ test('legacy text-like formula parameters stay literal without hiding real formu
   );
   assert.equal(
     getLegacyFormulaTextValue({
+      param: formulaParam('reason', 'db error'),
+    }),
+    'db error',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
       param: formulaParam('url', 'https://pricing.ivx.cn/'),
     }),
     'https://pricing.ivx.cn/',
@@ -924,6 +985,12 @@ test('legacy text-like formula parameters stay literal without hiding real formu
   assert.equal(
     getLegacyFormulaTextValue({
       param: formulaParam('value', '$refs.node.p_value'),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('reason', 'param.reason || "db error"'),
     }),
     undefined,
   );

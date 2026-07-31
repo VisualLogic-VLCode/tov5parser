@@ -1,5 +1,91 @@
 # Findings & Decisions
 
+## 2026-07-31 提交、Lambda 部署与 VxEditor41 同步
+
+- 用户已明确授权两个仓库的提交和推送，以及生产 Lambda 更新。
+- tov5parser 当前 `main` 起始点为 `9d0e91c`，无关未跟踪文档 `VxServer-saveAs-same-gid-group-db-fix.md` 不进入提交。
+- 本次需要同步的生产逻辑限定为 `reason` 多单词纯文本识别，以及 legacy 文本在 `paramsAsObj` 动作中保留参数键名；VxEditor41 需按其现有转换器结构做等价最小改动。
+- 两个仓库获取远端后均无 ahead/behind；tov5parser 提交前完整测试 55/55 通过且差异格式检查通过。
+
+## 2026-07-31 修复 reason 文本 Formula 生成空 jsfn
+
+- 用户授权修复第三例发现的转换器错误；精确复核后确认是 `reason` 中未加引号的 `db error` 文本被转为不可编译的空 `jsfn`。
+- 修复范围仅包含 `reason` 纯文本 Formula 的窄范围识别、回归测试、第三例重转审计；不同时修复源案例的悬空服务引用。
+- 当前已跟踪改动只有三份规划文档，无其他未提交代码差异；无关未跟踪文档 `VxServer-saveAs-same-gid-group-db-fix.md` 继续保持不动。
+- `v4ToV5/utils/formula.js::convertEditorValue()` 本身已对 `value.code === ''/null/undefined` 返回 `{op:'val'}`，因此空 `jsfn` 不是该入口直接遗漏。
+- 问题发生在 `paramResult` 的 `paramsAsObj` 动作参数链路；需继续检查 `convertActionParamValue()` 是否在 `convertEditorValue()` 返回后将空 `val` 重新包成 `jsfn`。
+- `convertActionParamValue()` 对 Formula 直接调用 `convertEditorValue()`，之后只在 `paramsAsObj` 时增加 `key`，未显式包装为 `jsfn`。
+- `compileV5ServerAst()` 编译后台事件时使用 AST 深拷贝，不会改写原 AST；空 `jsfn` 应在进入后台编译之前已形成。
+- 下一步核对 `isEmptyParamValue()` 判断、实际返回 AST 键序和转换前参数是否存在不可见字符。
+- 精确键序复核纠正了早期定位：`data` 参数的空 Formula 已正确生成 `{op:'val', key:'data'}`；不可编译的空 `jsfn` 实际属于前一个 `reason` 参数。
+- V4 `reason` 为 `Formula { code: "db error", str: [{type:'str',obj:'db'}, {type:'str',obj:' '}, {type:'str',obj:'error'}] }`，本质是未加引号的英文文本短语。
+- `getLegacyFormulaTextValue()` 已对 `info` 参数的同类多单词文本做窄范围识别；最小修复应将 `reason` 纳入同一规则，仍不吞掉 `param.reason` 等真实公式。
+- 已新增失败回归断言：`reason: "db error"` 应识别为文本，`reason: 'param.reason || "db error"'` 必须保持真实公式路径。
+- 修复前定向测试精确失败：实际值 `undefined`，预期 `db error`；反例尚未执行到。
+- 将 `reason` 限定为“两个以上单词、仅含字母/数字/下划线/连字号”的文本短语后，定向 helper 测试通过，`param.reason || "db error"` 反例仍返回 `undefined`。
+- 为避免只测 helper，还应增加一个完整 V4 服务 `paramResult` 转换断言，覆盖 `paramsAsObj` 的真实 AST 路径。
+- 完整服务返回回归首次运行发现第二个相关问题：`getLegacyFormulaTextValue()` 命中后在 `convertActionParamValue()` 中提前返回，绕过了函数尾部的 `paramsAsObj` 键名赋值。
+- 当前实际 AST 为 `{op:'val', val:'db error'}`，少 `key:'reason'`；最小修复需让 legacy 文本提前返回时同样保留 `paramsAsObj` 的参数名。
+- 最终修复包含两个紧密相关的最小变更：仅对 `reason` 的纯多单词短语返回文本；legacy 文本提前返回时若 `paramsAsObj=true` 则保留 `key:param.name`。
+- 定向测试 2/2 通过：完整服务返回 AST 为 `{op:'val', val:'db error', key:'reason'}` 和 `{op:'val', key:'data'}`；真实公式反例不被文本规则吞掉。
+- 项目全量测试由 54 增至 55，55/55 通过。
+- 修复后重转第三例成功：诊断 654 → 653，去重 628 → 627，`not support compound expression` 1 → 0，`dropped` 仍为 0。
+- 目标返回动作 `cpwc0z3a3j5000038te0` 现为 `reason={op:'val',val:'db error',key:'reason'}`、`data={op:'val',key:'data'}`，键名和值均正确。
+- 全案例 `jsfn` 由 637 降为 636，636/636 全部可编译，参数数不匹配 0，旧式引用残留 0。
+- 新 V5 为 6,135,297 bytes，SHA-256 `454f099b9821f0babfa0d18fa01eb0e98f095da3b89e05704d90674e8ec0911a`，保持紧凑 JSON 与 `server.props.v2=1`。
+- `git diff --check` 通过；最终代码差异仅为 `v4ToV5/utils/action.js` 和 `v4ToV5/v4ToV5.test.js`，未触碰无关未跟踪文档。
+
+## 2026-07-31 clothing 全案例逐例转换
+
+- 源目录 `/Users/lianghuang/Desktop/ivx_repos/clothing/04_原始项目JSON代码` 共发现 51 个 `.json` 文件，文件名格式均可提取数字 nid。
+- 用户要求逐例执行并人工审阅：数据库确认版本；仅 V4 案例下载最新完整 JSON并转换；汇报后暂停。
+- 2026-07-31 用户更新保留策略：不再删除已经测试、转换的案例；所有案例的 V4/V5 数据和报告累计保留在 `localCases/v4/clothing` 与 `localCases/v5/clothing`。
+- 处理顺序采用完整文件名的稳定排序；首例为 `FRP导航栏_11020398_温晓华.json`，nid `11020398`。
+- 工作区开始时只有一份无关未跟踪文件 `VxServer-saveAs-same-gid-group-db-fix.md`，本轮不触碰。
+- 项目已有权威链路文档 `raw/中文服完整案例JSON导出.md`：只读查询 `vxshow.node_vx_data/node_vx` 获取 `work_id`、`ntype` 和版本信号，再调用 `GET https://editor.ivx.cn/work/load/{workId}?nid={nid}` 解码完整 `{case,server,stage}`。
+- 版本口径：`edt_ver=4.0` 为 V4.0；`edt_ver=4.1` 且 `extra.verDetail` 为空为 V4.1；`verDetail=5.0/5.1` 为 V5；3.x 通常为 `edt_ver=3.5`。
+- 本地转换入口为 `npm run convert:local -- <case> --ntype <n>`，支持紧凑 V5 输出与诊断文件。
+- 中文服只读 SSH 隧道已在本机 `127.0.0.1:13306` 监听，无需重复启动。
+- 本机无 MySQL CLI，系统 Python 也未安装 `pymysql`；沿用项目既有做法，在临时目录安装驱动后执行只读查询，不改项目依赖。
+- 首例 nid `11020398` 查询结果：数据库标题 `FRP`，`data_edt_ver=node_edt_ver=4.1`，`verDetail` 为空，因此确认为 V4.1；`ntype=1`，当前作品版本号 64，`work_id=cajv67pl9ispg1dl0n6g-155`。
+- `localCases/v4/clothing` 和 `localCases/v5/clothing` 已有历史案例 `frp-pad`、`frp-后台`，合计约 275 MB；它们不是本轮“上一案例”，不会在首例处理时擅自删除。本轮新增目录将使用源文件名（去掉 `.json`）以保持 nid 可追踪。
+- 首例最新 V4 完整 JSON 下载成功：紧凑文件 1,285,427 bytes，SHA-256 `d38873190783ceaea0f0fda31ebe8c5e3f49bd7ff8548e44a92ea58dbfbc6297`，顶层完整包含 `case/server/stage`，根类型为 `ih5-case/data-server/ih5-stage`。
+- 转换器已成功生成 V5：约 849.9 KB；诊断共 42 条、去重 42 条，全部进入 `jsfn` 自定义表达式兜底，`dropped=0`。控制台堆栈是可恢复的公式转换诊断，不代表整例转换失败；仍需做产物结构与 `jsfn` 编译审计。
+- 42 条诊断分类：`findIndex` 21、逻辑或 `||` 12、逻辑与 `&&` 5、模板字符串 4；全部阶段均为 `custom-expr-fallback`。
+- 初步产物审计：V4/V5 均为紧凑、可解析的完整三根 JSON；474/474 个节点 ID 保留；V5 为 870,278 bytes，SHA-256 `c2bc45e017096f6a38e7f70bfbf9d833d9625bc07e5b1b6cc692fac2ec44e321`，`server.props.v2=1`。
+- 42/42 个 `jsfn` 均可编译、参数数匹配、无 `$refs/fParam/cbParams/_loop/$P_` 旧式引用残留。
+- 首版动作审计把所有带 `bid` 的事件树块都当作动作，得到 108 个无同名 `ln`；该口径包含条件/控制块，不能据此判为动作丢失。下一步按真实动作块类型重新分类，避免误报。
+- 重新分类后确认：107 个无同名 `ln` 的项全部是事件 `root` 块，根块本就不映射为 V5 动作行；其余 807/807 个非根事件块全部保留落点，不存在动作/条件/循环/状态块直接丢失。
+- 项目全量测试 54/54 通过。
+- 已在 V4 案例目录保存来源与数据库元数据 README，在 V5 案例目录保存转换结论 `conversion-report.md`。
+- 用户已审阅首例并确认开始下一案例；第二例为 `PAD 量体_11064050_吴坤.json`（nid `11064050`），首例目录保留。
+- 第二例数据库元数据：当前标题 `FRP-PAD`，`data_edt_ver=node_edt_ver=4.1`、`verDetail` 为空，确认为 V4.1；`ntype=1`，版本号 745，`work_id=cbt1eskpeu4lef3h2330-2921`，数据库当前作者刘土明。
+- 第二例最新完整 V4 JSON 下载成功：紧凑文件 41,697,291 bytes，SHA-256 `6f447cbb17457d0b5f194129f5d7d8e164d23f02156eb57657f64095764deb5a`；顶层完整包含 `case/server/stage`，根类型为 `ih5-case/data-server/ih5-stage`。
+- 第二例转换成功：V5 紧凑文件 30,192,242 bytes，SHA-256 `05f90837e1ee93f9682613998aab4f3463a7288a16696876aa04594297be9334`，`server.props.v2=1`。
+- 诊断 2,722 次、去重 2,372 条，全部为 `custom-expr-fallback`，`dropped=0`。主要分类：`&&` 661、`||` 568、完整 JavaScript 557、unknown varType 319、模板字符串 126、match 126、findIndex 103、substring 82、SpreadElement 58。
+- 结构审计通过：11,581/11,581 节点 ID 保留，28,041/28,041 个非根事件块有 V5 `ln` 落点。
+- V5 含 2,589 个 `jsfn`：全部可编译、参数数全部匹配；发现 2 个旧式 `cbParams` 残留（`cbParams.style`、`cbParams.data`），需回查源上下文判断是否为源案例悬空引用。
+- 首版服务审计只把 `type=data-service` 当作服务定义，得到 45 个“未解析”目标；该口径遗漏其他可调用服务类型，暂不作为服务缺失结论，需按节点 ID/服务注册规则重新核对。
+- 服务目标复核完成：302 次 `runsvc` 涉及 106 个唯一目标，61 个为 `data-service`、45 个为 `data-sharedService`；106/106 都存在对应节点，服务目标缺失 0。
+- 两个 `cbParams` 残留均来自 V4 源数据本身：动作分别位于普通 `data-funcGroup` 事件的条件/分组内，不在任何返回回调动作子树中，却直接引用“返回结果”的 `cbParams.style/data`。这是源案例悬空上下文引用，转换器用 `jsfn` 原样保留，未新增该问题。
+- 项目全量测试 54/54 通过。
+- 已为第二例写入 V4 来源 README 和 V5 `conversion-report.md`，报告包含两处源案例问题的精确节点/动作 BID。
+- 用户已审阅第二例并确认继续；第三例为 `aps后台_11437420_吴坤.json`（nid `11437420`），前两例保留。
+- 第三例数据库元数据：标题 `aps后台`、作者吴坤，`data_edt_ver=node_edt_ver=4.1`、`verDetail` 为空，确认为 V4.1；`ntype=1`、版本号 572、`work_id=cmac7tvmvgdh8t6hob7g-1029`。
+- 第三例最新完整 V4 JSON 下载成功：紧凑文件 7,613,197 bytes，SHA-256 `13e68cb0a082e0a7fb503832c0aaa6a260a68cbf7253537e0be67a78bbee3a91`；顶层完整包含 `case/server/stage`，根类型为 `ih5-case/data-server/ih5-stage`。
+- 第三例初次转换：V5 紧凑文件 6,135,382 bytes，SHA-256 `fd96b28f3df4a3cf3af7fbed71781c6a5dfe4e4361d565b5c4939fd439b14960`，`server.props.v2=1`。
+- 初次诊断 654 次、去重 628 条，全部为 `custom-expr-fallback`，`dropped=0`。主要分类：`||` 431、unknown varType 82、完整 JavaScript 58、`&&` 42、`flat` 24。
+- 结构审计通过：1,042/1,042 节点 ID 保留，5,300/5,300 个非根事件块保留落点。
+- V5 含 637 个 `jsfn`，参数数全部匹配、无旧式引用残留；发现 1 个空字符串 `jsfn` 无法编译，需回查诊断与 V4 源位置。
+- 服务审计初见 9 个唯一 `runsvc` 目标中 2 个无同 ID 节点，需核对是 V4 源案例已有悬空引用，还是转换丢失。
+- 空 `jsfn` 已定位到后台服务 `cpw768sa3j50000371s0`（`getPackageTaskList获取装箱列表`）的返回动作 `cpwc0z3a3j5000038te0`，参数 `reason`。
+- V4 源 `reason` 是未加引号的纯文本 `Formula { code: "db error", ... }`；转换器初次将其生成空 `jsfn`。`data` 的空 Formula 实际始终正确转为普通空 `val`。
+- 两个无定义服务目标在 V4 源树中同样没有对应节点，因此不是转换器删除服务定义。
+- `csykyxva3j500007q9ng` 的调用动作 `cx66absa3j50000n142g` 在 V4 中 `enable=false`，V5 正确保留为 `skip:true`，不会执行。
+- `ck50xtqa3j50000eamgg` 由函数组 `cpabnyfa3j50000memq0`（获取category）的动作 `cpabnyfa3j50000memxg` 启用调用，但 V4/V5 均无该服务节点；这是源案例已有的活跃悬空服务引用，V5 运行到该分支时可能报“服务不存在”。
+- 初次检查时项目全量测试 54/54 通过，但当时测试集未覆盖 `reason` 纯文本的完整服务返回场景。
+- 第三例 V5 `conversion-report.md` 已在修复后更新为新产物结论。
+
 ## 2026-07-24 同步 VxEditor41 并提交推送
 
 - 用户明确授权：将数字字面量 receiver 修复同步到 VxEditor41，并将 tov5parser、VxEditor41 两个仓库都提交并 push。

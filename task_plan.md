@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 62（提交并推送 VxServer 修复）— complete
+Phase 69（提交、部署 Lambda 并同步 VxEditor41）— in progress；Phase 67 暂停于 3/51，待本阶段完成后继续
 
 ## Phases
 
@@ -426,6 +426,7 @@ Phase 62（提交并推送 VxServer 修复）— complete
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
+| `rg` 双引号模式中的反引号被 zsh 当作命令替换 | 1 | 不再在双引号 shell 参数中放反引号；改用单引号模式或分步检索 |
 | 控制台建桶 AccessDenied（s3:CreateBucket） | 1 | 判定为 IAM 用户权限不足，整理权限清单找管理员开通 |
 | tov5parser-* 命名全部 AccessDenied | 1 | 用 AccessDenied vs NotFound 差异探测出授权范围为 vl-case-json-converter*，资源改名 |
 | CreateBucket 任何名字均拒（含授权前缀） | 2 | 确认建桶权限根本未授；部署包改直传绕开，桶由管理员创建 |
@@ -680,3 +681,39 @@ Phase 62（提交并推送 VxServer 修复）— complete
 - [x] 记录两边提交与部署版本并完成最终复核
 
 **Status:** complete
+
+### Phase 67：clothing 全案例逐例 V4→V5 测试（2026-07-31）
+
+- [x] 盘点 `04_原始项目JSON代码` 下全部 JSON，并从文件名提取 nid
+- [ ] 按文件名排序逐例查询数据库版本；非 V4 案例记录结论后跳过
+- [ ] 对当前 V4 案例拉取最新完整 JSON，保存到 `localCases/v4/clothing`
+- [ ] 使用本项目转换器生成 V5 JSON和诊断结果，保存到 `localCases/v5/clothing`
+- [ ] 校验转换产物并向用户汇报，等待审阅
+- [ ] 用户确认继续后保留已测试案例，再处理下一例
+
+**Status:** in progress
+
+**执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
+
+### Phase 68：修复 reason 文本 Formula 生成空 jsfn（2026-07-31）
+
+- [x] 追踪异常 `jsfn` 的精确参数，纠正为 `reason: "db error"` 未加引号文本
+- [x] 新增 `reason` 英文短语 Formula 回归测试，确认修复前精确失败
+- [x] 实施最小修复，保留非文本 Formula 既有语义
+- [x] 运行定向测试与项目全量测试
+- [x] 重新转换 `aps后台_11437420_吴坤`，确认空 `jsfn` 清零并更新报告
+- [x] 复核最终差异，等待用户确认是否创建 Git 提交
+
+**Status:** complete
+
+### Phase 69：提交、部署 Lambda 并同步 VxEditor41（2026-07-31）
+
+- [x] 核对 tov5parser 提交范围、远程状态与敏感信息
+- [ ] 提交并推送 tov5parser 当前修复
+- [ ] 从已提交版本构建并部署生产 Lambda，验证新版本与 `prod` 别名
+- [ ] 核对 VxEditor41 工作区，隔离用户已有改动
+- [ ] 同步本次转换器修复并完成定向/构建验证
+- [ ] 仅提交并推送 VxEditor41 本次转换器修改
+- [ ] 复核两个远程分支、Lambda 状态，并记录结果
+
+**Status:** in progress

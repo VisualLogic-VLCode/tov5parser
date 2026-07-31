@@ -254,11 +254,13 @@ function getLegacyFormulaTextValue({ param, paramName }) {
     return trimmed
   }
   if (
-    name === 'info' &&
-    (trimmed === 'typeof' ||
-      /^\d+\p{Script=Han}[\p{L}\p{N}_-]*$/u.test(trimmed) ||
-      /^[\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)+$/u.test(trimmed) ||
-      /^[\p{L}\p{N}_-]+(?:\s*,\s*[\p{L}\p{N}_-]+)+$/u.test(trimmed))
+    (name === 'info' &&
+      (trimmed === 'typeof' ||
+        /^\d+\p{Script=Han}[\p{L}\p{N}_-]*$/u.test(trimmed) ||
+        /^[\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)+$/u.test(trimmed) ||
+        /^[\p{L}\p{N}_-]+(?:\s*,\s*[\p{L}\p{N}_-]+)+$/u.test(trimmed))) ||
+    (name === 'reason' &&
+      /^[\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)+$/u.test(trimmed))
   ) {
     return trimmed
   }
@@ -287,8 +289,12 @@ function convertActionParamValue({
   if (!isEmptyParamValue({ param })) {
     const legacyTextValue = getLegacyFormulaTextValue({ param, paramName })
     if (legacyTextValue !== undefined) {
+      result = { op: 'val', val: legacyTextValue }
+      if (paramsAsObj) {
+        result.key = param.name
+      }
       clearDiagExtra()
-      return { op: 'val', val: legacyTextValue }
+      return result
     }
     switch (param.type) {
       case propType.Formula:
