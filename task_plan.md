@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 73（提交、部署并同步 VxEditor41）— in progress；完成后回到 Phase 67 第 6/51 例审阅点
+Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；第 6/51 例修复、提交与部署完成，等待审阅
 
 ## Phases
 
@@ -760,11 +760,11 @@ Phase 73（提交、部署并同步 VxEditor41）— in progress；完成后回�
 ### Phase 73：提交、部署并同步 VxEditor41（2026-08-03）
 
 - [x] 复核 tov5parser 提交范围、远程分支与完整测试
-- [ ] 仅提交本轮转换器、测试和规划记录并推送 `main`
-- [ ] 从已提交版本构建并部署生产 Lambda，验证新版本与 `prod` 别名
-- [ ] 在 VxEditor41 中同步等价 data-if 清理逻辑，隔离用户已有修改
-- [ ] 运行 VxEditor41 定向验证与可行的生产构建
-- [ ] 仅提交并推送 VxEditor41 本轮转换器修改
-- [ ] 复核两个远程分支、Lambda 状态并记录结果
+- [x] 仅提交本轮转换器、测试和规划记录并推送 `main`
+- [x] 从已提交版本构建并部署生产 Lambda，验证新版本与 `prod` 别名
+- [x] 在 VxEditor41 中同步等价 data-if 清理逻辑，隔离用户已有修改
+- [x] 运行 VxEditor41 定向验证与可行的生产构建
+- [x] 仅提交并推送 VxEditor41 本轮转换器修改
+- [x] 复核两个远程分支、Lambda 状态并记录结果
 
-**Status:** in progress
+**Status:** complete

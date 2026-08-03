@@ -1372,3 +1372,21 @@
 - VxEditor41 当前 `master`，HEAD `7cd5ce999`；已有 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录均属于用户现有工作，本轮只能修改并提交转换器相关目标文件。
 - 两个仓库 fetch 后均与远端一致：tov5parser `main` 和 VxEditor41 `master` 的 ahead/behind 都是 `0/0`，无需合并，更不会变基。
 - tov5parser 提交前完整测试 58/58 通过，`git diff --check` 通过；差异为预期的转换器、回归测试与三份规划文档共 5 个文件。
+- 已只暂存上述 5 个预期文件并创建提交 `76ba3a1`（`fix: remove legacy data-if value binds`）；无关未跟踪 VxServer 文档未纳入。
+- tov5parser 提交已推送至 `origin/main`，完整 SHA `76ba3a1c2efe0628a0bd05da3db7d910feb7893b`，本地/远端 ahead/behind 为 `0/0`。
+- 部署脚本将从当前已提交运行时代码打包；当前仅进度文档和无关未跟踪文档使工作区非完全干净，因此会先验证运行时相对 HEAD 无差异，再使用 `--allow-dirty --run-tests --smoke --keep-history` 发布留档版本。
+- 部署前确认生产 `prod` 指向版本 9，状态 Active/Successful，代码摘要 `D7C64I3uMQgx9nfZTXgKBZkEXdikLB75WmaH23Lm+fI=`，无加权路由；AWS 身份为预期中国区账号与专用部署用户。
+- 已验证所有打包白名单运行时文件相对提交 `76ba3a1` 无差异；部署过程再次执行 58/58 测试并构建约 1.9 MB 运行包。
+- 运行包已留档至 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-76ba3a1-20260803T094422Z.zip`；生产发布版本 10 并切换 `prod`。
+- 别名冒烟成功：HTTP 200、ExecutedVersion 10、FunctionError null，版本接口返回 code 0。下一步独立复核版本状态/摘要后同步 VxEditor41。
+- 独立复核确认版本 10 为 Active/Successful，描述对应提交 `76ba3a1`，代码摘要 `+KBroIKw+LqwT17ONteUzbOZyzTV1oyslUidqzKs4l4=`；`prod` 仅指向版本 10、无加权路由，运行包精确大小 1,958,130 bytes。
+- 独立复核命令末尾曾额外尝试用 AWS `fileb://<(printf ...)` 进程替换发起 invoke；AWS CLI 将其当作字面文件名并在本地参数校验阶段失败，未调用 Lambda。部署脚本此前的版本 10 冒烟已成功，后续不重复该错误形式。
+- VxEditor41 未发现仓库级额外 AGENTS.md；等价转换入口为 `src/utils/convertV4ToV5/index.js` 的同一 data-if/通用 binds 顺序，适合只同步相同的 6 行删除逻辑。仓库没有现成 convertV4ToV5 测试文件，验证将采用目标 ESLint、源码行为检查和生产构建。
+- 已确认 VxEditor41 目标转换器文件原先无用户未提交差异，并同步与 tov5parser 完全等价的 data-if `delete node.binds.value` 逻辑；其他用户文件未修改。
+- VxEditor41 目标文件差异检查通过，修改仅为预期 6 行；目标 ESLint 0 error/0 warning。下一步运行生产构建。
+- VxEditor41 生产构建成功：webpack 0 error，以仓库现有代码产生 33 类 warning；本次目标文件没有 warning。
+- 构建后工作区未新增生成文件，仍只有目标转换器文件加用户原有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录；`git diff --check` 通过。下一步只暂存目标转换器文件。
+- VxEditor41 已仅暂存 `src/utils/convertV4ToV5/index.js` 并创建提交 `4b1955552`（`fix: remove legacy data-if value binds`）；提交严格只含 6 行目标逻辑，用户原有修改仍全部未暂存。
+- VxEditor41 提交已推送至 `origin/master`，完整 SHA `4b195555287ee423779346ef6a1bab65f20fcdcd`，本地/远端 ahead/behind 为 `0/0`。
+- 最终复核通过：tov5parser `main` 与 VxEditor41 `master` 均和远端对齐；Lambda 版本 10 仍为 Active/Successful，`prod` 无加权路由且描述/代码摘要与本轮部署一致。
+- **Phase 73 Status:** complete。补充本次部署记录的跟进文档提交后回到 Phase 67 第 6/51 例审阅门禁，第 7 例尚未启动。
