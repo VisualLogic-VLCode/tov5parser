@@ -1102,6 +1102,48 @@
 - VxEditor41 已创建并推送提交 `5d900d573`（`fix: preserve legacy service reason text`），提交仅含 `src/utils/convertV4ToV5/utils/action.js`；用户其他修改保持未提交。
 - 最终复核：tov5parser 代码提交 `6591019` 与 `origin/main` 一致；VxEditor41 `5d900d573` 与 `origin/master` ahead/behind `0/0`；Lambda 版本 8 仍为 Active/Successful，`prod` 无加权路由。
 - **Phase 69 Status:** complete。下一步回到 Phase 67，等待用户确认后继续第 4/51 例，不自动开始下一案例。
+- Stop hook 检查结果为 73/74 phases：唯一未完成的是按设计逐例推进的 Phase 67；当前 3/51 已完成并审计，第四例仍需用户明确确认后启动。
+- 用户已明确回复“继续”；当前切换到第 4/51 例 `frp后台1_11023063_熊.json`（nid `11023063`）。前面案例和历史同 nid 目录均保留，本轮使用源文件名去扩展名的新目录，不覆盖 `frp-后台`。
+- 中文服只读隧道 `127.0.0.1:13306` 正常监听；系统 Python 仍未安装 `pymysql`，将沿用临时隔离依赖目录执行只读查询。
+- 发现旧 `/tmp/tov5parser-pymysql` 内容残缺（模块无 `connect`）；已停止复用，下一次在全新 `mktemp` 目录安装后查询，避免重复同一失败路径。
+- 第 4 例数据库确认是 V4.1（`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`），`ntype=1`、版本号 1018、最新 `work_id=calcup52uhpcud8vv3h0-2508`；数据库标题 `frp-后台`，作者熊维祥。
+- 下一步调用只读 `/work/load` 下载并解码完整三根 V4 JSON到独立目录 `localCases/v4/clothing/frp后台1_11023063_熊`。
+- 最新 V4 已下载成功：完整包含 `case/server/stage`，根类型为 `ih5-case/data-server/ih5-stage`，紧凑文件 29,286,576 bytes，SHA-256 `f5cef2601f54536cd92e8ceeca45d120223ffdd32927d45f810651e19a10234c`。
+- V4 来源与数据库元数据 README 已写入新目录；转换入口会把 `clothing/frp后台1_11023063_熊/app.json` 映射到同层 V5 `app.v5.json` 并生成诊断 JSON/Markdown。
+- 第 4 例转换成功：V5 约 25.6 MiB，诊断 1,028 次、去重 1,004 条，全部为 `jsfn` 自定义表达式兜底，`dropped=0`。
+- 转换控制台的 ParseError 均已被诊断通道接管，不等于整例失败；下一步审计 JSON 格式、节点/事件落点、全部 `jsfn` 语法与参数、旧式引用和服务目标。
+- 历史同 nid 版本 1017 的质量审计可作为基线：当时诊断 1,027、最终 `jsfn` 1,008 且全部可编译，并有 2 个 V4 源案例悬空服务目标；本次版本 1018 将重新独立审计，不直接沿用旧结论。
+- 第 4 例审计通过：770/770 节点、9,531/9,531 非根事件块保留；1,009/1,009 个 `jsfn` 可编译且参数匹配，旧式引用残留 0。
+- 29 次 `runsvc` 涉及 22 个唯一目标，20 个存在；两个缺失目标均在 V4 源案例中也无定义，其中“补部门”调用启用，“test”调用禁用且 V5 正确保留 `skip:true`。
+- 与历史版本 1017 相比，版本 1018 新增 `bedUsage = materialConfig || data` fallback，并扩展 `getMaterialList` 的块体公式；两者转换后的 `jsfn` 均可编译。
+- 项目完整测试 55/55 通过；转换结论已写入新 V5 目录，下一步做最终文件与目录保留校验。
+- 最终校验通过：V4、V5、诊断 JSON 均可解析，结论报告关键指标完整；V4/V5 下前 3 例及两个历史案例目录全部保留。
+- 第 4/51 例处理完成，未发现转换器错误；当前暂停等待用户审阅。下一例为 `frp后台2_11260689_熊.json`，确认前不查询或转换。
+- Stop hook 再次报告 73/74 phases；唯一未完成项仍是逐例推进的 Phase 67。第 4 例审阅门禁尚未收到人工“继续”，因此保持暂停。
+
+# Session: 2026-08-03
+
+### Phase 67: clothing 全案例逐例 V4→V5 测试（第 5 例）
+
+- 用户已明确回复“继续”；当前处理 `frp后台2_11260689_熊.json`（nid `11260689`）。
+- 中文服只读数据库隧道 `127.0.0.1:13306` 正常监听；所有既有案例目录继续保留。
+- 数据库确认第 5 例为 V4.1（`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`），`ntype=1`、版本号 1268、`work_id=chmqnnn5alif72t1eq9g-2917`；当前标题 `frp-后台2.0`，作者熊维祥。
+- 下一步从只读 `/work/load` 下载完整 V4 JSON到独立目录 `localCases/v4/clothing/frp后台2_11260689_熊`。
+- 最新 V4 下载成功：完整包含 `case/server/stage`，根类型为 `ih5-case/data-server/ih5-stage`，紧凑文件 12,071,999 bytes，SHA-256 `ce197e276ab00d4bc994a1823e177c454e62fbf837c0aa34d49e5220fa565acc`。
+- V4 来源 README 已落盘；下一步使用 `ntype=1` 转换并生成诊断文件。
+- 第 5 例转换成功：V5 约 9.1 MiB，诊断 1,208 次、去重 1,164 条，全部为 `jsfn` 自定义表达式兜底，`dropped=0`。
+- 转换控制台的 ParseError 已由诊断通道承接；下一步审计节点/事件落点、`jsfn` 可编译性与参数、旧式引用和服务目标。
+- 初步审计：636/636 节点、9,040/9,040 非根事件块保留，7/7 服务目标存在；1,172 个 `jsfn` 中 1,171 个可编译，发现 1 个转换器生成的非法 `jsfn`。
+- 非法项位于后台服务 `cj1f354a3j500002afqg`（customerSetRoster）、动作 `cj1faqja3j500002ahy0`、数据库字段 `name`：V4 的 `(condition ? value : 1).toString()` 被输出成 `condition ? value : 1.toString()`。
+- 根因已缩小到 `ExprAstToString` 的 `MemberExpression`：当前只给 `BinaryExpression` 和数字 Literal receiver 加括号，未给 `ConditionalExpression` receiver 加括号，既产生非法 `1.toString()`，也改变成员调用的作用范围。
+- 全 V4 公式 AST 扫描发现 3 个“ConditionalExpression 作为 MemberExpression receiver”样本：已知非法的编号公式 1 个，另有两处相同的 `(... ? [...] : [...]).every(...)` 公式；继续核对后两处最终 V5 输出是否走不同 fallback 而保持语义。
+- 深入对照诊断与 V5 AST 后确认受影响项共有 5 个：编号动作 `cj1faqja3j500002ahy0` 生成不可编译代码；函数组“4/5获取详细排程的依赖数据”各有一个条件和一个赋值动作（4 个 BID）生成可编译但语义错误的代码。
+- 四个语义错误 BID：`d0e213ca3j500002qsbg`、`d0e213ca3j500002qsc0`、`d2tm3p6a3j500008s83g`、`d2tm3p6a3j500008s840`；错误输出均为 `!$v1 === -4 ? ... : ....every(...)`，而 `.every()` 本应作用于整个三元结果。
+- 对 V4 所有带 `code` 的表达式做 AST 扫描，恰好发现 5 个 ConditionalExpression receiver 样本，与上述 5 个错误输出一一对应；未发现该根因的其他遗漏位置。
+- 项目完整测试 55/55 通过，`git diff --check` 通过；本轮没有修改转换器代码。
+- 已生成第 5 例 `conversion-report.md`，明确记录 1 处不可编译 `jsfn`、4 处可编译但语义错误的 `jsfn` 及共同根因。
+- 最终校验通过：V4、V5、诊断 JSON 均可解析，V4/V5 主文件保持 0 换行紧凑格式，哈希与报告一致，既有案例目录全部保留。
+- 第 5/51 例处理完成并暂停等待用户审阅；下一例按完整文件名稳定排序为 `pda扫码_11328085_吴坤.json`，确认前不查询、不转换，也不修复本轮发现的转换器错误。
 
 ### Phase 68: 修复 reason 文本 Formula 生成空 jsfn
 
@@ -1176,3 +1218,27 @@
 - 最终文件校验通过：V4、V5 和诊断 JSON 均可解析，前两例及历史案例目录仍保留。
 - 第三例处理完成；当前进度 3/51，等待用户审阅后继续第四例 `frp后台1_11023063_熊.json`。
 - Stop hook 提示 Phase 67 未完成；这是整批任务的预期状态。第三例审阅确认前保持暂停，不提前查询或转换第四例。
+
+## Session: 2026-08-03（第 5 例审阅门禁）
+
+- Stop hook 报告 73/74 phases；唯一未完成项仍为需要逐例人工审阅的 Phase 67。
+- 第 5/51 例 `frp后台2_11260689_熊.json` 已完成转换、全量审计与报告，发现 5 处同根转换器错误；当前没有未完成的案例内检查。
+- 按用户约定，收到明确审阅结论前不修复转换器，也不启动第 6 例 `pda扫码_11328085_吴坤.json`。
+- 用户已明确要求修复本例发现的转换器错误；开始 Phase 70，采用失败回归、最小代码修复、真实案例重转和全量审计闭环。
+- 本轮不会启动第 6 例，也不会在用户确认前创建 Git 提交。
+- 已核对实现与既有测试：`MemberExpression` 目前只为 `BinaryExpression` 和数字 Literal receiver 加括号；回归测试文件已有相邻的数字 receiver 用例，适合补充三元 receiver 的两个精确样本。
+- 已新增两个精确回归测试；修复前均按预期失败，实际输出分别是 `hasValue ? nextValue : 1.toString()` 和 `!afterSaleType === -4 ? ... : ....every()`，与第五例的语法/语义错误完全一致。
+- 已在 `ExprAstToString` 的 MemberExpression receiver 判定中加入 `ConditionalExpression`；两个新增测试与既有数字 Literal receiver 测试共 3/3 通过。
+- 项目完整测试由 55 增至 57，57/57 通过；`git diff --check` 通过，生产代码差异仅为 receiver 类型条件增加一项。
+- 已用修复后转换器重转第 5 例，转换 1/1 成功；诊断仍为 1,208 次、去重 1,164、dropped 0，说明修复只改变目标 jsfn 序列化，不隐藏或新增诊断。
+- 真实产物的 5 个目标全部修复：正确编号公式 1 处、正确 `.every()` 公式 4 处；旧 `1.toString()` 与 `!$v1 === -4 ?` 形态均为 0。
+- 重转后 1,172/1,172 个 `jsfn` 可编译，参数数全部匹配，旧式引用残留 0；9,040/9,040 非根事件块保留，7/7 唯一服务目标存在。
+- 修复后 V5 文件为 9,573,970 bytes，SHA-256 `8589e68c9bf5d7f42cf76778e7773c6798d0536e5339d17e718c7c11a724811b`，保持 0 换行紧凑 JSON 与 `server.props.v2=1`。
+- 案例转换报告已更新为“错误已修复并重转验证”；最终产物、报告标记、既有案例目录和 `git diff --check` 全部校验通过。
+- **Phase 70 Status:** complete。本轮代码尚未提交；按 AGENTS.md 等待用户确认是否创建 Git 提交，第 6 例仍未启动。
+- Stop hook 报告 74/75 phases；唯一未完成项仍是逐例推进的 Phase 67。当前安全后续动作受两道门禁约束：代码提交需用户确认，第 6 例也需用户回复“继续”。
+- 用户已明确授权：提交并推送 tov5parser、部署生产 Lambda、同步 VxEditor41 转换器并提交推送；开始 Phase 71。
+- tov5parser 当前分支 `main`，待提交为两份转换器/测试文件及三份规划文档；无关未跟踪文档继续排除。
+- VxEditor41 当前分支 `master`，转换器目标文件尚未修改；仓库已有 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录，必须全部保持不动。
+- 已获取两个远端：tov5parser `main` 与 VxEditor41 `master` 均为 ahead/behind `0/0`，无需合并或变基。
+- tov5parser 提交前完整测试 57/57 通过，`git diff --check` 通过。

@@ -60,7 +60,11 @@ export default class ExprAstToString {
         // 整数后直接接点号会被解析成小数（1.toString 非法），必须保留括号。
         const isNumericLiteral =
           object.type === 'Literal' && typeof object.value === 'number'
-        if (object.type === 'BinaryExpression' || isNumericLiteral) {
+        if (
+          object.type === 'BinaryExpression' ||
+          object.type === 'ConditionalExpression' ||
+          isNumericLiteral
+        ) {
           objStr = `(${objStr})`
         }
         let propertyStr = this.visit({ ast: property })

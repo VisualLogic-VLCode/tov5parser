@@ -300,6 +300,41 @@ test('numeric literal receivers stay valid in custom-expression output', () => {
   })
 })
 
+test('conditional receivers keep parentheses in custom-expression output', () => {
+  const code = new ExprAstToString({
+    ast: jsep('(hasValue ? nextValue : 1).toString().padStart(3, "0")')
+  }).exec()
+
+  assert.equal(
+    code,
+    '(hasValue ? nextValue : 1).toString().padStart(3, "0")'
+  )
+  assert.doesNotThrow(() => {
+    new Function('hasValue', 'nextValue', `return (${code});`)
+  })
+})
+
+test('conditional collection receivers preserve surrounding unary semantics', () => {
+  const code = new ExprAstToString({
+    ast: jsep(
+      '!(afterSaleType === -4 ? ["后整理"] : ["缝制", "后整理"]).every(item => values.includes(item))'
+    )
+  }).exec()
+
+  assert.equal(
+    code,
+    '!(afterSaleType === -4 ? ["后整理"] : ["缝制", "后整理"]).every((item) => values.includes(item))'
+  )
+  const evaluate = new Function(
+    'afterSaleType',
+    'values',
+    `return (${code});`
+  )
+  assert.equal(evaluate(-4, ['后整理']), false)
+  assert.equal(evaluate(-4, []), true)
+  assert.equal(evaluate(0, ['缝制', '后整理']), false)
+})
+
 test('string concatenation preserves nested numeric addition', () => {
   const ast = new V4FormulaCodeConverter({
     str: "(6+$refs.v0_chpq9t7a3j50000jzpp0*18)+'px'",

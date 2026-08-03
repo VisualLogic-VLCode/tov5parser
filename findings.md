@@ -45,6 +45,40 @@
 ## 2026-07-31 clothing 全案例逐例转换
 
 - 源目录 `/Users/lianghuang/Desktop/ivx_repos/clothing/04_原始项目JSON代码` 共发现 51 个 `.json` 文件，文件名格式均可提取数字 nid。
+- 第四例为 `frp后台1_11023063_熊.json`（nid `11023063`）。该 nid 已有历史目录 `frp-后台`，但按本轮规则仍会重新查询和下载，并保存到独立的 `frp后台1_11023063_熊` 目录，避免覆盖历史证据。
+- 第四例最新数据库记录：标题 `frp-后台`、作者熊维祥、V4.1、`ntype=1`、版本 1018、`work_id=calcup52uhpcud8vv3h0-2508`；相较 2026-07-30 历史记录 `...-2503` 已更新，应重新下载而非复制历史 JSON。
+- 第四例最新 V4 完整 JSON 为 29,286,576 bytes，SHA-256 `f5cef2601f54536cd92e8ceeca45d120223ffdd32927d45f810651e19a10234c`，0 换行紧凑格式，三根结构完整。
+- 第四例转换器运行成功，诊断 1,028 次、去重 1,004 条，全部以 `custom-expr-fallback/jsfn` 保留，空值降级 0；需要继续判断这些 `jsfn` 是否都可编译以及是否存在源引用问题。
+- 历史版本 1017 的同 nid 报告记录 1,008 个可编译 `jsfn` 和两个源案例悬空服务 `d3r5bcna3j50000075d0`、`d2qayvka3j500007z9qg`；版本 1018 的诊断比其多 1 次，需核对增量及悬空目标是否变化。
+- 第四例最终 V5 为 26,802,535 bytes，SHA-256 `35a268d8b3854ba3213210bc5f6b9946d89c89877c6c5b60949a2a7eba1d77e6`，0 换行紧凑格式，`server.props.v2=1`。
+- 结构与公式审计全部通过：770/770 节点、9,531/9,531 非根事件块、1,009/1,009 可编译 `jsfn`，参数形状不匹配 0，旧版引用残留 0。
+- 版本增量已闭环：新增的 `param.formData.materialConfig||param.formData.data` 被转为 `$v1 || $v2`；修改后的块体 map 公式也生成可编译单行 `jsfn`，未发现转换器错误。
+- 两个源悬空服务保持不变：`d3r5bcna3j50000075d0` 的“补部门”调用启用；`d2qayvka3j500007z9qg` 的“test”调用已禁用并转为 `skip:true`。
+- 第四例最终文件和目录保留检查通过；批量进度为 4/51，下一例按稳定排序是 `frp后台2_11260689_熊.json`。
+- 2026-08-03 用户确认继续；第五例为 `frp后台2_11260689_熊.json`（nid `11260689`），将重新查询该 nid 自身版本，不从相邻的 `11023063` 推断。
+- 第五例数据库记录：标题 `frp-后台2.0`、作者熊维祥、V4.1、`ntype=1`、版本 1268、`work_id=chmqnnn5alif72t1eq9g-2917`；符合进入下载与转换流程的条件。
+- 第五例最新 V4 JSON 为 12,071,999 bytes，SHA-256 `ce197e276ab00d4bc994a1823e177c454e62fbf837c0aa34d49e5220fa565acc`，0 换行紧凑格式，三根结构完整。
+- 第五例转换成功，诊断 1,208 次、去重 1,164 条，全部进入 `custom-expr-fallback/jsfn`，逻辑降级 0；仍需对最终 `jsfn` 和引用完整性做独立审计。
+- 第五例发现确定的转换器错误：服务 `customerSetRoster` 的动作 `cj1faqja3j500002ahy0`，V4 公式 `(cbResult.length ? cbResult[0].name - 0 + 1 : 1).toString().padStart(3,"0")` 被转成 `$v1 ? $v2 - 0 + 1 : 1.toString().padStart(3,"0")`，无法编译且三元整体的成员调用语义丢失。
+- 根因为 `ExprAstToString.visit(MemberExpression)` 未将 `ConditionalExpression` 对象括起来；此前数字 Literal 修复只能处理 `(1).toString()` 直接 receiver，无法覆盖 `(condition ? x : 1).toString()`。正确输出应为 `($v1 ? $v2 - 0 + 1 : 1).toString().padStart(3,"0")`。
+- V4 全量 AST 扫描还命中两处重复的 `(i.afterSaleType===-4 ? ["后整理"] : ["缝制","后整理"]).every(...)`；需检查它们最终是否由 full-JavaScript 路径正确保留括号，避免仅以“可编译”判断语义安全。
+- 实际影响不止两处动作参数：同一公式还各自在前置条件中出现一次。最终共有 4 个可编译但语义错误的 `jsfn`，对应 BID `d0e213ca3j500002qsbg/qsc0` 与 `d2tm3p6a3j500008s83g/s840`；加上编号公式，本例共有 5 个受同一括号缺失根因影响的输出。
+- 对全 V4 JSON 的所有 `code` 表达式执行 jsep AST 扫描后，ConditionalExpression receiver 总数正好为 5，说明该根因在本例的影响范围已完整收敛。
+- 第五例最终审计：636/636 节点、9,040/9,040 非根事件块保留；1,172 个 `jsfn` 参数形状全部匹配，旧式引用残留 0，语法编译为 1,171/1,172；7 次服务调用的 7 个唯一目标全部存在。
+- 第五例 V5 为 9,573,950 bytes，SHA-256 `be2528c6cc41601a346260bd82847df9c4b8a3685bc17c546aec477c577983bc`，0 换行紧凑格式，`server.props.v2=1`；项目测试 55/55 通过。
+- 本轮只记录缺陷，没有修改转换器。第 5/51 例已完成并等待审阅；下一例为 `pda扫码_11328085_吴坤.json`。
+- 2026-08-03 用户授权修复第五例的 5 处同根错误；最小修复范围限定为 `ExprAstToString` 对 `ConditionalExpression` member receiver 的括号序列化及其回归测试。
+- 既有 `numeric literal receivers stay valid` 回归直接构造 jsep AST 并检查生成代码及 `new Function` 编译；新测试将沿用该层级，分别覆盖 `(condition ? value : 1).toString()` 与 `!(condition ? a : b).every(...)` 的精确括号和运行语义。
+- 两个新增测试在修改生产代码前精确失败，证明不需要改 UnaryExpression 或 CallExpression；只要 MemberExpression 把 ConditionalExpression receiver 包在括号中，两条外层语法会同时恢复正确结合关系。
+- 最小实现仅扩展既有 receiver 括号条件，不改变 ConditionalExpression 自身打印、调用参数、unary 或其他表达式的通用优先级逻辑。
+- 修复后定向测试 3/3、项目全量测试 57/57 通过；未触碰组件映射、转换结构或后台编译逻辑，下一步以真实第 5 例重转确认全部 5 个落点。
+- 真实案例重转后的诊断总量和分类入口保持不变（1,208/1,164，dropped 0）；需要从生成的 `jsfn` 精确验证 5 个目标均恢复，不能用诊断数变化代替正确性检查。
+- 目标复核结果：`($v1 ? $v2 - 0 + 1 : 1).toString().padStart(...)` 恰好 1 处，`!($v1 === -4 ? ... : ...).every(...)` 恰好 4 处；两类旧错误文本均不存在。
+- 全量审计由修复前 1,171/1,172 可编译提升为 1,172/1,172；其他结构指标保持为 636/636 节点、9,040/9,040 非根事件块、7/7 服务目标，说明修复没有扩大结构影响面。
+- 修复后 V5 相比初次产物仅增加 20 bytes，最终 SHA-256 为 `8589e68c9bf5d7f42cf76778e7773c6798d0536e5339d17e718c7c11a724811b`；对应 5 对括号的增加与目标影响范围吻合。
+- Phase 70 已完成。代码改动只有 `ExprAstToString.js` 和 `jsepWrap.test.js`；规划文档为既有长期任务记录，无关未跟踪文档继续保持不动。
+- 2026-08-03 用户授权本轮双仓库提交推送与生产 Lambda 部署；VxEditor41 只需同步 `src/utils/convertV4ToV5/formulaCode/ExprAstToString.js` 的等价一行类型扩展，不纳入该仓库已有用户改动。
+- 两个远端在本轮提交前均未移动：tov5parser 起点 `c4c7cd2`、VxEditor41 起点 `5d900d573`，ahead/behind 均为 0/0；可以直接提交推送，无需历史协调。
 - 用户要求逐例执行并人工审阅：数据库确认版本；仅 V4 案例下载最新完整 JSON并转换；汇报后暂停。
 - 2026-07-31 用户更新保留策略：不再删除已经测试、转换的案例；所有案例的 V4/V5 数据和报告累计保留在 `localCases/v4/clothing` 与 `localCases/v5/clothing`。
 - 处理顺序采用完整文件名的稳定排序；首例为 `FRP导航栏_11020398_温晓华.json`，nid `11020398`。

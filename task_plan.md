@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；当前暂停于 3/51，等待用户确认后继续第四例
+Phase 71（提交、部署并同步 VxEditor41）— in progress；完成后回到 Phase 67 的第 5 例审阅门禁
 
 ## Phases
 
@@ -426,6 +426,8 @@ Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；当前暂
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
+| 系统 Python 缺少 `pymysql`，无法直接执行第 4 例只读元数据查询 | 1 | 使用 `/tmp` 下的隔离依赖目录安装驱动，不修改项目依赖或系统 Python |
+| 复用的 `/tmp/tov5parser-pymysql` 中模块残缺，导入后没有 `connect` | 1 | 不覆盖该目录；改用 `mktemp -d` 新建全新依赖目录后再查询 |
 | `rg` 双引号模式中的反引号被 zsh 当作命令替换 | 1 | 不再在双引号 shell 参数中放反引号；改用单引号模式或分步检索 |
 | 控制台建桶 AccessDenied（s3:CreateBucket） | 1 | 判定为 IAM 用户权限不足，整理权限清单找管理员开通 |
 | tov5parser-* 命名全部 AccessDenied | 1 | 用 AccessDenied vs NotFound 差异探测出授权范围为 vl-case-json-converter*，资源改名 |
@@ -695,6 +697,8 @@ Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；当前暂
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
+**当前检查点：** 第 5/51 例已完成；下一例为 `pda扫码_11328085_吴坤.json`，收到用户确认前不启动。
+
 ### Phase 68：修复 reason 文本 Formula 生成空 jsfn（2026-07-31）
 
 - [x] 追踪异常 `jsfn` 的精确参数，纠正为 `reason: "db error"` 未加引号文本
@@ -717,3 +721,26 @@ Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；当前暂
 - [x] 复核两个远程分支、Lambda 状态，并记录结果
 
 **Status:** complete
+
+### Phase 70：修复 ConditionalExpression receiver 括号丢失（2026-08-03）
+
+- [x] 为三元表达式后调用 `.toString()` / `.every()` 增加失败回归测试
+- [x] 在 `ExprAstToString` 实施最小括号保留修复
+- [x] 运行定向测试与项目全量测试
+- [x] 重新转换 `frp后台2_11260689_熊` 并复核 5 个目标落点
+- [x] 重跑全部 `jsfn`、结构、引用和服务目标审计
+- [x] 更新案例报告与规划记录，等待用户确认是否创建 Git 提交
+
+**Status:** complete
+
+### Phase 71：提交、部署并同步 VxEditor41（2026-08-03）
+
+- [ ] 复核 tov5parser 提交范围、远程分支和测试状态
+- [ ] 提交并推送 tov5parser 当前修复
+- [ ] 从提交版本构建并部署生产 Lambda，验证新版本与 `prod` 别名
+- [ ] 在 VxEditor41 中同步等价转换器修复并隔离用户已有改动
+- [ ] 运行 VxEditor41 静态检查与生产构建
+- [ ] 仅提交并推送 VxEditor41 本次转换器修改
+- [ ] 复核两个远程分支、Lambda 状态并记录结果
+
+**Status:** in progress
