@@ -1258,3 +1258,117 @@
 - VxEditor41 提交已推送 `origin/master`，本地与远端 ahead/behind 为 `0/0`；完整 SHA 为 `7cd5ce999be59cdd65c1b1ec23de0532db442b28`，用户原有修改全部仍未暂存。
 - 最终复核：tov5parser 运行时相对修复提交无差异且代码提交已在远端；VxEditor41 同步提交已在远端；Lambda 版本 9 仍为 Active/Successful，`prod` 无加权路由。
 - **Phase 71 Status:** complete。补充本次部署记录的文档跟进提交后，回到 Phase 67，等待用户确认继续第 6/51 例。
+- 部署记录跟进提交 `94f7c9e` 已推送；Stop hook 报告 75/76 phases，唯一未完成项仍是按人工审阅节奏推进的 Phase 67。当前等待用户明确回复“继续”，不提前处理第 6 例。
+
+## Session: 2026-08-03（Phase 67 第 6 例）
+
+- 用户已明确回复“继续”；当前案例切换为 `pda扫码_11328085_吴坤.json`（nid `11328085`）。
+- 已测试案例继续全部保留；本轮先重新查询该 nid 的当前版本元数据，不复用源文件名或历史记录推断版本。
+- 中文服只读数据库隧道 `127.0.0.1:13306` 正常监听，隔离的 PyMySQL 依赖目录仍可用；准备执行 nid `11328085` 的只读元数据查询。
+- 数据库确认第 6 例为 V4.1（`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`），`ntype=1`、版本号 54、当前 `work_id=cjjicv1t40ok967083cg-259`；标题“移动端PDA服装H5”，数据库作者王洋。
+- 下一步从只读 `/work/load` 下载完整 V4 JSON 到 `localCases/v4/clothing/pda扫码_11328085_吴坤`。
+- 最新 V4 下载成功：完整包含 `case/server/stage`，根类型为 `ih5-case/data-server/ih5-stage`，紧凑文件 2,016,076 bytes，SHA-256 `2d906a8f8e985d58c5e705d014c698b2b993b8e3d790b530727f98e0bf3b9265`。
+- 目标目录此前不存在，未覆盖任何既有案例；下一步写入来源 README 并用 `ntype=1` 转换。
+- V4 来源 README 已写入；第 6 例转换 1/1 成功，V5 约 1.6 MiB。
+- 诊断 221 次、去重 180 条，全部进入 `jsfn` 自定义表达式兜底，`dropped=0`；下一步审计结构、全部 `jsfn`、旧式引用和服务目标。
+- 初步审计：1,185/1,185 节点保留；207/207 个 `jsfn` 可编译，参数全部匹配，旧式引用与空代码均为 0；6 次服务调用涉及 5 个唯一目标，5/5 存在。
+- 事件块初次统计将 11 个 `props.structureName` 描述对象的 `bid` 误当事件块；这些对象没有 `type`，且相同 BID 文本仍存在于 V5。后续按 `bid + string type + type!=root` 的正确口径复算，不把它们误报为事件丢失。
+- 诊断分类已确认：`&&` 149、`||` 61、SpreadElement 7、full JavaScript 2、TemplateLiteral 2。
+- 修正事件口径后 961/961 个非根事件块全部有 V5 `ln` 落点；V4 2,017 个字符串公式中，jsep 可解析部分没有发现 UnaryExpression/CallExpression 的低优先级接收者风险。
+- 首次自由标识符审计因本项目未安装 `eslint-scope` 而停止，未修改依赖；下一步改为复用 VxEditor41 已安装的只读模块或自定义作用域遍历，不重复同一失败命令。
+- 复用 VxEditor41 的 `eslint-scope` 后审计成功，并发现 13 个 `jsfn` 的代码引用 `$v1...$v11`，但 `val` 中没有声明形参且 `args=[]`；普通“参数数量相等”检查此前把 0/0 误判为安全。
+- 这 13 项集中于 4 个复杂 `data-if` 绑定和 1 个后台事件条件，均来自数组回调内部的 `&&/||` fallback。下一步核对 `ast2js` 对 jsfn 的编译规则与完整 AST 上下文，确认是否为实际未定义变量错误。
+- `ast2js` 已确认 `jsfn` 只把 `val.slice(1)` 声明为 `new Function` 形参，并只传入 `args`；这 13 项两者均为空，运行时 `$vN` 会抛 ReferenceError 后被 catch 吞掉并返回 undefined，因此是确定的转换器错误。
+- 根因路径聚焦到 `walkCustomExprParsed()` 处理数组回调内部逻辑表达式：它把回调局部字段替换成 `$vN`，但在内层 fallback 返回时没有把替换上下文的 `vList/jsFnArgs` 带入生成的 jsfn。
+- 13 项按落点复核为 4/2/4/2/1：前 12 项位于四个 `data-if` 的活跃 `binds.value` 中，V5 祖先均无 `skip`；最后 1 项位于函数组 `cpwtrd1a3j50000ks1zg` 的启用动作 `cpwwa7ra3j50000ksm20`。
+- 最后一项所在函数组名为“非常复杂的装箱产品数据处理（暂时用不到）”；V4/V5 全树中除该节点自身定义外均无其 ID 引用，因此动作虽启用，正常案例路径下应不可达。
+- 最小公式复现成功：外层 `&&` 连接两个含 `x.a != null && x.b != ""` 的 `filter` 比较时，外层 `jsfn` 参数正常，两个回调内层 `jsfn` 都生成 `$vN` 代码但形参和实参为空。
+- 精确根因是 custom-expression walker 对复合比较表达式的试探性原生转换会原地改写回调 AST；当该临时 AST 因不是单一 `get` 而被丢弃后，第二次递归只看到已替换的 `$vN`，第一次临时上下文的 `vList/jsFnArgs` 已丢失。
+- 已写入 V5 `conversion-report.md`，明确当前结论为“文件生成成功、自动审计不通过”；结构与服务审计通过，但修复重转前不能视为语义转换成功。
+- 项目全量测试 57/57 通过，V4/V5/诊断 JSON 重新解析成功，V4/V5 均保持紧凑格式，`git diff --check` 通过；前 5 个已测试案例目录全部保留。
+- 第 6/51 例处理完成，暂停等待用户审阅；下一例为 `产品调校中心_11283496_温晓华.json`，确认前不查询、不转换，也不修改本轮发现的转换器错误。
+- Stop hook 报告 75/76 phases；唯一未完成项仍是按人工审阅节奏推进的 Phase 67。第 6 例结论已交付，当前等待用户决定修复本例转换器错误或继续；不会把等待审阅误判为可自动启动第 7 例。
+- 用户要求进一步解释“外层参数正常、内层参数为空”的具体含义；已澄清真正失败的是每个 `filter` 的谓词回调，而不是外层 `&&` 本身。
+- 错误内层实际等价于 `new Function("", "return $v1 != null && ...")()`：函数可以创建，但执行时 `$vN` 未定义，V5 捕获 ReferenceError 后返回 undefined；因此 `filter(x => undefined)` 会过滤掉全部数据。
+- 对四个活跃绑定的直接后果已说明：两个“未完成装箱”判断的成对长度比较会退化为 `0 == 0`，倾向固定为 true；两个“有前置未完成”的 `length > 0` 会退化为 `0 > 0`，固定为 false。
+- 用户指出 `cpxf6vka3j500005g6d0` 的 AST 中可见 `jsfn.args` 非空；复核确认该观察正确：此节点共有 5 个 jsfn，最外层 `binds.value.args[0]` 的 `val.length=5`、`args.length=4`，参数正常。
+- 此前“该节点 4 个 args 为空”的表述容易让人误以为最外层 jsfn 有问题；实际 4 个错误分别嵌套在外层 4 个 args 内部的 filter lambda 中，四者均为 `val.length=1`、`args.length=0`。核心缺陷结论不变，但报告已补充两层结构说明。
+- 已向用户按实际 AST 树明确展示：外层 jsfn 的 `args[0..3]` 正常承载四个 filter AST；每个 filter AST 的 lambda → return → var 下才是对应的空参数内层 jsfn。用户指出的外层观察已完全采纳，报告措辞已纠正。
+- Stop hook 再次报告 75/76 phases；Phase 67 仍在第 6 例人工审阅点，不把本次解释性复核视为“继续下一例”的授权。
+- 用户进一步质疑 data-if 在 V5 中到底使用 `binds.value` 还是 `props.conditionVal.ast`，并指出目标节点的后者看起来正确；本轮转为只读链路核查，不修改转换器。
+- 首次组合搜索命令因 zsh 对不存在的 `test*` glob 报 `no matches found`，但 VxEditor41 搜索仍返回有效结果；后续不再使用未保护 glob。
+- 已确认转换器对 data-if 有两条独立路径：先把 V4 `props.conditionVal` 通过 `convertIfCons()` 转成 `props.conditionVal.ast`，随后又把 V4 已存在的 `binds` 通用转换；因此目标产物中两份条件 AST 的确可能并存。
+- VxEditor41 的 V5 加载/保存流程会专门遍历 `props.conditionVal.ast` 做绑定引用处理，属性面板也以 `uis.astCon` 选择 V5 条件 AST 编辑器；这表明 `props.conditionVal.ast` 是 V5 data-if 的正式条件字段，仍需继续追到实际播放器/编译入口确认运行时优先级。
+- VxEditor5 源码呈现相同的 `props.conditionVal.ast` 专用加载/保存逻辑，说明这不是 VxEditor41 的孤立兼容代码。
+- 搜索中命中了 `stageProxy.js` 的旧播放器 bundle：其中 data-if 特判读取旧 `props.condition` 并生成 value 绑定，之后统一处理 `node.binds`。该 bundle 明显包含旧字符串公式链，不能据此判断当前 V5 general-AST / VL 播放链；下一步只查 vlparser 和当前发布入口的非构建源码。
+- 多仓库搜索误扫到单行大型构建产物，输出被截断；后续排除 bundle/dist/build，避免再次扩散搜索范围。
+- vlparser 权威 Tree→VLang 链已确认：`NodePropsProcessor.processDataIf()` 只调用 `DataIfProcessor.dataIfNodeToPropsCode()`，后者仅从 `node.props.conditionVal.ast` 生成 data-if 条件属性，不遍历或输出该节点的普通 `binds`。
+- 反向 VLang→Tree 的 `DataIfProcessor.parsedToDataIfNode()` 会把解析出的 `binds.conditionVal` 移入 `props.conditionVal.ast`，生成的 data-if 节点本身不保留该条件 bind；这进一步确认 `props.conditionVal.ast` 是 V5 正式条件字段。
+- 因此此前把 `cpxf6vka3j500005g6d0.binds.value` 的四个内层 jsfn 缺陷直接判为 data-if 运行时状态错误，是审计口径错误。仍需检查同节点 `props.conditionVal.ast` 的所有 jsfn 和组合结构后给出最终纠正。
+- 目标节点 `props.conditionVal.ast` 已完成第一轮结构审计：根为 `and`，含两个 `=` 比较，正好对应 V4 conditionVal 的两组条件；其四个 filter 回调 jsfn 形参/实参数分别为 9/9、8/8、9/9、8/8，没有空参数问题。
+- 尝试用本项目 `ast2js` 直接打印整棵 condition AST 时因审计 harness 的节点解析不足抛出 `invalid node`；这是辅助打印失败，不是 AST 转换错误。已有结构证据足够，不重复同一调用，改为逐项核对 jsfn 参数 AST 与 V4 条件。
+- 四个正式 conditionVal 回调的实参逐项核对通过：局部 `item` 字段、两层 for 当前项以及 `packageStatus` 均按 V4 源公式顺序传入，未发现错位或缺失。
+- `convertIfCons()` 组合规则确认当前两行条件生成 `and`，每行各生成一个 `=`，与源 `conditionVal` 的两个 `&&` 条件一致。
+- `legacyToVLang` 的真实构建链已闭环：`LegacyProjectConverter` 调用 `CaseJsonMapProjectBuilder.build()`，后者对案例调用 `TreeToVLang.asyncParse()`；因此前述 DataIfProcessor 只读取 `props.conditionVal.ast` 的结论确实适用于既定“V5→VL 仍走 legacyToVLang”生产路径。
+- 初步最终结论：目标节点 `props.conditionVal.ast` 正确且是实际使用字段；`binds.value` 是 V4 遗留重复条件经通用转换后留下的冗余字段，其坏 AST 不影响该 data-if 的 V5→VL运行结果。准备再做一次真实 TreeToVLang 产出验证并修订案例报告/13项统计。
+- 已用 vlparser 当前 `ivxMap` 对完整 V5 案例执行真实 `TreeToVLang.asyncParse()`：生成 6 个文件、`errRecordList=0`；目标节点输出到 `Apps/移动端PDA服装H5.vx` 第 465 行。
+- 该行条件完整保留四个 filter、两组 length 等式和外层 `&&`，局部回调统一输出为 `item`，两层循环引用正确输出为 `_item0/_item1`；没有出现 `$vN` 空参数或固定 0 的错误。
+- 这证明 `binds.value` 中的 4 个坏内层 jsfn 未进入实际 V5→VL 产物。用户判断正确，此前“12 个活跃 data-if 运行错误”的结论必须撤回；下一步审计另外三个同类节点并更新 conversion-report。
+- 四个同类 data-if 全部复核完毕：正式 conditionVal 根分别为 `and/or/and/or`，内部 jsfn 4/2/4/2 个，参数错误均为 0；冗余 binds.value 内坏 jsfn 才是 4/2/4/2。
+- 全案例共有 139 个 data-if，139 个都同时保留 `binds.value`；`props.conditionVal.ast` 中空参数/参数错配为 0，`binds.value` 中则仅上述 12 个失败。这说明重复 value bind 是转换器统一保留的 V4 派生字段，不是四个节点特例。
+- VxEditor41 编辑侧在 general AST 模式下专门用 `props.conditionVal.ast` 做属性编辑、引用初始化与保存；同时也通用遍历 binds。尚未找到它在编辑器内预览时的最终字段选择，但既定生产 V5→VL 链已确认只用 conditionVal。
+- 案例报告已纠正：撤销“13 个可达运行错误/本例不通过”，改为正式 data-if 条件正确、本例按实际 V5→VL 路径通过；12 个异常仅位于不被 DataIfProcessor 消费的冗余 value bind，另 1 个位于无调用引用函数组。
+- 四个正式 conditionVal 的精确参数对为：`9/9,8/8,9/9,8/8`；`11/11,11/11`；`7/7,6/6,7/7,6/6`；`9/9,9/9`。报告已写入完整数据。
+- 对用户问题的最终回答：V5 data-if 不需要 `binds.value`，正式字段是 `props.conditionVal.ast`；目标 `cpxf6vka3j500005g6d0.props.conditionVal.ast` 没有问题。转换器宜在专门生成 conditionVal 后删除旧重复 value bind。
+- 已向用户明确交付纠正后的审核结论：第 6 例按正式字段及真实 Tree→VLang 链路通过；此前针对冗余 `binds.value` 的可达错误判断已撤销。
+- 自动 stop hook 的“继续”仅要求同步规划文件，不等于用户已审阅并授权下一案例；Phase 67 继续停在第 6/51 例审阅门禁，等待用户明确回复“继续”或要求修复冗余 bind。
+- 用户要求结合 VxEditor41 与 VxEditor41-widgets 再审 data-if，并核对 V5 保存结果是否包含 `binds.value`；已开始只读追踪编辑、运行和保存三条链路，不启动第 7 例。
+- 初查发现 widgets 最终按 `props.value` 决定是否渲染，VxEditor41 传统属性编译会从旧数组条件生成 `binds.value`；同时 V5 编辑源明确是 `props.conditionVal.ast`。下一步确认 V5 保存/预览是否仍需要派生 value bind，修正此前“完全不需要”的过度结论。
+- 已闭环 V5 保存路径：正常保存仍走统一的 `saveCaseData()`，保存副本既保留 `props.conditionVal.ast`，又由旧 `markConditionProps()` 强制写出 `binds.value`；但因 V5 条件是 `{ast}`，该函数实际生成的是空 code bind，而非有效条件副本。
+- 已闭环 widgets/旧播放器路径：widgets 的 data-if 需要运行时 `props.value`，VxEditor41 内置旧 stageProxy 通过 `binds.value`（或旧 `props.condition`）提供它，不理解 V5 `props.conditionVal.ast`。因此需区分“正式 V5/VLang 源字段”和“旧树播放器兼容运行字段”，不能再笼统说 V5 所有路径都不用 `binds.value`。
+- 已逐行确认 VxEditor41 保存调用链：V5 保存同样经过 `saveCaseData()`；每个 data-if 在保留 `props.conditionVal.ast` 后仍调用旧 `markConditionProps()`，所以保存出来的 V5 JSON 确实会包含 `binds.value`。
+- 该保存 bind 不是条件 AST 的有效副本。由于 V5 `conditionVal` 是 `{ast}`，旧函数无法读取条件数组，写出的通常是 `{_code:'', code:''}`；转换器产物中已有的 general-AST `binds.value` 也会在编辑器保存副本中被覆盖掉。
+- 已确认 VL 映射名称：`conditionVal` 的 `locale.en` 是 `conditions`。V5 Tree→VLang 从 `props.conditionVal.ast` 生成 VL `conditions`；widgets 运行时收到的 `props.value` 属于更后面的运行层，不等于树 JSON 必须保存有效 `binds.value`。
+- 结论已收窄：第 6 例的正式条件与 V5→VL 结论仍然正确；但清理冗余 bind 前应同时修正 VxEditor41 的 V5 保存兼容逻辑，避免保存时再次写入空 `binds.value`，并单独评估仍使用旧 stageProxy 的预览路径。
+- 已记录两类检索失误：错误猜测映射/资产路径，以及误扫 widgets `dist` 单行大 bundle；后续均改查权威 `vlparser/ivxMap.txt` 和 `src` 源码，不重复失败搜索。
+- 已直接展开 `stageProxy.js` 内嵌模块确认 `convertCode('')` 返回 `{_code:''}`；结合 `markConditionProps()` 的对象合并顺序，保存后的空 bind 确切为 `{_code:'', code:''}`（除非还合并了已有 `binds.conditionVal` 的额外键）。
+- 本例 `conversion-report.md` 已同步修正：不再建议孤立地删除转换器 bind，而是明确先修 VxEditor41 的 V5 保存保护并核查旧 stageProxy 预览入口，再清理重复字段；既定 V5→VL 通过结论保持不变。
+- 保存副本语义已确认：`saveCaseData()` 从 `cpJsonNode(caseNode)` 开始递归，因此空 value bind 确实会被提交保存，同时不会在这一步直接污染当前内存树。
+- 旧 stageProxy bind 消费规则已直接核对：对象 bind 仅接受 `_code/code` 字符串；general-AST value bind 与保存生成的空字符串 bind都会被忽略。至此“编辑源、保存 JSON、旧预览、V5→VL、widgets”五层链路已闭环。
+- 当前案例目标节点实物复核通过：正式条件为 `{ast}` 且根为 `and`；重复 value bind 为 `{op,args}` 且无字符串代码。`git diff --check` 通过；外部两个项目均保持只读，未启动第 7 例。
+- Stop hook 再次提示整批 Phase 67 尚未完成；复核结论、报告与进度记录均已同步。该自动提示不构成用户对下一案例的审阅确认，继续停在第 6/51 例门禁，等待用户明确回复“继续”或提出修复要求。
+
+## Session: 2026-08-03（清理 data-if 冗余 value bind）
+
+- 用户明确要求只修复 tov5parser 转换器，不处理 VxEditor41 的 V5 保存逻辑；本轮需判断转换器应删除 `binds.value`，还是输出 `{value:{_code:'',code:''}}` 兼容壳。
+- 转换顺序已确认：data-if 先用 `convertIfCons()` 生成正式 `props.conditionVal.ast`，随后通用 `convertBinds()` 又把 V4 的旧 `binds.value` 转成 general AST；当前冗余字段由这两个步骤叠加产生。
+- 初次检索命令把不存在的 `test`、`tests` 目录作为搜索路径，`rg` 返回两条路径错误，但有效源码结果已取得；后续改用 `rg --files` 发现项目测试入口是 `v4ToV5/v4ToV5.test.js` 等实际文件，不重复错误路径。
+- 已有链路证据表明空兼容壳没有运行价值：V5 Tree→VLang 不读取 data-if 普通 binds，旧 stageProxy 又会忽略空 `_code/code`。下一步检查既有测试和原生 V5/反向转换结构，再确定产物契约并先补失败回归。
+- 原生 V5 目标结构已确认：VLang→Tree 生成 data-if 时只传 `props.conditionVal.ast`，通用节点工厂把 `binds` 初始化为 `{}`，不生成空 value bind。
+- 决策：转换器应删除 data-if 的 V4 `binds.value`，不生成 `{value:{_code:'',code:''}}`。空壳既不被 V5→VL消费，也不能在旧 stageProxy 中注册运行绑定；但 data-if 的其他普通 binds 必须保留并照常转换。
+- 已新增精确回归测试：同一个 V4 data-if 同时带正式旧条件、旧 `binds.value` 和另一个普通 bind；期望 V5 保留 `conditionVal.ast` 与普通 bind，但不存在 `binds.value`。
+- 修复前定向测试按预期失败，唯一失败断言是 `value` 仍存在（实际 `true`、期望 `false`）；正式条件和测试构造均已成功完成转换，失败点精确覆盖本轮缺陷。
+- 已实施最小修复：仅在 data-if 成功生成 `props.conditionVal.ast` 后删除旧 `node.binds.value`，随后仍由通用 `convertBinds()` 转换其他绑定；条件缺失的异常节点不会被贸然删除唯一 value 数据。
+- 修复后定向回归 1/1 通过，证明正式 AST 保留、旧 value bind 删除、同节点其他 bind 保留并转成 V5 AST。
+- 项目完整测试由 57 增至 58，58/58 全部通过。
+- 已用 `ntype=1 --diag` 重转第 6 例，转换 1/1 成功；新 V5 约 1505.8 KiB。
+- 诊断由 221 次降至 138 次、去重由 180 降至 129，`dropped` 仍为 0；减少的诊断来自不再重复转换 data-if 旧 value bind，不是隐藏正式 conditionVal 的诊断。
+- 转换命令仍会把已捕获并转为 jsfn 的 ParseError 堆栈打印到控制台，导致工具输出截断；最终退出码为 0，报告明确为 138 条 custom-expression、0 条空值降级。后续直接读取结构化诊断文件进行审计，不重复依赖长控制台输出。
+- 重转结构审计通过：139/139 个 data-if 有正式 conditionVal AST，0/139 带 `binds.value`；目标节点根操作仍为 `and`，binds 已为空对象。
+- 新产物 136/136 个 jsfn 可编译且普通参数数匹配；原 data-if 重复 binds 内 12 个坏 jsfn已消失，只剩既知未引用函数组中的 1 个自由 `$v1/$v2` jsfn。
+- 新 V5 大小 1,541,940 bytes，SHA-256 `472d29baa769338b6c79335418122f9ade9c859900474789e82a2c4b28341bf9`；结构化诊断确认 data-if/value 记录为 0。
+- 已确认 vlparser 的无网络真实验证入口：加载 `ivxMap.txt` 后用 `new TreeToVLang({caseJson, appName, dbInfoMap:{}}).exec()` 可直接生成 files 与 `errRecordList`，无需调用数据库信息接口；下一步据此复跑完整 V5→VL。
+- 修复后完整 V5→VL 真实执行成功：仍生成 6 个文件，`errRecordList=0`。
+- 目标复杂条件仍位于 `Apps/移动端PDA服装H5.vx` 第 465 行，完整保留四个 filter、两组 length 等式、外层 `&&` 及 `_item0/_item1` 循环引用；删除冗余 bind 未改变正式 VL 输出。
+- `conversion-report.md` 已更新为修复后数据：V5 文件大小/摘要、138 条诊断、136 个 jsfn、0 个 data-if value bind、58/58 测试与 V5→VL 0 错误均已写入。
+- 最终差异检查通过：代码只修改 `v4ToV5/converter.js` 与对应测试；`git diff --check` 通过，V5/诊断 JSON 可重新解析。既有无关未跟踪文档保持不动。
+- **Phase 72 Status:** complete。按 AGENTS.md 不自动提交，等待用户确认是否创建 Git 提交；Phase 67 回到第 6/51 例审阅门禁，第 7 例尚未启动。
+- Stop hook 报告 76/77 phases；唯一未完成项仍是必须逐例人工确认后推进的 Phase 67。Phase 72 修复已完成且尚未提交，当前继续等待用户明确确认“提交”或“继续”，不把自动提示视为其中任一授权。
+
+## Session: 2026-08-03（Phase 73 提交、部署并同步 VxEditor41）
+
+- 用户已明确授权：提交并推送 tov5parser、部署生产 Lambda、同步 VxEditor41 后同样提交并推送。
+- tov5parser 当前 `main`，HEAD `94f7c9e`；待提交为转换器、回归测试和三份规划文档，无关未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 继续排除。
+- VxEditor41 当前 `master`，HEAD `7cd5ce999`；已有 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录均属于用户现有工作，本轮只能修改并提交转换器相关目标文件。
+- 两个仓库 fetch 后均与远端一致：tov5parser `main` 和 VxEditor41 `master` 的 ahead/behind 都是 `0/0`，无需合并，更不会变基。
+- tov5parser 提交前完整测试 58/58 通过，`git diff --check` 通过；差异为预期的转换器、回归测试与三份规划文档共 5 个文件。

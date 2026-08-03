@@ -239,6 +239,34 @@ test('convertV4CaseJsonToV5CaseJson converts structure without touching input', 
   assert.equal(v5CaseJson.stage.classes.length, 1);
 });
 
+test('data-if keeps the V5 condition AST without the legacy value bind', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push({
+    id: 'if1',
+    type: 'data-if',
+    rootId: 'stage1',
+    uis: { name: '条件容器' },
+    props: {
+      conditionVal: [[{ code: '1' }, '==', { code: '1' }]],
+      condition: null,
+    },
+    binds: {
+      value: { _code: '1==1', code: '1==1' },
+      other: { _code: '2', code: '2' },
+    },
+    children: [],
+  });
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const dataIf = v5CaseJson.stage.children.find((node) => node.id === 'if1');
+
+  assert.equal(dataIf.uis.astCon, true);
+  assert.ok(dataIf.props.conditionVal.ast);
+  assert.equal('value' in dataIf.binds, false);
+  assert.deepEqual(dataIf.binds.other, { op: 'val', val: 2 });
+});
+
 test('service return keeps legacy reason text literal and empty values empty', () => {
   ensureIvxMapNodeEnv();
   const v4CaseJson = buildV4CaseJson();

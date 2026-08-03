@@ -152,6 +152,12 @@ export default class ConvertV4ToV5 {
           })
         }
         node.uis.astCon = true
+        // V5 data-if 的正式条件只保存在 props.conditionVal.ast。
+        // V4 的 binds.value 是同一条件的运行时代码副本，不能继续作为普通
+        // general AST bind 转换；同时保留节点上可能存在的其他绑定。
+        if (node.binds) {
+          delete node.binds.value
+        }
       }
     }
 

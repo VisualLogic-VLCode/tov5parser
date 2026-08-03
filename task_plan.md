@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；第 5/51 例已修复、提交、部署并同步，等待用户确认继续第 6 例
+Phase 73（提交、部署并同步 VxEditor41）— in progress；完成后回到 Phase 67 第 6/51 例审阅点
 
 ## Phases
 
@@ -697,7 +697,7 @@ Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；第 5/51 
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 第 5/51 例已完成；下一例为 `pda扫码_11328085_吴坤.json`，收到用户确认前不启动。
+**当前检查点：** 第 6/51 例 `pda扫码_11328085_吴坤.json`（nid `11328085`）的正式 `props.conditionVal.ast` 与 V5→VL 产物已确认正确；用户要求清理转换器额外保留的 data-if `binds.value`，尚未启动第 7 例。
 
 ### Phase 68：修复 reason 文本 Formula 生成空 jsfn（2026-07-31）
 
@@ -744,3 +744,27 @@ Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；第 5/51 
 - [x] 复核两个远程分支、Lambda 状态并记录结果
 
 **Status:** complete
+
+### Phase 72：清理 data-if 冗余 `binds.value`（2026-08-03）
+
+- [x] 复核 V5 正式条件、widgets 运行 prop、旧 stageProxy 与保存 JSON 的消费边界
+- [x] 判断转换器应删除旧 value bind，还是生成空 `_code/code` 兼容壳（结论：删除，不生成空壳）
+- [x] 新增 data-if 精确回归测试并确认修复前失败
+- [x] 实施最小转换器修复
+- [x] 运行定向测试与项目完整测试
+- [x] 重新转换第 6 例并复核全部 data-if、Tree→VLang 与诊断结果
+- [x] 更新案例报告和规划记录，等待用户确认是否提交
+
+**Status:** complete
+
+### Phase 73：提交、部署并同步 VxEditor41（2026-08-03）
+
+- [x] 复核 tov5parser 提交范围、远程分支与完整测试
+- [ ] 仅提交本轮转换器、测试和规划记录并推送 `main`
+- [ ] 从已提交版本构建并部署生产 Lambda，验证新版本与 `prod` 别名
+- [ ] 在 VxEditor41 中同步等价 data-if 清理逻辑，隔离用户已有修改
+- [ ] 运行 VxEditor41 定向验证与可行的生产构建
+- [ ] 仅提交并推送 VxEditor41 本轮转换器修改
+- [ ] 复核两个远程分支、Lambda 状态并记录结果
+
+**Status:** in progress
