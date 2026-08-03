@@ -1242,3 +1242,19 @@
 - VxEditor41 当前分支 `master`，转换器目标文件尚未修改；仓库已有 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录，必须全部保持不动。
 - 已获取两个远端：tov5parser `main` 与 VxEditor41 `master` 均为 ahead/behind `0/0`，无需合并或变基。
 - tov5parser 提交前完整测试 57/57 通过，`git diff --check` 通过。
+- tov5parser 已创建提交 `484f7ed`（`fix: preserve conditional member receiver grouping`），提交包含 5 个预期文件，无关未跟踪文档未纳入。
+- 提交已推送至 `origin/main`，本地与远端 ahead/behind 为 `0/0`；下一步从该提交构建并部署生产 Lambda。
+- 记录完整提交 SHA 时首次手工补全值不准确；已立即用 `git rev-parse HEAD` 读取权威 SHA 并更正为 `484f7ed96110e38a0d299f53e6688d8e19d5282f`，不沿用猜测值。
+- 部署前确认生产 `prod` 仍指向版本 8，当前代码摘要 `efipXIWsIApfRh2bwyR0aaiPkrF5rkPKB4Dh7EgN87k=`；函数状态 Active/Successful，无加权路由。
+- 已验证所有运行时源文件相对提交 `484f7ed` 无未提交差异；当前脏状态仅为部署记录规划文档和既有无关未跟踪文档，因此将使用脚本的 `--allow-dirty`，实际运行包仍严格对应已提交代码。
+- 已从提交 `484f7ed` 再跑 57/57 测试并构建 1.9 MB 运行包，留档至 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-484f7ed-20260803T080024Z.zip`。
+- 生产 Lambda 已发布版本 9并切换 `prod`；别名冒烟返回 200、ExecutedVersion 9、FunctionError null，版本接口返回 code 0。
+- 独立复核版本 9 为 Active/Successful，代码摘要 `D7C64I3uMQgx9nfZTXgKBZkEXdikLB75WmaH23Lm+fI=`，`prod` 无加权路由；运行包精确大小 1,957,942 bytes。
+- 已在 VxEditor41 同步相同的 `ConditionalExpression` receiver 括号规则；当前转换器差异仅为目标文件的预期条件扩展，`git diff --check` 通过。
+- VxEditor41 目标文件 ESLint 检查通过；项目 Babel 配置支持 class properties，但保留 ESM modules，行为重放需显式覆盖 module 输出后加载。
+- VxEditor41 CommonJS 内存行为重放通过：`.toString()` 与 `.every()` 两个输出精确正确，语法编译和取反语义均通过。
+- VxEditor41 生产构建成功：webpack 0 error，保留仓库既有 33 类 warning；下一步确认构建未生成额外待提交文件，并只暂存目标转换器文件。
+- VxEditor41 构建后工作区未新增产物；仅目标转换器文件被暂存并创建提交 `7cd5ce999`（`fix: preserve conditional member receiver grouping`）。
+- VxEditor41 提交已推送 `origin/master`，本地与远端 ahead/behind 为 `0/0`；完整 SHA 为 `7cd5ce999be59cdd65c1b1ec23de0532db442b28`，用户原有修改全部仍未暂存。
+- 最终复核：tov5parser 运行时相对修复提交无差异且代码提交已在远端；VxEditor41 同步提交已在远端；Lambda 版本 9 仍为 Active/Successful，`prod` 无加权路由。
+- **Phase 71 Status:** complete。补充本次部署记录的文档跟进提交后，回到 Phase 67，等待用户确认继续第 6/51 例。

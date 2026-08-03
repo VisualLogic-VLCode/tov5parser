@@ -79,6 +79,14 @@
 - Phase 70 已完成。代码改动只有 `ExprAstToString.js` 和 `jsepWrap.test.js`；规划文档为既有长期任务记录，无关未跟踪文档继续保持不动。
 - 2026-08-03 用户授权本轮双仓库提交推送与生产 Lambda 部署；VxEditor41 只需同步 `src/utils/convertV4ToV5/formulaCode/ExprAstToString.js` 的等价一行类型扩展，不纳入该仓库已有用户改动。
 - 两个远端在本轮提交前均未移动：tov5parser 起点 `c4c7cd2`、VxEditor41 起点 `5d900d573`，ahead/behind 均为 0/0；可以直接提交推送，无需历史协调。
+- tov5parser 修复提交为 `484f7ed96110e38a0d299f53e6688d8e19d5282f`，已推送 `origin/main`。
+- Lambda 部署基线为生产版本 8（`prod` 100% 指向 8），代码摘要 `efipXIWsIApfRh2bwyR0aaiPkrF5rkPKB4Dh7EgN87k=`；部署脚本会发布新不可变版本、清空附加权重并做别名冒烟。
+- Lambda 新版本为 9，发布代码摘要 `D7C64I3uMQgx9nfZTXgKBZkEXdikLB75WmaH23Lm+fI=`；`prod` 冒烟已确认实际执行版本 9，上一稳定版本 8 保留作回滚。
+- VxEditor41 目标文件与 tov5parser 在修复前具有相同基线 hunk；同步后的差异精确一致，仓库无本地测试文件，需用 ESLint/Babel 行为重放和生产构建验证。
+- VxEditor41 使用 Babel 7，默认 preset-env 配置 `modules:false`；本地验证可在内存转换时改用 CommonJS module 插件，不修改项目配置或生成文件。
+- VxEditor41 验证闭环为目标 ESLint、Babel/CommonJS 内存重放、webpack production build；三者均通过，构建结果只有既有 warning，没有本次修复错误。
+- VxEditor41 同步提交为 `7cd5ce999be59cdd65c1b1ec23de0532db442b28`，提交只含 `src/utils/convertV4ToV5/formulaCode/ExprAstToString.js`，已推送 `origin/master`；用户其他工作区内容保持原状。
+- Phase 71 最终状态：tov5parser 修复 `484f7ed96110e38a0d299f53e6688d8e19d5282f` 已推送并上线 Lambda 版本 9；VxEditor41 同步 `7cd5ce999be59cdd65c1b1ec23de0532db442b28` 已推送。下一步只需继续 Phase 67 的第 6 个案例。
 - 用户要求逐例执行并人工审阅：数据库确认版本；仅 V4 案例下载最新完整 JSON并转换；汇报后暂停。
 - 2026-07-31 用户更新保留策略：不再删除已经测试、转换的案例；所有案例的 V4/V5 数据和报告累计保留在 `localCases/v4/clothing` 与 `localCases/v5/clothing`。
 - 处理顺序采用完整文件名的稳定排序；首例为 `FRP导航栏_11020398_温晓华.json`，nid `11020398`。
