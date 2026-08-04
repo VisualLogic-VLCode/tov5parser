@@ -1899,3 +1899,7 @@
 - 已从 Git `HEAD=2bc990d` 建立隔离基线，对 15 个已保存 V4 clothing 案例做“本轮前/本轮后”内存转换对比；排除随机 XID 后只有 17 个叶子差异，对应 11 个 Formula 值，均为字符串类型/空格保真修正。
 - 影响面具体为：7 处中文提示恢复 V4 原有前导空格；1 处 ` 否` 恢复前导空格；1 处禁用动作的 ` 保存失败` 从无参 `jsfn` 改为字符串；两份同源 PAD 案例中的 `afterSaleAssistAttributeId ` 从无参 `jsfn` 改为保留尾空格的字符串。
 - V4 事件 `code/_code` 已回证所有可生成事件代码的变化点：均以带引号字符串输出且保留前/后空格。`保存失败` 所在动作 `enable:false`，不出现于最终事件代码，但它按同一 V4.1 `formulaStr(code)` 正式规则也应分类为字符串。
+- 第 13 例转换报告已更新；tov5parser 代码、测试和规划记录以提交 `4177d62` 推送至 `origin/main`，无关未跟踪文档未读取、未暂存。
+- 生产 Lambda 已从该提交构建并发布版本 `17`，CodeSha256 `T10gu75G09cOVU7tieos62Yc3XAYhE0GTJns2O4Tdik=`；`prod` 已指向 17，冒烟 `StatusCode=200`、`ExecutedVersion=17`、无 FunctionError、业务响应 code 0。
+- VxEditor41 已等价同步 5 个转换器文件；目标文件定向 ESLint 与语法检查通过，完整生产构建 0 error、33 warning（均为仓库既有/其他用户改动）。精确提交 `1c5b35ebd` 已推送至 `origin/master`，该仓库其余用户改动未暂存、未混入提交。
+- Phase 81 发布闭环完成，当前返回第 13 例人工审阅门禁；未启动第 14 例，所有已保存测试案例继续保留。

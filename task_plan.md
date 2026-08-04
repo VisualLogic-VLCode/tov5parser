@@ -782,14 +782,16 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 - [x] 建立 V4.1 `formulaStr(code)` 同源分类回归，覆盖 session、中文/英文文本、URL、百分比、数字、布尔/null、refs/调用/运算及损坏公式
 - [x] 实施统一旧 Formula code 分类层，替代可由同源规则覆盖的参数名/内容枚举，同时保留确属参数 API 语义的独立适配
 - [x] 运行定向与完整测试，重转第 13 例并对已保存 clothing 案例做影响面审计
-- [ ] 更新第 13 例报告，精确提交并推送 tov5parser
-- [ ] 部署生产 Lambda，验证新版本、`prod` 别名与冒烟调用
-- [ ] 同步 VxEditor41 对应转换器，隔离用户既有修改后验证、提交并推送
-- [ ] 记录双仓提交和 Lambda 版本，返回第 13 例人工审阅门禁
+- [x] 更新第 13 例报告，精确提交并推送 tov5parser
+- [x] 部署生产 Lambda，验证新版本、`prod` 别名与冒烟调用
+- [x] 同步 VxEditor41 对应转换器，隔离用户既有修改后验证、提交并推送
+- [x] 记录双仓提交和 Lambda 版本，返回第 13 例人工审阅门禁
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求按已确认方案完善转换器。根据 `AGENT.md`/`CLAUDE.md` 固定流程，验证通过后自动完成双仓提交推送与生产 Lambda 部署。仅重构/修复旧 Formula 语义分类，不启动第 14 例，不触碰用户无关未跟踪文档。
+
+**发布结果：** tov5parser 修复提交 `4177d62` 已推送至 `origin/main`；生产 Lambda 版本 `17`、CodeSha256 `T10gu75G09cOVU7tieos62Yc3XAYhE0GTJns2O4Tdik=`，`prod` 冒烟返回业务码 0；VxEditor41 同步提交 `1c5b35ebd` 已推送至 `origin/master`，生产构建 0 error（33 个既有 warning）。当前返回 Phase 67 第 13 例人工审阅门禁，第 14 例未启动。
 
 ### Phase 76：修复中文文本 Formula 并自动发布、同步（2026-08-04）
 
