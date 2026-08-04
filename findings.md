@@ -1314,3 +1314,26 @@
 - 生产 Lambda 版本 12 已包含提交 `25ab607`，代码摘要 `cBW3QzuHFJmJE/r7OIWtDEYGjD5kiKeNuqPMvxZGYuE=`，`prod` 已无权重地切换至该版本并通过版本接口冒烟。
 - VxEditor41 同步提交为 `1700c5de17f654e2dae7cb6c2db35a698ded697a`；目标文件 lint 与全仓生产构建均通过，用户既有工作区修改未被纳入提交。
 - Phase 76 最终发布闭环：tov5parser `25ab607efc3b29fbc90ec2c0078b6024044b4adf`、Lambda 版本 12、VxEditor41 `1700c5de17f654e2dae7cb6c2db35a698ded697a`。
+
+## 2026-08-04：clothing 第 9 例 `任务中心_11411754_温晓华`
+
+- 源目录排序第 9/51，nid `11411754`；下一例为 `任务中心导出资料_11899135_温晓华.json`。
+- 数据库交接包和 SSH 隧道均可继续复用；查询和下载只使用只读链路，不调用保存、发布或上架接口。
+- 只读查询结果：V4.1、`ntype=1`、版本 1231、`work_id=clmj6n8r4j9t2qbtsgh0-4030`、gid 25391；标题和当前作者均与源文件一致，发布链接码 `SP6Zp2PB`。
+- 最新 V4 完整文件已下载：25,287,379 bytes，SHA-256 `c19f5a2c06eb3cb575fc35143b42e7d24cddadd7ca2bcc795cc9ab4710e2c46c`；顶层三棵树与根类型完整。
+- 初次转换诊断为 976 次/840 条去重，`dropped=2`、jsfn fallback 974；与前几例不同，本例存在真实空值降级，需优先审计这两项。
+- 两条 dropped 共享根因和落点：setProps 的 `width=100%`、`height=100%` 被当公式解析失败；需判断它们是否是明确 CSS 文本及动作是否启用。
+- 目标 setProps 和 tap root 均启用，V4 token 明确是 CSS 文本，V5 两值为空；因此 2 个 dropped 是同一转换器缺陷造成的两处实际逻辑丢失。
+- 节点和事件结构完整，但初审另有 1 个空 jsfn 与 4 个缺失服务目标，需要区分转换器问题和 V4 源悬空引用。
+- 空 jsfn 的源公式是启用 pushMulVal 动作中的三个逗号分隔取值；诊断 outcome 虽标 custom-expr，但输出 code 为空，实际不可执行，是明确的第二类转换器问题。
+- 4 个缺失服务目标均在 V4 就无定义；V4 本身保留启用和禁用 fireService 引用，V5 只是原样转换为 runsvc，属于源案例悬空引用。
+- 两个特殊 data-if 均为源空条件占位，V5 的兼容 value bind 不是错误。
+- 872 个 `jsfn` 的词法自由变量扩展审计还列出一批裸调用：`sortAndUniqueData`、`toNew`、`processPackageMaterials_1/2`、`isToShow`、`formatData`、`checkMember`、`getElementHeight`。跨 tov5parser、VxEditor41、VxEditor41-widgets、VxEditor5-widgets 的非案例源码精确检索未找到这些名称的全局运行时定义；因此它们不能在未核对 V4 sysutil/custom function 来源前直接判为合法全局。
+- `$curJsonPathValue` 共 19 处，形态接近 V5 路径更新回调约定，需与编译器/运行时契约核对后再从异常名单排除；`cbParams.data` 是前例已知的禁用源分支遗留。
+- 上述裸函数已通过 V4/V5 实物闭环：class 内有 9 个 `data-func` 节点定义这些函数并赋给 `window`，转换后节点与代码均保留，因此裸调用由案例自己的全局函数承接，属于合法结构。
+- `$curJsonPathValue`/`$curPathValue` 则相反：V4 `genCodeUtils.dealCode()` 会为 `setPathValue/setOneValue/setRowColsValue` 等动作把占位符替换成目标变量当前路径值；V5 `ast2js` 的 `jsfn` 仅给 `new Function` 注入 `val[1..]` 对应的显式参数，没有这两个隐式变量。原样残留会返回 `undefined`，不是合法 V5 约定。
+- 本例公式出现次数为：18 个 `setPathValue` 的 `$curJsonPathValue`、11 个 `setOneValue` 与 3 个 `setRowColsValue` 的 `$curPathValue`，另有 1 个 `setCusPathValue`。最终沿完整动作祖先链复核为 29 处严格可达、4 处位于禁用动作或禁用祖先下；此前“32 个可达”的统计忽略了 3 个禁用祖先和 1 个禁用动作，现已纠正。转换器统一修复全部 33 处。
+- `保存失败` 位于禁用 fireFuncGroup 动作，V4 原 Formula 本就没有引号；`z.hep` 位于禁用循环下的禁用动作且源树没有 `z` 形参。二者均为源数据已有且不可达的问题。
+- 修复后真实产物的 `dropped` 为 0；33 个 legacy 当前路径公式逐 BID、目标变量及路径 AST 审计全部通过，原 Compound 空 `jsfn` 已变为带 3 个参数的 `$v1, $v2, $v3`，两个 CSS `100%` 已恢复为字面量。
+- 最终 V5 有 865 个 `jsfn`，865/865 可编译且参数完整；唯一节点 7,731/7,731、非根事件块 12,357/12,357 保留。4 个缺失服务目标继续确认为 V4 源悬空引用。
+- `setCusPathValue` 的动态路径不能按 `.` 简单切分，否则 `['a.b']` 会被拆错；最终实现保留 V4 的动态属性访问语义，并在无效路径时返回 `undefined`。带点键名回归和真实禁用样本均已验证。

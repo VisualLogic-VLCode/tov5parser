@@ -117,6 +117,14 @@ export default class ExprAstToString {
         return `${this.visit({ ast: ast.test })} ? ${this.visit({
           ast: ast.consequent
         })} : ${this.visit({ ast: ast.alternate })}`
+      case 'Compound':
+        return (ast.body || [])
+          .map(item => this.visit({ ast: item }))
+          .join(', ')
+      case 'SequenceExpression':
+        return (ast.expressions || [])
+          .map(item => this.visit({ ast: item }))
+          .join(', ')
       case 'ArrayExpression':
         // 处理数组表达式
         return `[${ast.elements

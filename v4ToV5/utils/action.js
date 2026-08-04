@@ -259,7 +259,22 @@ function getLegacyFormulaTextValue({ param, paramName }) {
     return trimmed
   }
   if (
-    name === 'paddingRight' &&
+    [
+      'width',
+      'height',
+      'minWidth',
+      'maxWidth',
+      'minHeight',
+      'maxHeight',
+      'marginTop',
+      'marginRight',
+      'marginBottom',
+      'marginLeft',
+      'paddingTop',
+      'paddingRight',
+      'paddingBottom',
+      'paddingLeft'
+    ].includes(name) &&
     /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|rpx|em|rem|%|vh|vw|vmin|vmax)$/i.test(
       trimmed
     )

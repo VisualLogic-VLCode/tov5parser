@@ -11,6 +11,7 @@ import { loadRuntimeMaps } from '../index.js';
 import { getLegacyFormulaTextValue } from './utils/action.js';
 import { convertDbCons } from './utils/actionUtils/actionParamConvert.js';
 import { genConObj, getLegacyConditionTextValue } from './utils/con.js';
+import { convertEditorValue } from './utils/formula.js';
 import {
   compileV5ServerAst,
   normalizeServerMethodErrorCallbacks,
@@ -1006,6 +1007,20 @@ test('legacy text-like formula parameters stay literal without hiding real formu
   );
   assert.equal(
     getLegacyFormulaTextValue({
+      param: formulaParam('width', '100%'),
+      paramName: 'width',
+    }),
+    '100%',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('height', '100vh'),
+      paramName: 'height',
+    }),
+    '100vh',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
       param: formulaParam('info', '4新路径'),
     }),
     '4新路径',
@@ -1077,6 +1092,224 @@ test('legacy text-like formula parameters stay literal without hiding real formu
     }),
     undefined,
   );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('width', 'total + "px"'),
+      paramName: 'width',
+    }),
+    undefined,
+  );
+});
+
+test('legacy current-path placeholders resolve to the target value AST', () => {
+  ensureIvxMapNodeEnv();
+  const jsonFormula = { code: '$curJsonPathValue.concat(["next"])' };
+  const customJsonFormula = { code: '$curJsonPathValue+1' };
+  const arrFormula = { code: '$curPathValue+1' };
+  const rowColFormula = { code: '$curPathValue*2' };
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push(
+    {
+      id: 'json-var',
+      type: 'data-obj-json',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      children: [],
+    },
+    {
+      id: 'arr-var',
+      type: 'data-arr',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      children: [],
+    },
+    {
+      id: 'obj-arr-var',
+      type: 'data-obj-arr',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      children: [],
+    },
+    {
+      id: 'path-trigger',
+      type: 'ih5-text',
+      rootId: 'stage1',
+      uis: {},
+      props: {},
+      children: [],
+      events: {
+        list: [
+          {
+            tree: {
+              bid: 'path-root',
+              type: 'root',
+              children: [
+                {
+                  bid: 'json-path-action',
+                  type: 'action',
+                  object: 'json-var',
+                  action: {
+                    name: 'setPathValue',
+                    params: [
+                      {
+                        name: 'path',
+                        type: 'ObjJsonParamsSelect',
+                        value: [
+                          { name: 'items', jType: 'array' },
+                          { name: '_jArrValue', jType: 'jsonEnd' },
+                        ],
+                      },
+                      { name: 'value', type: 'Formula', value: jsonFormula },
+                    ],
+                  },
+                  children: [],
+                },
+                {
+                  bid: 'arr-path-action',
+                  type: 'action',
+                  object: 'arr-var',
+                  action: {
+                    name: 'setOneValue',
+                    params: [
+                      {
+                        name: 'index',
+                        type: 'Formula',
+                        value: { code: '1' },
+                      },
+                      { name: 'value', type: 'Formula', value: arrFormula },
+                    ],
+                  },
+                  children: [],
+                },
+                {
+                  bid: 'custom-json-path-action',
+                  type: 'action',
+                  object: 'json-var',
+                  action: {
+                    name: 'setCusPathValue',
+                    params: [
+                      {
+                        name: 'path',
+                        type: 'Formula',
+                        value: { code: `'["a.b"][0]'` },
+                      },
+                      {
+                        name: 'value',
+                        type: 'Formula',
+                        value: customJsonFormula,
+                      },
+                    ],
+                  },
+                  children: [],
+                },
+                {
+                  bid: 'row-col-path-action',
+                  type: 'action',
+                  object: 'obj-arr-var',
+                  action: {
+                    name: 'setRowColsValue',
+                    params: [
+                      {
+                        name: 'row',
+                        type: 'Formula',
+                        value: { code: '2' },
+                      },
+                      {
+                        name: 'colValue',
+                        type: 'ArrColValue',
+                        value: [
+                          {
+                            col: { code: '"score"' },
+                            value: rowColFormula,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  children: [],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  );
+
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+  try {
+    const cases = [
+      {
+        ast: convertEditorValue({
+          value: jsonFormula,
+          nodeId: 'path-trigger',
+          blockId: 'json-path-action',
+        }),
+        targetId: 'json-var',
+        pathValues: ['items'],
+      },
+      {
+        ast: convertEditorValue({
+          value: arrFormula,
+          nodeId: 'path-trigger',
+          blockId: 'arr-path-action',
+        }),
+        targetId: 'arr-var',
+        pathValues: [1],
+      },
+      {
+        ast: convertEditorValue({
+          value: rowColFormula,
+          nodeId: 'path-trigger',
+          blockId: 'row-col-path-action',
+        }),
+        targetId: 'obj-arr-var',
+        pathValues: [2, 'score'],
+      },
+    ];
+
+    for (const item of cases) {
+      const serialized = JSON.stringify(item.ast);
+      assert.doesNotMatch(serialized, /\$cur(?:Json)?PathValue/);
+      assert.match(serialized, new RegExp(`"var","${item.targetId}"`));
+      assert.match(serialized, /"field","val":"value"/);
+      for (const pathValue of item.pathValues) {
+        assert.match(serialized, new RegExp(`"val":${JSON.stringify(pathValue)}`));
+      }
+    }
+
+    const customPathAst = convertEditorValue({
+      value: customJsonFormula,
+      nodeId: 'path-trigger',
+      blockId: 'custom-json-path-action',
+    });
+    let dynamicPathJsfn;
+    const pending = [customPathAst];
+    while (pending.length && !dynamicPathJsfn) {
+      const item = pending.pop();
+      if (!item || typeof item !== 'object') continue;
+      if (item.op === 'jsfn' && item.val?.[0]?.includes('new Function')) {
+        dynamicPathJsfn = item;
+        break;
+      }
+      pending.push(...(Array.isArray(item) ? item : Object.values(item)));
+    }
+    assert.ok(dynamicPathJsfn);
+    assert.doesNotMatch(JSON.stringify(customPathAst), /\$curJsonPathValue/);
+    const evaluateDynamicPath = new Function(
+      ...dynamicPathJsfn.val.slice(1),
+      `return (${dynamicPathJsfn.val[0]});`,
+    );
+    assert.equal(
+      evaluateDynamicPath({ 'a.b': [41] }, '["a.b"][0]'),
+      41,
+    );
+  } finally {
+    clearActiveEnv();
+  }
 });
 
 test('legacy condition text values stay literal without hiding formulas', () => {

@@ -406,6 +406,9 @@ export default class V4FormulaCodeConverter {
       case 'curValue':
         ast = this.genCurValueAST({ ctx })
         break
+      case 'legacyCurrentValue':
+        ast = JSON.parse(JSON.stringify(ctx.ast))
+        break
       default:
         ast = this.genOtherIdentifierAST({ parsed, varType })
         break
@@ -2069,6 +2072,11 @@ export default class V4FormulaCodeConverter {
         break
       case 'SequenceExpression':
         for (const expression of parsed.expressions || []) {
+          this.walkOrReplaceCustomExpr({ parsed: expression, context })
+        }
+        break
+      case 'Compound':
+        for (const expression of parsed.body || []) {
           this.walkOrReplaceCustomExpr({ parsed: expression, context })
         }
         break

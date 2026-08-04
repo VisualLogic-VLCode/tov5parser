@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；第 8/51 例修复后通过，等待用户确认继续
+Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；正在处理第 9/51 例
 
 ## Phases
 
@@ -697,7 +697,7 @@ Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；第 8/51 
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 第 8/51 例 `人员管理与组织架构_11020409_温晓华.json` 发现的“是否成功=否”中文文本错误已修复并重转，全量审计通过；tov5parser 提交/推送、Lambda 版本 12 部署、VxEditor41 同步提交/推送均已完成。本例暂停等待用户审阅；第 9 例尚未启动。
+**当前检查点：** 用户已明确回复“继续”，开始第 9/51 例 `任务中心_11411754_温晓华.json`；先查询数据库版本，确认为 V4 后才下载和转换。第 10 例尚未启动。
 
 **本例错误记录：** ECS task definition 取密首次调用返回 AWS CLI exit 255（当前用户缺 `aws-cn-ivx` profile）；本机也无 `mysql` CLI。改为从既有线程记录恢复只读交接路径，并使用隔离临时 PyMySQL，不重复失败路径。
 
@@ -721,6 +721,20 @@ Phase 67（clothing 全案例逐例 V4→V5 测试）— in progress；第 8/51 
 **Status:** complete
 
 **用户持续授权：** 此后每次修复转换器，无需再次询问 Git 提交；完成修复和验证后自动执行 tov5parser 提交/推送、Lambda 部署、VxEditor41 同步/提交/推送。
+
+### Phase 77：修复 clothing 第 9 例转换器错误并自动发布（2026-08-04）
+
+- [x] 为启用 setProps 中的 CSS 百分比文本补充失败回归并修复
+- [x] 为启用 pushMulVal 中的逗号表达式补充失败回归并修复
+- [x] 将 `$curJsonPathValue`/`$curPathValue` 转为目标变量真实当前路径 AST
+- [x] 定性其余裸函数与不可达自由变量，排除源案例问题
+- [x] 运行定向/完整测试并重转第 9 例，完成结构与运行风险审计
+- [ ] 更新案例报告并提交、推送 tov5parser
+- [ ] 部署生产 Lambda 并验证 `prod`
+- [ ] 同步 VxEditor41 转换器，验证、提交并推送
+- [ ] 回到 Phase 67 第 9 例人工审阅门禁，不启动第 10 例
+
+**Status:** in progress
 
 ### Phase 68：修复 reason 文本 Formula 生成空 jsfn（2026-07-31）
 

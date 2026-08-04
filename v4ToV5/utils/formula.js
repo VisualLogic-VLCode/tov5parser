@@ -27,7 +27,13 @@ function convertEditorValue({
   }
 
   function wrapCtx(str) {
-    return getCtx(str, { nodeId, blockId, paramName, cloneChildId })
+    return getCtx(str, {
+      nodeId,
+      blockId,
+      paramName,
+      cloneChildId,
+      formulaValue: value
+    })
   }
 
   let node = getNodeById(nodeId)
@@ -67,6 +73,193 @@ const fakeNodeIds = [
   '$sobj_serverSys' // 后台系统
 ]
 
+function genTargetValueAst(targetId) {
+  return {
+    op: 'var',
+    args: [
+      {
+        op: 'get',
+        args: [
+          {
+            op: 'ref',
+            val: ['var', targetId]
+          },
+          {
+            op: 'field',
+            val: 'value'
+          }
+        ],
+        _blockType: '$refs'
+      }
+    ]
+  }
+}
+
+function appendPathToValueAst(valueAst, pathAsts) {
+  const getAst = valueAst?.args?.[0]
+  if (!getAst || !Array.isArray(getAst.args)) return valueAst
+  for (const pathAst of pathAsts || []) {
+    if (!pathAst) continue
+    getAst.args.push({
+      op: 'sysutil',
+      val: 'obj_item',
+      _blockType: 'sysutil',
+      args: [pathAst]
+    })
+  }
+  return valueAst
+}
+
+function convertPathFormula({ value, nodeId, blockId }) {
+  if (!value) return
+  return convertEditorValue({ value, nodeId, blockId })
+}
+
+function genJsonPathAsts({ pathParam, nodeId, blockId }) {
+  if (!Array.isArray(pathParam?.value)) return []
+  const pathAsts = []
+  for (const item of pathParam.value) {
+    if (item?.jType === 'jsonEnd' && item?.name === '_jArrValue') {
+      continue
+    }
+    if (
+      item?.name === '数组元素' &&
+      (Object.prototype.hasOwnProperty.call(item, 'v41Input') ||
+        Object.prototype.hasOwnProperty.call(item, 'input'))
+    ) {
+      const value =
+        !item.v41Input?.code && item.input
+          ? { code: item.input }
+          : item.v41Input
+      pathAsts.push(convertPathFormula({ value, nodeId, blockId }))
+    } else if (item?.name !== undefined) {
+      pathAsts.push({ op: 'val', val: item.name })
+    }
+  }
+  return pathAsts
+}
+
+function findFormulaLocation({ params, formulaValue }) {
+  let codeFallback
+  for (let paramIndex = 0; paramIndex < (params || []).length; paramIndex++) {
+    const param = params[paramIndex]
+    if (param?.value === formulaValue) {
+      return { param, paramIndex }
+    }
+    if (param?.value?.code === formulaValue?.code && !codeFallback) {
+      codeFallback = { param, paramIndex }
+    }
+    if (!Array.isArray(param?.value)) continue
+    for (const item of param.value) {
+      for (const key of ['value']) {
+        if (item?.[key] === formulaValue) {
+          return { param, paramIndex, item, itemKey: key }
+        }
+        if (
+          item?.[key]?.code === formulaValue?.code &&
+          !codeFallback
+        ) {
+          codeFallback = { param, paramIndex, item, itemKey: key }
+        }
+      }
+    }
+  }
+  return codeFallback
+}
+
+function genDynamicJsonPathValueAst({ baseAst, pathAst }) {
+  return {
+    op: 'var',
+    args: [
+      {
+        op: 'jsfn',
+        val: [
+          '(() => { try { return new Function("$v1", "return $v1" + $v2)($v1) } catch (e) { return undefined } })()',
+          '$v1',
+          '$v2'
+        ],
+        args: [baseAst, pathAst]
+      }
+    ]
+  }
+}
+
+function genLegacyCurrentValueCtx({
+  kind,
+  nodeId,
+  blockId,
+  formulaValue
+}) {
+  const block = getEventBlockByBid(blockId)
+  const action = block?.action
+  if (!block || block.type !== EVENT_BLOCK_TYPE.ACTION || !action) return
+  const targetId = block.object === 'curObj' ? nodeId : block.object
+  if (!targetId || !getNodeById(targetId)) return
+  const baseAst = genTargetValueAst(targetId)
+  const params = action.params || []
+
+  if (kind === 'jsonPath') {
+    if (action.name === 'setPathValue') {
+      const pathParam = params.find(param => param?.name === 'path')
+      const pathAsts = genJsonPathAsts({ pathParam, nodeId, blockId })
+      return {
+        varType: 'legacyCurrentValue',
+        ast: appendPathToValueAst(baseAst, pathAsts)
+      }
+    }
+    if (action.name === 'setCusPathValue') {
+      const pathParam = params.find(param => param?.name === 'path')
+      const pathAst = convertPathFormula({
+        value: pathParam?.value,
+        nodeId,
+        blockId
+      })
+      if (!pathAst) return
+      return {
+        varType: 'legacyCurrentValue',
+        ast: genDynamicJsonPathValueAst({ baseAst, pathAst })
+      }
+    }
+    return
+  }
+
+  const location = findFormulaLocation({ params, formulaValue })
+  if (!location) return
+  const pathValues = []
+  if (
+    ['setOneValue', 'setItemValue'].includes(action.name) &&
+    !location.item
+  ) {
+    for (const param of params.slice(0, location.paramIndex)) {
+      if (param?.value) pathValues.push(param.value)
+    }
+  } else if (
+    action.name === 'setRowColsValue' &&
+    location.item?.col
+  ) {
+    for (const param of params.slice(0, location.paramIndex)) {
+      if (param?.value) pathValues.push(param.value)
+    }
+    pathValues.push(location.item.col)
+  } else if (
+    action.name === 'setMultiValue' &&
+    location.item?.row &&
+    location.item?.col
+  ) {
+    pathValues.push(location.item.row, location.item.col)
+  } else {
+    return
+  }
+
+  const pathAsts = pathValues.map(value =>
+    convertPathFormula({ value, nodeId, blockId })
+  )
+  return {
+    varType: 'legacyCurrentValue',
+    ast: appendPathToValueAst(baseAst, pathAsts)
+  }
+}
+
 function getCtx(str, extra) {
   if (!str) {
     return null
@@ -80,10 +273,18 @@ function getCtx(str, extra) {
   const MATH = /^Math$/
   const CUR_VALUE = /^\$curValue$/
   const CUR_OBJ = /^\$curObj$/
+  const CUR_JSON_PATH_VALUE = /^\$curJsonPathValue$/
+  const CUR_PATH_VALUE = /^\$curPathValue$/
   const THREE_IDS = /^ids$/
 
   str = str.trim()
-  let { nodeId, blockId, paramName, cloneChildId } = extra
+  let {
+    nodeId,
+    blockId,
+    paramName,
+    cloneChildId,
+    formulaValue
+  } = extra
   if (CB_PARAMS.test(str)) {
     // 动作返回结果
     let block = getEventBlockByBid(blockId)
@@ -169,6 +370,20 @@ function getCtx(str, extra) {
       varType: 'curObj',
       varCompId: nodeId
     }
+  } else if (CUR_JSON_PATH_VALUE.test(str)) {
+    return genLegacyCurrentValueCtx({
+      kind: 'jsonPath',
+      nodeId,
+      blockId,
+      formulaValue
+    })
+  } else if (CUR_PATH_VALUE.test(str)) {
+    return genLegacyCurrentValueCtx({
+      kind: 'path',
+      nodeId,
+      blockId,
+      formulaValue
+    })
   } else if (THREE_IDS.test(str)) {
     // 3D世界的ids
     let node = getNodeById(nodeId)

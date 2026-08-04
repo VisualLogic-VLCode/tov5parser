@@ -1551,3 +1551,49 @@
 - VxEditor41 仅暂存并提交目标转换器文件，提交 `1700c5de1`（`fix: preserve legacy yes-no action text`）已推送至 `origin/master`；`.gitignore`、`src/stores/event.js` 与未跟踪组件目录保持用户原状，未进入提交。
 - 最终远端复核：tov5parser `main/origin/main` 同为 `25ab607efc3b29fbc90ec2c0078b6024044b4adf`，VxEditor41 `master/origin/master` 同为 `1700c5de17f654e2dae7cb6c2db35a698ded697a`，两边 ahead/behind 均为 `0/0`；Lambda `prod` 仍仅指向版本 12。
 - **Phase 76 Status:** complete。中文文本转换错误已修复、真实案例重转通过、双仓库提交推送与 Lambda 部署完成；Phase 67 回到第 8/51 例人工审阅门禁，第 9 例尚未启动。
+- Stop hook 报告 80/81 phases；唯一未完成项仍是需要用户逐例确认后推进的 Phase 67。第 8 例修复、发布和同步已全部完成，自动 hook 不授权启动第 9 例，当前继续等待用户明确回复“继续”。
+- session catchup 的 11 条未同步消息均属于 Phase 76 最终发布、交付和本次 hook；发布记录已在提交 `6999fe9` 中持久化。本次 hook 前工作区除用户无关未跟踪文档外保持干净。
+
+## Session: 2026-08-04（Phase 67 第 9 例）
+
+- 用户已明确回复“继续”；当前案例切换为 `任务中心_11411754_温晓华.json`（nid `11411754`）。
+- `LC_ALL=C` 排序确认本文件为第 9/51 例；第 10 例是 `任务中心导出资料_11899135_温晓华.json`，本例汇报前不会启动。
+- 继续保留全部已测试 V4/V5 案例目录；中文服只读数据库隧道 `127.0.0.1:13306` 正常监听，权限为 600 的只读交接 env 仍存在。
+- 本轮开始前只有上次 stop hook 新增的 `progress.md` 两行和用户无关未跟踪文档；没有未提交生产代码。下一步读取权威 SQL 并用隔离 PyMySQL 查询 nid `11411754`。
+- 权威查询 SQL 与版本口径已从 `raw/中文服完整案例JSON导出.md` 复核；现有 `/tmp` 下没有可复用的 PyMySQL 模块，因此将新建隔离临时依赖目录，不污染项目依赖。
+- 只读 env 的键名和权限已检查，未输出任何值；后续查询仍通过参数绑定执行单一 `SELECT`，不使用写权限。
+- 已在 `/tmp/clothing-pymysql.pNb1Xp` 安装隔离 PyMySQL，并通过参数化只读查询成功：`data_edt_ver=node_edt_ver=4.1`、`ver_detail=null`，确认为 V4.1；`ntype=1`、版本 1231、最新 `work_id=clmj6n8r4j9t2qbtsgh0-4030`。
+- 数据库标题“任务中心”、作者温晓华、gid 25391，作品已发布且已上架；发布链接码 `SP6Zp2PB`。下一步按最新 work_id 下载并解码完整 V4 JSON。
+- 最新完整 V4 下载与解码成功：HTTP 200、二进制 2,028,644 bytes、2 个分段；恢复 `case/server/stage` 三棵树，根类型为 `ih5-case/data-server/ih5-stage`。
+- V4 紧凑 JSON 为 25,287,379 bytes、SHA-256 `c19f5a2c06eb3cb575fc35143b42e7d24cddadd7ca2bcc795cc9ab4710e2c46c`、权限 600；来源 README 已写入且不含 Cookie 或数据库凭证。下一步用 `ntype=1 --diag` 转换。
+- 本例转换 1/1 成功，生成约 17,470.3 KB 的紧凑 V5；诊断 976 次、去重 840 条，其中 custom-expression jsfn fallback 974 次，另有 2 次空值降级。空值降级必须逐条回查源公式和可达性后才能判定本例是否通过。
+- V5 实物为 17,889,553 bytes、SHA-256 `1ed459d45c212110926a62abc0e3e2c3d71628005cefb73caa8ce5f5654a98e1`、0 换行，三根类型完整且 `server.props.v2=1`。
+- 两条 dropped 已定位到同一启用候选动作：按钮“打印”节点 `cqrhfdxa3j50000h80qg`、tap BID `d30j6csa3j50000gpx7g` 的 setProps 参数 `width` 和 `height`，源 code 均为 `100%`；jsep 报 `Expected expression after %` 后降为空值。下一步核对 V4 token、动作可达性和 V5 实际 AST。
+- V4 实物确认该 tap root 与 setProps 动作均 `enable=true`，width/height 的 token 分别拼成纯文本 `100%`；V5 对应两个 field 均变为 `{op:'val'}` 空值。这是启用路径中明确的转换器错误，不是源语法问题。
+- 主结构审计：V4/V5 严格组件节点均为 7,731，缺失/新增均 0；12,357/12,357 个非 root BID 有 V5 `ln` 落点。
+- V5 有 872 个 jsfn：`$vN` 缺参 0、形参与 args 数量不匹配 0，但有 1 个 code 为空的不可编译 jsfn；服务调用 255 次/56 个唯一目标，其中 4 个目标不存在；需分别回查源数据与可达性。
+- data-if 共 1,085 个：1,083 个正式 `conditionVal.ast`，2 个保留 `binds.value`；下一步核对是否是源空条件占位。
+- 唯一空 jsfn 位于启用 tap 条件分支：节点 `cpkk5exa3j50000kxxn0`“退回”、BID `cy31pjaa3j50000hajp0`、动作 `pushMulVal`。V4 源参数是三个组件取值以逗号连接的 CompoundExpression；转换器记录 custom-expr fallback 却打印成 `jsfn("")`，属于另一处启用路径转换器错误，需进一步确认 pushMulVal 的目标语义。
+- 4 个缺失 service ID 在 V4 严格节点树中也全部无定义，但 V4 有 7 个 fireService 动作引用它们；其中 4 个 V5 runsvc 不 skip（`cpsr2rba...` 3 次中的 2 次、`crcf7hya...` 2 次），其余 3 次在禁用分支。它们是 V4 源案例已有的悬空服务引用，不是转换器删除服务。
+- 两个 data-if value bind 已核对：V4 都是 `props.condition=null` 加空 `{_code:'',code:''}`，分别位于 class 中的“条件容器1”和“废弃”；V5 保留空 `{op:'val'}` 兼容占位正确。
+- 自由标识符审计首次尝试使用本项目 `eslint-scope` 失败（模块未安装），同时确认 acorn 可用；没有修改依赖。下一步改用 VxEditor41 已安装的分析依赖或自建轻量作用域遍历，不重复本项目 require。
+- 自由标识符审计已改用 VxEditor41 现有依赖完成；对 872 个 V5 `jsfn` 检出 `sortAndUniqueData`、`toNew`、`processPackageMaterials_*`、`isToShow`、`formatData`、`checkMember`、`getElementHeight` 等裸函数名。在 tov5parser、VxEditor41、VxEditor41-widgets 与 VxEditor5-widgets 的非案例源码中均未找到这些名称的运行时定义。
+- 这批裸函数是否为转换器遗漏，不能仅凭“源码未定义”下结论；下一步回查 V4 Formula token、sysutil 方法映射和模块内自定义函数来源。`$curJsonPathValue` 另有 19 处，先按 V5 路径更新候选运行时变量核对。
+- 记录一次规划文件补丁失败：首次尝试把上述结果同时插入三份文件时，误用了 findings 中才存在的上下文去匹配 progress，补丁整体拒绝且未部分写入；现已按各文件实际上下文拆分，不重复该路径。
+- 回查 V4 模块实物后，裸函数全部有同一 class 内 `data-func` 定义，并以 `window.<name>` 注册；9 个定义在 V5 中逐字保留。`sortAndUniqueData`、`toNew`、`processPackageMaterials_*`、`isToShow`、`formatData`、`checkMember`、`getElementHeight` 因此是合法案例全局，不是转换器遗漏。
+- 精确检索 `$curJsonPathValue` 时有一次 shell 引号未闭合，命令在执行前即失败；已改用单一安全模式检索并取得结果，不重复复杂嵌套引号。
+- V4/V5 编译链确认 `$curJsonPathValue`/`$curPathValue` 不能作为合法 V5 `jsfn` 自由变量保留：V4 `dealCode()` 会按动作目标和路径替换为真实当前值，V5 `ast2js` 的 `jsfn` 只注入显式 `args`，原样残留会被 `new Function` 捕获为 `ReferenceError` 后返回 `undefined`。
+- 本例共有 18 个 `setPathValue`、11 个 `setOneValue`、3 个 `setRowColsValue` 和 1 个 `setCusPathValue` 使用 legacy 当前路径占位符。最终按完整祖先 `enable` 链复核为 29 处严格可达、4 处位于禁用动作或禁用祖先下；初审把后 4 处也计为启用路径，现已纠正。33 处均需并已按目标变量与路径生成真实 AST。
+- `保存失败` 是禁用动作中未加引号的 V4 Formula，`z.hep` 位于禁用循环/动作且 V4 本身无 `z` 绑定；两者均为不可达的源案例遗留，不纳入转换器修复。
+- 三组新增回归在修复前均按预期失败：`width/height=100%` 仍转为空值，`$curJsonPathValue/$curPathValue` 仍原样残留，Compound 逗号表达式仍生成空 `jsfn`。失败位置与本例三类已确认缺陷完全一致，作为红灯基线保留。
+- 已实施第一版最小修复：扩展尺寸/边距/内边距 CSS 单位文本识别；为 Compound/SequenceExpression 增加打印与 fallback 遍历；按 setPathValue/setOneValue/setRowColsValue 等动作的目标和路径，把 legacy 当前值占位符替换成真实 V5 AST。下一步运行定向测试并核对生成 AST。
+- 三组定向回归现已全部转绿（3/3）：CSS `100%` 保留为字面量，legacy 当前路径占位符被替换为目标变量/路径 AST，逗号表达式生成 `$v1, $v2, $v3` 且保留 JavaScript 返回最后一项的语义。Compound 主转换器仍按既有设计抛出 ParseError 后进入 custom-expression fallback，测试输出的该堆栈不是失败。
+- 项目全量测试 63/63 通过、0 fail；测试期间显示的 ParseError 堆栈均是既有 fallback 场景的预期日志。`git diff --check` 同时通过，进入真实第 9 例重转。
+- 第 9 例重转 1/1 成功：产物约 17,487.8 KB；诊断由 976 降至 972，`dropped` 从 2 清零，custom-expression fallback 为 972、去重 829。控制台大量 ParseError 均被诊断层保底为可执行 AST，下一步以落盘产物做严格 jsfn、路径与结构审计。
+- 最终 V5 为 17,907,488 bytes、SHA-256 `f02967884e5dead13a1ca0675090ea0ae2bdd423fad7772d2892beba2cee1301`、0 换行；打印按钮的 width/height 均为字面量 `100%`，退回动作的逗号表达式为 `$v1, $v2, $v3` 且 3 个参数完整。
+- 当前路径专项审计 33/33 通过：每个 V4 BID 均有 V5 `ln`，目标变量、`value` 字段及索引/列路径 AST 匹配；主文件中 `$curJsonPathValue`/`$curPathValue` 残留 0。
+- 完整结构审计通过：唯一节点 7,731/7,731、非根事件块落点 12,357/12,357；865 个 `jsfn` 全部可编译，空 code 0、缺参 0、形参与实参数量不匹配 0。data-if 仍为 1,085 个（1,083 conditionVal + 2 个源空条件兼容 value bind）。
+- 服务调用仍为 255 次/56 个唯一目标；4 个缺失目标与初审一致，均在 V4 源树中本就不存在。已新增本例 `conversion-report.md`，记录修复、审计、禁用链口径纠正和源案例问题。
+- 发布前复核发现第一版 `setCusPathValue` 动态路径按点切分会误处理 `['a.b']` 一类含点键名；已改为沿用 V4 的动态属性访问语义，并用捕获异常返回 `undefined` 保持失败行为。首次新增回归因误用本测试文件中不存在的 `findAst` 辅助函数而失败，属于测试代码错误；已改为测试内遍历 AST，不重复该调用。
+- 动态路径回归现已通过，包含 `['a.b'][0]` 键名场景；全量测试再次为 63/63 通过。最终重转仍为 972 条诊断、`dropped=0`、去重 829。
+- 最终产物更新为 17,907,265 bytes、SHA-256 `30ffeffae82778081614c0aaa2179fb055862f1f424ca8ffc9d1dd264bd493e1`、0 换行；7,731 节点、12,357 事件落点、865 个 jsfn、CSS 字面量、Compound 三参数及 legacy 占位符清零再次通过审计。

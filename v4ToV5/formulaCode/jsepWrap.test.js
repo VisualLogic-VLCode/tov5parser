@@ -404,6 +404,23 @@ test('numeric literal receivers stay valid in custom-expression output', () => {
   })
 })
 
+test('compound expressions preserve JavaScript comma semantics in jsfn fallback', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.first, fParamgroup.second, fParamgroup.third',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.equal(jsfn.val[0], '$v1, $v2, $v3')
+  assert.deepEqual(jsfn.val.slice(1), ['$v1', '$v2', '$v3'])
+  assert.equal(jsfn.args.length, 3)
+  const evaluate = new Function(...jsfn.val.slice(1), `return (${jsfn.val[0]});`)
+  assert.equal(evaluate('first', 'second', 'third'), 'third')
+})
+
 test('conditional receivers keep parentheses in custom-expression output', () => {
   const code = new ExprAstToString({
     ast: jsep('(hasValue ? nextValue : 1).toString().padStart(3, "0")')
