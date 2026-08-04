@@ -1724,3 +1724,13 @@
 - 最终 V5 为 3,673,452 bytes，SHA-256 `574466a82d52a094df4e102c6b29123132a2d339543fb923bcfcaa89fac81168`；诊断 JSON/Markdown 分别为 51,457/20,007 bytes，hash `7c9c9e...0430a` / `af89fe...ad9b`；`git diff --check` 通过。
 - `conversion-report.md` 已更新为修复后通过结论，保留 1 个 V4 源悬空服务说明；第 12 例仍未启动。
 - 发布前代码复核将运行码完整性校验收敛到已依赖 Acorn 的 `V4FormulaCodeConverter` 静态方法，`formula.js` 不再新增解析依赖或导出调试 helper；行为不变，完整测试仍为 65/65 通过。
+- tov5parser 已精确提交并推送：`24b0068603f2d639202178f7914771d2250271d9`（`fix: preserve legacy formula semantics`），`main` 与 `origin/main` 同步；提交仅含 3 个转换器/公式文件、2 个测试文件和 3 份规划记录，用户无关未跟踪文档未纳入。
+- 已复核固定发布规则与部署脚本；当前仅新增这条发布记录导致工作区有规划文件改动，生产部署将按既有方式使用 `--allow-dirty --run-tests --smoke --keep-history`，部署代码来源仍是已推送提交 `24b0068`。
+- 生产 Lambda 已从版本 13 升级到版本 14；部署脚本内完整测试 65/65 通过，冒烟 HTTP 200、ExecutedVersion 14、FunctionError null，`prod` 无权重路由。
+- 独立复核版本 14 为 Active/Successful，Description 含 `24b0068`，CodeSha256 `ZtgR/TAMXsNgMlHb2iG0i2lqzP2QQewPsPZL7ObPCOo=`；S3 留档包 `archive-24b0068-20260804T070831Z.zip` 为 1,961,793 bytes、ETag `08aa688627daf011d5d672192fbf2048`。
+- VxEditor41 `master` 与 `origin/master` 当前同为 `93d6ee722...`；工作区仍只有用户既有 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录，三个目标转换器文件原先无改动。
+- 编辑器侧 `V4FormulaCodeConverter` 已有 Acorn/full-JS 支持，但 `formula.js` 使用编辑器专用绝对 import、无诊断上下文；将只移植三处等价逻辑，不覆盖整个文件或 tov5parser 专有依赖。
+- VxEditor41 三个目标文件已完成等价同步，diff 仅包含本轮尾括号预检、Toast 文本恢复和 multiObj sysutil 映射；仓库明确依赖 Acorn 8.17.0，静态运行码校验依赖可用。
+- VxEditor41 三个目标文件定向 ESLint 0 error/0 warning；生产构建成功，webpack 0 error、33 组仓库既有 warning，目标转换器文件未出现在 warning 中。构建未要求改动用户文件。
+- VxEditor41 仅暂存三个目标转换器文件，提交 `9c6cacce1`（`fix: preserve legacy formula semantics`）已推送 `origin/master`；用户的 `.gitignore`、`src/stores/event.js` 与未跟踪组件目录保持原状，未进入提交。
+- **Phase 78 Status: complete。** tov5parser 修复提交 `24b0068`、Lambda 生产版本 14、VxEditor41 同步提交 `9c6cacce1` 均已完成；现在回到第 11/51 例人工审阅门禁，第 12 例尚未启动。
