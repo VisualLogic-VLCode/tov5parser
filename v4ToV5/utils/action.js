@@ -262,6 +262,13 @@ function getLegacyFormulaTextValue({ param, paramName }) {
   if (isLegacyToastText) {
     return trimmed
   }
+  const isLegacySessionToken =
+    name === 'session' &&
+    hasPureTextTokenEvidence &&
+    /^[0-9a-f]{32}$/iu.test(trimmed)
+  if (isLegacySessionToken) {
+    return trimmed
+  }
   if (
     name === 'path' &&
     /^(?:\.[\p{L}\p{N}_$]+)+$/u.test(trimmed)

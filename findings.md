@@ -1421,3 +1421,29 @@
 - 修复后 766 个 jsfn 全部非空、可编译、参数完整且 `$SF_*` 为 0；10 个 uploading status（8 uploadPic、2 uploadFile）10/10 生成 alambda 并保留全部子动作。事件差集只剩按设计折叠的 status 容器。
 - 两个首 OR 条件最终分别为 2/5 分支、无空分支；`cnmv4ah...` 的 uploadUrl 精确保留，旁边 `param.fileUrl` 仍为参数 AST；251 个 data-if 全走 `conditionVal.ast` 且无 `binds.value`，32 个 data-service 编译态完整。
 - 最终诊断 810/662、dropped 1：节点 `cc3fba5a3j50000z09f0` 的 editor code 多右括号但 `_code` 又完全没有 sort，二者业务语义冲突，转换器不能选边。裸 `a/c` 公式和 3 个缺失服务目标也在 V4 中原样存在，均列为源案例问题。
+
+## 2026-08-04：clothing 第 13 例 `加工方案_11391428_温晓华`
+
+- 源目录稳定排序第 13/51，nid `11391428`；下一例将在本例汇报并经用户确认后才开始。
+- 只读数据库唯一命中：标题 `FRP_款式_加工方案`、作者罗安琪（账号 `staff96@ih5.cn`）、V4.1、`ntype=1`、版本 251、`work_id=cl8rtss728sptj9bfm30-520`、gid 25391、eid 10000586，`verDetail=null`；源文件名标注作者温晓华，报告需同时保留来源与数据库当前元数据。
+- 最新编辑器 `/work/load` 返回 747,464-byte 二进制和 2 个压缩分段；解码为完整紧凑 V4 JSON 8,878,621 bytes、SHA-256 `34a60030e47b5d60a8a2218c1d1dac6f0db56ea9a9695ecb9e62631d7e2b66eb`，顶层 `case/server/stage` 与根类型完整。
+
+## 2026-08-04：clothing 第 13 例审计续记
+
+- 案例：`加工方案_11391428_温晓华`（nid `11391428`），数据库确认 `edt_ver=4.1`。
+- 转换命令成功生成 V5；初步诊断指标为 total 107、jsfn fallback 106、dropped 1。
+- `dropped` 尚未分类为源案例问题或转换器问题；需结合 V4 原公式和 V5 落点完成判定。
+- 唯一 dropped 的精确落点：`cpx1pf1a3j500009dc60` / `fireService` / `session`。V4 `code` 为 `6a939b74c7b83df984bb4ae9be230a18`，且 `str` 是两个 `type=str` 文本片段；当前 V5 生成了缺失 `val` 的参数节点，实际服务入参已经丢失。
+- 责任路径为 `v4ToV5/utils/action.js#getLegacyFormulaTextValue`：已有纯文本 token 证据逻辑，但白名单未覆盖 `session` 十六进制令牌。由于该值不是合法 JavaScript 标识符、又有完整纯文本 token 证据，应作为转换器漏判纳入修复候选。
+- 本例将按既有 clothing 报告口径审计，不把 106 条 `jsfn` fallback 本身当作错误；只有实际落空、不可编译、缺参、旧运行符号或源/V5 结构差异才计入问题。
+- 结构结果：严格组件 3,304/3,304，唯一 ID 3,292/3,292，节点差集 0；V4 非 root 事件块 4,480 个，BID 缺失 0。
+- 实际 V5 `jsfn` 共 106 个：空代码 0、编译失败 0、形参/实参数量不一致 0、`$vN` 缺参 0、旧引用残留 0、自由变量异常 0。
+- data-if 236 个；235 个正式条件完整。`cx22keda3j500001y4tg` 在 V4 的 `props.condition=null` 且旧 value bind 为空 `_code/code`，所以 V5 仅保留空兼容 bind，不是条件丢失。
+- 悬空服务目标（均在 V4 已缺失）：`cc6rwy3a3j500003shvg` 1 次可达；`cd6g7t7a3j50000aa3tg` 3 次中 1 次可达、2 次位于禁用祖先下；`cd6g7t7a3j50000aa3z0` 2 次中 1 次可达、1 次自身禁用。
+- 可达悬空调用分别位于函数组“获取款式样板相关”“过滤方案筛选”“接收过滤方案”；V5 保留相同 runsvc，禁用父动作 `cdkj1vfa3j5000001hzg` 正确转为 `skip:true`。
+- 上传动作 `ccswm582ntpg000kxda0` 及 3 个 uploaded 子动作全部保留；52 个服务 `_code` 均非空且语法可解析。项目测试 69/69 通过。
+- 本例最终结论：转换文件生成成功，但 `session` 业务值明确丢失，当前转换不通过；等待用户审阅并决定修复。下一例为 `包装等级预设_11370983_温晓华.json`，本轮不启动。
+- 用户已授权修复。最小规则候选：仅当动作参数名为 `session`、V4 `str` 全部为纯文本且逐字拼接等于 `code`、并且值严格匹配 32 位十六进制字符串时恢复为普通字符串；真实公式仍走公式转换，避免扩大文本吞错范围。
+- VxEditor41 工作区在同步前已有大量用户修改，均不属于本任务；后续精确核对 `src/utils/convertV4ToV5` 的目标文件并只暂存该文件，禁止混入现有修改。
+- 最终实现规则为 `name === 'session' && hasPureTextTokenEvidence && /^[0-9a-f]{32}$/iu`；这会保留大小写十六进制 token，同时拒绝缺 token、其他参数名与一般 JavaScript 公式。定向和全量测试均通过。
+- 真实重转验证闭环：目标 `session` 普通值完整，dropped 清零；其余结构指标与修复前完全一致。新 V5 为 6,666,301 bytes、SHA-256 `1ce9f60b39076d6921b538f05c3b30ca78dfa30df8e165a35b908498f899d489`。

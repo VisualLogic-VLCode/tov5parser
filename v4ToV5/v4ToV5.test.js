@@ -1091,6 +1091,35 @@ test('legacy text-like formula parameters stay literal without hiding real formu
   );
   assert.equal(
     getLegacyFormulaTextValue({
+      param: formulaParam('session', '6a939b74c7b83df984bb4ae9be230a18', [
+        { type: 'str', obj: '6' },
+        { type: 'str', obj: 'a939b74c7b83df984bb4ae9be230a18' },
+      ]),
+    }),
+    '6a939b74c7b83df984bb4ae9be230a18',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('session', '6a939b74c7b83df984bb4ae9be230a18'),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('value', '6a939b74c7b83df984bb4ae9be230a18', [
+        { type: 'str', obj: '6a939b74c7b83df984bb4ae9be230a18' },
+      ]),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('session', 'param.session || "fallback"'),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
       param: formulaParam('url', 'https://pricing.ivx.cn/'),
     }),
     'https://pricing.ivx.cn/',
