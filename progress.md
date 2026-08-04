@@ -1801,3 +1801,9 @@
 - 结构审计保持稳定：V4/V5 节点口径相等且 ID 0 缺失/0 新增；251/251 data-if 都有 `props.conditionVal.ast` 且 0 个 `binds.value`；32/32 data-service 事件代码齐全；Legacy 类型与当前路径占位符均为 0。最终文件为 10,236,002 bytes，SHA-256 `797c5a51fbf11fc6e98361f1f301df55a4fc2cff6db0b6ff0a1467b71881c9b8`。
 - 目标条件与嵌套 URL 最终复核通过：`cmje...` 的 switch 条件为 2 分支 `or`（typeIs/belongTo），`cfqf...` 为 5 分支 `or`（style/template/process/processGroup/measureBody），均无空分支；BID `cnmv4ah...` 的 `uploadUrl` 精确保留为 `https://v4pre.h5sys.cn/ih5/resource/uploadFile?m=p&uploadType=preview&nid=11405038&eid=10000586`，同动作的 `param.fileUrl` 仍为参数 AST。
 - 最终 `conversion-report.md` 已改为修复通过结论并记录 4 类修复、69/69 测试、全量审计与 3 类 V4 源问题。`git diff --check` 通过；本地 `main` 与 `origin/main` 为 0/0 无分叉。待提交范围严格为 5 个转换器/测试文件和 3 个规划文件，无关未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 不读取、不暂存。
+- tov5parser 已精确提交并推送 `e8c1a4fe1548da07e8ae56e58696e3c8bbec7d0f`（`fix: preserve legacy conditions and callbacks`）至 `origin/main`；无关未跟踪文档仍未纳入。下一步从该提交部署生产 Lambda。
+- 生产 Lambda 部署完成：部署源 `e8c1a4f`，项目测试 69/69，发布版本 `15`，CodeSha256 `P2lgZlx6NBrkmxKF6NyXL2SzCUn2wLpf+iKNo9iW1Ac=`；`prod` 已指向 15，版本信息冒烟调用 StatusCode 200、ExecutedVersion 15、FunctionError null。下一步同步 VxEditor41。
+- VxEditor41 同步前检查：当前 `master`/`9c6cacce...`；用户既有 `.gitignore`、`src/stores/event.js`、`.claude/` 与多组新组件目录修改继续保留。本次对应文件确定为 `utils/con.js`、`utils/actionUtils/actionParamConvert.js`、`formulaCode/V4FormulaCodeConverter.js`、根转换 `index.js`，只精确修改和暂存这 4 个文件。
+- VxEditor41 四处等价补丁已同步；目标文件定向 ESLint 0 输出通过。生产 webpack 构建成功（33 个既有/用户工作区 warning、0 error），包括无关新组件的已有 lint 提示，不据此修改用户文件。
+- VxEditor41 `master` 与 `origin/master` 为 0/0 无分叉，`git diff --check` 通过；已仅暂存 4 个转换器文件（68 insertions/6 deletions）。用户既有 `.gitignore`、event store、`.claude/` 与组件目录仍保持未暂存。
+- VxEditor41 已精确提交并推送 `25b0bc5c844da036d2ec99336e39946bc2bb3eec`（`fix: preserve legacy conditions and callbacks`）；用户既有工作区修改未纳入。Phase79 发布闭环完成，返回第 12/51 例人工审阅门禁，不启动第 13 例。
