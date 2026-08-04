@@ -1482,3 +1482,63 @@
 - 最终远端复核通过：tov5parser `main` 与 `origin/main` 均为 `436664703b7e93da85d2c42a2cc1dfb55497cd4a`；VxEditor41 `master` 与 `origin/master` 均为 `0631d17b170d5b1d9f81d40716f3ca739b048d6e`，两边 ahead/behind 均为 `0/0`。
 - Lambda 版本 11 最终仍为 Active/Successful，代码摘要 `S6/nOE5cbDWPRqu0CDqQ3ZgGuew03qqW4JVyxZDwDVY=`；`prod` 仅指向版本 11、无加权路由。
 - **Phase 75 Status:** complete。发布与同步全部完成；回到 Phase 67 第 7/51 例审阅门禁，第 8 例尚未启动。
+- Stop hook 报告 79/80 phases；唯一未完成项仍是需要用户逐例确认后推进的 Phase 67。Phase 75 已完成，自动提示不授权启动第 8 例，当前继续等待用户明确回复“继续”。
+
+## Session: 2026-08-04（Phase 67 第 8 例）
+
+- 用户已明确回复“继续”；当前案例切换为 `人员管理与组织架构_11020409_温晓华.json`（nid `11020409`）。
+- 本例继续保留此前所有 V4/V5 案例目录；完成查询、下载、转换和审计并向用户汇报前，不启动第 9 例。
+- 排序复核确认本文件确为第 8/51 例，第 9 例为 `任务中心_11411754_温晓华.json`；中文服只读数据库隧道 `127.0.0.1:13306` 正常监听。
+- 本例对应的 V4/V5 本地目录均不存在，准备先执行 nid `11020409` 的只读元数据查询。
+- 首次尝试按文档从 ECS task definition `pub-vip2-ivxplay:7` 临时读取只读密码时，AWS CLI 以状态 255 失败；脚本未打印捕获的 stderr，也未输出任何密码。下一步先检查 `aws-cn-ivx` profile 状态并查找本机既有只读交接包，不重复同一失败调用。
+- 诊断确认失败原因是当前用户没有 `aws-cn-ivx` profile（`The config profile ... could not be found`），不是数据库或隧道故障；clothing 与当前用户 Documents 的浅层查找未找到交接包。下一步检查可用 AWS profile 名称及 `/Users/ivx` 下既有交接资源。
+- 当前用户 AWS CLI 只配置了 `vl-case-json-converter-cn`，没有服装数据库读取权限；按文件名在 `/Users/ivx` 与 `/Users/lianghuang` 下查找也未命中交接包。下一步只检索可能包含既有 profile/交接引用的文件路径，并检查 `/Users/ivx/.aws` 的 profile 目录，不输出凭证内容。
+- `/Users/ivx/.aws` 在当前机器不可用，路径级内容检索也未找到 ECS 取密引用。另发现本机没有 `mysql` CLI（`command not found`），因此即使取得密码也需恢复此前的临时 PyMySQL 方式；该失败没有连接数据库。下一步从本线程持久化记录中恢复已验证的只读交接路径/查询代码，再创建隔离临时依赖目录。
+- 已从本线程历史记录恢复权威交接路径：`/Users/lianghuang/Desktop/case-json-migrator/raw/lianghuang-cn-db-20260630`，其中 `lianghuang_ro.mysql.env` 是此前成功使用的只读连接配置；历史 SQL 也已恢复。下一步只在隔离临时目录安装 PyMySQL，读取该 env 但绝不打印密码，执行参数化 nid 查询。
+- 已在全新 `/tmp/clothing-pymysql.*` 目录安装 PyMySQL，并通过只读隧道查询成功：本例 `data_edt_ver=node_edt_ver=4.1`、`ver_detail=null`，确认为 V4.1；`ntype=1`、版本 329、最新 `work_id=cajvb9pl9ispg1dl0nf0-861`。
+- 数据库标题“人员管理与组织架构”，当前作者王洋（源文件名标注温晓华），gid 25391，已发布且已上架；下一步按最新 work_id 下载并解码完整 V4 JSON。
+- 最新 V4 下载与解码成功：HTTP 二进制 988,572 bytes、2 个分段，完整恢复 `case/server/stage`；根类型为 `ih5-case/data-server/ih5-stage`。
+- V4 紧凑 JSON 为 14,263,945 bytes、SHA-256 `c476a6ec90c7676afe8508cdf97faa87d5b9e35b15430519b8fd5b3fc70d3846`；下一步补来源 README，然后使用当前转换器以 `ntype=1 --diag` 转换。
+- 补查发布链接时用 `find ... | head -1` 选中了一个没有 PyMySQL 的旧临时目录，报 `ModuleNotFoundError`；未连接数据库、未修改案例数据。下一次通过实际存在的 `pymysql/__init__.py` 反查正确依赖根目录，不重复按目录名盲选。
+- 改按实际模块文件定位后补查成功，发布链接码为 `SjUBkVDs`；V4 来源 README 已写入，未包含数据库密码或平台 Cookie。
+- 本例转换 1/1 成功：V5 紧凑 JSON 为 11,260,700 bytes、SHA-256 `33c62f3199b11c9135454db8c9c3f3f1143ca05e10653e09b35d02cd8a99c07d`，0 个换行，顶层 `case/server/stage` 与根类型保持完整，`server.props.v2=1`。
+- 诊断共 248 次、去重 245 条，全部为 custom-expression jsfn fallback，`dropped=0`；下一步统计诊断类别并执行节点、事件、jsfn、data-if 和服务引用审计。
+- 诊断主类：`findIndex` 82、逻辑或 `||` 55、完整 JavaScript 42、unknown varType 28、正则 `/[|]/g` 17、逻辑与 `&&` 9、SpreadElement 9；均已由 jsfn 承接。
+- 主审计：V4 的 4,858 个组件 ID 在 V5 中缺失 0，但 V5 计数为 4,860（多 2 个，待识别）；7,248/7,248 个非根事件块有 V5 `ln` 落点。
+- 245 个 jsfn 全部可编译，`$vN` 缺参 0、参数名/args 数量不匹配 0；发现 4 个 jsfn 仍自由引用 `fParamcf4zq1ca3j50000cmes0`，正在回查源公式、函数参数上下文和可达性。
+- data-if 588 个：587 个正式 `conditionVal.ast`，1 个兼容 `binds.value`（`cmqsrcha3j50000f3mx0`，待核对源占位）；服务调用 109 次/41 个唯一目标，缺失目标 0。
+- data-if 源数据已核对：`cmqsrcha3j50000f3mx0` 在 V4 中是 `props.condition=null` 加空 `{_code:'',code:''}`，V5 的 `{op:'val'}` value bind 是正确兼容占位，不是错误。
+- 4 个自由 fParam 全部位于启用的函数组“`小模块返回值`”（节点 `cf4zjzva3j50000cmang`）动作中；V4 原公式本身就引用 `fParamcf4zq1ca3j50000cmes0.name/value`，而同事件正常参数前缀是 `fParamcf4zjzva3j50000cmang`。初步判断为源案例悬空函数参数，继续确认目标 ID 在 V4 是否完全无定义及调用可达性。
+- 识别新增两节点的检索命令因 `rg` 无匹配返回 1 且后接 `&&`，导致同命令中的 Node 检查未执行；没有修改文件。下一次分开执行并允许 rg 无匹配，不重复该控制流错误。
+- 源定义复核确认 `cf4zq1ca3j50000cmes0` 在 V4 中没有任何 id/bid/键/值定义；“小模块返回值”函数组只声明 `inParams=[value,name]`，编译参数也是 `fParamcf4zjzva3j50000cmang`。因此 4 个自由 fParam 是 V4 源案例已有的错误参数前缀，转换器原样 fallback；相关动作均启用，但函数组位于模块定义内，外部可达性需按模块调用判断。
+- V5 多出的两个节点是有效后台服务 `commonAuthdbSelect` / `commonAuthdbUpdateById`，各自 AST 和 `_code` 已编译；下一步通过 runsvc 的 `ln` 回查 V4 动作，确认它们是否是转换器为前台直调数据库生成的授权代理服务。
+- 补写本例报告时，首次 `apply_patch` 把新增报告和一个不属于 `progress.md` 当前上下文的旧定位合并，因上下文不匹配而整体拒绝；未产生部分写入。改为分别新增报告、追加进度，不重复该混合补丁。
+- 两个新增服务已精确映射到 V4 启用动作：按钮“一键循环tableType”的 `dbSelect_stage` 与“一键更新其他tableType”的 `dbUpdateById_stage`；V5 runsvc 均指向对应新服务且不 skip。因此节点数 +2 是前台直调数据库的预期授权代理生成，不是重复或结构错误。
+- 静态自由标识符审计除合法运行时 `$sys` 外另发现：4 个已定性的源错误 fParam、1 个 `item == item.logName == $v1`、1 个裸 `否`。前者与 V4 诊断样本中的畸形 `find(item==item.logName==...)` 一致，疑似源公式 typo；裸 `否` 需确认是否本应作为文本字面量，可能是新转换器问题。
+- 畸形 `item` 已定性为 V4 源公式 `.find(item==item.logName==...)` 缺少 `=>`；所在动作 `cessy60a3j50000hgs20` 在 V4 禁用，V5 保持 `skip:true`，不是转换器新增问题。
+- 裸 `否` 已定性为转换器错误：启用函数组“获取部门列表”节点 `cbnj58na3j50000tghf0` 的动作 `cbtvgj2a3j50000svgp0`，参数“是否成功”在 V4 的 `str` tokens 明确是普通文本，V4 编译代码也输出字符串 `("否")`；当前转换器却生成无参数的 `jsfn("否")`，运行时会按未定义变量求值并抛 `ReferenceError`。
+- `action.js::getLegacyFormulaTextValue()` 当前只对少量参数名/格式做文本识别，未覆盖“是否成功”这种中文布尔文案；这是本例错误的直接转换边界。当前仅诊断与汇报，未获用户授权前不修改转换器。
+- 完整项目测试 61/61 通过；该错误不会被语法审计发现，因为中文 `否` 本身是合法 JavaScript 标识符。说明现有测试缺少“V4 str token 明确为文本、但 code 也是合法标识符”的动作参数样本。
+- 本例 `conversion-report.md` 已生成，完整记录 1 处转换器错误、2 类 V4 源问题、结构/事件/data-if/服务审计和 hash。结论为“成功生成产物，但修复并重转前不建议作为最终可用版本”。
+- 第 8/51 例现已完成并停在人工审阅门禁；保留全部已测试案例数据，不启动第 9 例 `任务中心_11411754_温晓华.json`。
+- Stop hook 报告 79/80 phases；唯一未完成项仍是必须逐例人工审阅推进的 Phase 67。第 8 例已完成并交付“1 处启用路径转换器错误”的结论，当前等待用户明确选择修复或继续；自动 hook 不授权修改转换器，也不授权启动第 9 例。
+- `planning-with-files` session catchup 显示的 7 条未同步消息均为本例收尾、最终报告和本次 hook，本轮计划文件已覆盖这些状态；`git diff --stat` 仅显示三份规划记录，案例产物位于 gitignore 下，无未知代码修改。
+
+## Session: 2026-08-04（Phase 76 中文文本 Formula 修复与自动发布）
+
+- 用户已明确授权修复第 8 例发现的转换器错误，并要求把固定发布规则写入 `AGENT.md`、`CLAUDE.md`：此后每次转换器修复后自动提交、推送、部署 Lambda，再同步 VxEditor41 转换器并提交、推送。
+- 当前仓库实际存在 `/Users/lianghuang/Desktop/ivx_repos/tov5parser/AGENT.md` 与 `CLAUDE.md`，因此规则应写入这两个现有文件，不新建 `AGENTS.md`；VxEditor41 两层范围内未发现同名规则文件。
+- 工作区当前只有三份规划文件修改，以及必须继续隔离的用户未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md`；尚未修改生产代码。
+- 直接修复入口为 `v4ToV5/utils/action.js::getLegacyFormulaTextValue()`；现有规则只识别特定参数名/格式，需新增利用 V4 `value.str` 纯文本 token 的窄范围判定，并用真实“是否成功=否”与合法变量公式对照防误判。
+- 本例共有 2,341 个“非空 token 全为 str”的 Formula 参数，包含数字、对象、布尔和变量名，不能把纯 str token 全局等同文本；否则会吞掉大量合法公式。
+- 最小安全契约确定为：参数名以“是否”开头、trim 后值严格为“是”或“否”、全部 token 都是字符串 token，且 token 文本拼接必须与原 code 完全一致。当前真实参数“是否成功 / ` 否`”满足该契约；普通 value 变量和包含 `cbParams` 等非文本 token 的公式不会命中。
+- 已先新增真实形态与反例回归；修复前定向测试按预期 0/1 通过，精确失败为 `undefined !== '否'`，证明测试覆盖本次缺陷而非既有行为。
+- `getLegacyFormulaTextValue()` 已按窄契约实现“是否… + 纯文本 是/否”恢复；下一步运行定向测试，并统计真实案例重转后所有同类动作参数是否都变为字符串字面量。
+- 定向回归修复后 1/1 通过；项目完整测试仍为 61/61 通过，控制台 ParseError 仍是既有 fallback 诊断而非测试失败。
+- 第 8 例真实重转成功：诊断 248→247、去重 245→244、`dropped=0`；V5 大小 11,260,665 bytes，SHA-256 `b5cfe21b27fa25a4b443ac1cd6fd97f174f9f88fd46779c9b601b76e66dd4e41`。
+- 目标 BID `cbtvgj2a3j50000svgp0` 的参数字典现为 `"是否成功" → {op:'val', val:'否'}`；全树裸 `jsfn("是"|"否")` 为 0，诊断中同类 bare code 也为 0。下一步复跑结构、事件、jsfn 参数、data-if 和服务目标审计。
+- 重转后完整结构审计通过：V4 4,858 个节点缺失 0，V5 仍只预期新增 2 个授权代理服务；8,115 个 V4 BID 中 867 个是事件 root、其余 7,248/7,248 均有 V5 `ln` 落点。
+- 244 个 jsfn 全部可编译，`$vN` 缺参 0、形参与 args 数量不匹配 0、裸“是/否”0；588 个 data-if 仍为 587 个正式 conditionVal 加 1 个源空占位 value bind；109 次 runsvc / 41 个唯一目标全部存在，`server.props.v2=1`。
+- 本例 `conversion-report.md` 已更新为修复后通过结论、最终大小/hash 和 247/244 诊断指标。
+- `AGENT.md` 与 `CLAUDE.md` 已写入相同的固定自动发布流程，包括测试门禁、精确暂存、Lambda prod 冒烟、VxEditor41 同步和禁止变基/强推覆盖用户修改。
+- 发布前 `git diff --check` 通过；fetch 后 tov5parser `main` 与 `origin/main` ahead/behind 为 `0/0`，当前 HEAD `8ae1040`。待提交严格为两份规则、转换器、回归测试和三份规划记录；无关未跟踪文档继续排除。

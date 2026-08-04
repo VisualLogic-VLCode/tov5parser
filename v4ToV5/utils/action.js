@@ -239,6 +239,19 @@ function getLegacyFormulaTextValue({ param, paramName }) {
 
   const name = paramName || param?.name
   const trimmed = code.trim()
+  const tokens = param?.value?.str
+  const isLegacyYesNoText =
+    /^是否/u.test(name || '') &&
+    /^(?:是|否)$/u.test(trimmed) &&
+    Array.isArray(tokens) &&
+    tokens.length > 0 &&
+    tokens.every(
+      token => token?.type === 'str' && typeof token.obj === 'string'
+    ) &&
+    tokens.map(token => token.obj).join('') === code
+  if (isLegacyYesNoText) {
+    return trimmed
+  }
   if (
     name === 'path' &&
     /^(?:\.[\p{L}\p{N}_$]+)+$/u.test(trimmed)

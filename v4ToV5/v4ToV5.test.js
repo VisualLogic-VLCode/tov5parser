@@ -939,11 +939,59 @@ test('convertV4CaseJsonToV5CaseJson rejects invalid input', () => {
 });
 
 test('legacy text-like formula parameters stay literal without hiding real formulas', () => {
-  const formulaParam = (name, code) => ({
+  const formulaParam = (name, code, str) => ({
     name,
     type: 'Formula',
-    value: { code },
+    value: str === undefined ? { code } : { code, str },
   });
+
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('是否成功', ' 否', [
+        { type: 'str', obj: ' ' },
+        { type: 'str', obj: '否' },
+      ]),
+    }),
+    '否',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('是否有数据', '是', [
+        { type: 'str', obj: '是' },
+      ]),
+    }),
+    '是',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('是否成功', '否'),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('value', '否', [
+        { type: 'str', obj: '否' },
+      ]),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('是否成功', 'cbParams.reason', [
+        { type: 'cbParams', obj: '返回结果', props: ['reason'] },
+      ]),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('是否成功', 'true', [
+        { type: 'str', obj: 'true' },
+      ]),
+    }),
+    undefined,
+  );
 
   assert.equal(
     getLegacyFormulaTextValue({ param: formulaParam('path', '.style') }),
