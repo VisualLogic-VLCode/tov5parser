@@ -1334,11 +1334,18 @@ export default class ConvertV4ToV5 {
       // 文件上传等动作的开始上传和上传中回调作为参数传入
       let methArgs = _block.args[0].args[1].args
       fileUploadCbList.forEach(item => {
+        let found = false
         for (let i = 0; i < methArgs.length; i++) {
           if (methArgs[i].key === item.name) {
             methArgs[i] = { ...methArgs[i], ...item.lambda }
+            found = true
             break
           }
+        }
+        // V4 动作只保存用户可编辑的普通参数，Lambda 参数往往不会作为空占位
+        // 出现在 action.params 中。没有占位时也必须追加，否则上传中回调会静默丢失。
+        if (!found) {
+          methArgs.push({ key: item.name, ...item.lambda })
         }
       })
     }

@@ -155,13 +155,13 @@ function convertBlockCons({ cons, scope, nodeId, blockId }) {
   let ors = []
   let ands = []
   cons.forEach((con, index) => {
-    if (con.flag !== 'or') {
-      ands.push(con)
-    } else {
+    // 部分 V4 数据会把第一条启用条件也标为 or；它表示第一组的起点，
+    // 不能在它前面创建空分组。只有已有条件时，or 才切到下一组。
+    if (con.flag === 'or' && ands.length > 0) {
       ors.push(ands)
       ands = []
-      ands.push(con)
     }
+    ands.push(con)
     if (index === cons.length - 1) {
       ors.push(ands)
     }

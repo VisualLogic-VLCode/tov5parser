@@ -9,8 +9,15 @@ import {
 import { convertV4CaseJsonToV5CaseJson } from './index.js';
 import { loadRuntimeMaps } from '../index.js';
 import { getLegacyFormulaTextValue } from './utils/action.js';
-import { convertDbCons } from './utils/actionUtils/actionParamConvert.js';
-import { genConObj, getLegacyConditionTextValue } from './utils/con.js';
+import {
+  convertDbCons,
+  convertObjJsonMultiPaths,
+} from './utils/actionUtils/actionParamConvert.js';
+import {
+  convertBlockCons,
+  genConObj,
+  getLegacyConditionTextValue,
+} from './utils/con.js';
 import { convertEditorValue } from './utils/formula.js';
 import {
   compileV5ServerAst,
@@ -1134,6 +1141,169 @@ test('legacy text-like formula parameters stay literal without hiding real formu
   );
 });
 
+test('object-json multi-path values preserve tokenized absolute URL text', () => {
+  const v4CaseJson = buildV4CaseJson();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+  const url = 'https://v4pre.h5sys.cn/upload?m=p&nid=11405038';
+
+  try {
+    const ast = convertObjJsonMultiPaths([
+      {
+        path: [{ name: 'uploadUrl' }],
+        value: {
+          code: url,
+          str: [
+            { type: 'str', obj: 'https' },
+            { type: 'str', obj: ':' },
+            { type: 'str', obj: '//v4pre.h5sys.cn/upload?m=p&nid=11405038' },
+          ],
+        },
+      },
+      {
+        path: [{ name: 'fileUrl' }],
+        value: {
+          code: 'param.fileUrl',
+          str: [{ type: 'param', obj: 'fileUrl' }],
+        },
+      },
+    ], 'svc1', 'nested-url');
+
+    assert.deepEqual(ast.args[1], { op: 'val', val: url });
+    assert.equal(ast.args[3].op, 'var');
+    assert.doesNotMatch(JSON.stringify(ast.args[3]), /"val":"param\.fileUrl"/);
+  } finally {
+    clearActiveEnv();
+  }
+});
+
+test('full JavaScript fallback removes only zero-argument legacy getSelf calls', () => {
+  const v4CaseJson = buildV4CaseJson();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  try {
+    const ast = convertEditorValue({
+      value: {
+        code: '[1, 2].filter(item => { return item > 0; }).$SF_getSelf().$SF_getSelf().map(x => { return x; })',
+        str: [],
+      },
+      nodeId: 'txt1',
+      blockId: 'legacy-get-self',
+    });
+    const serialized = JSON.stringify(ast);
+
+    assert.match(serialized, /"op":"jsfn"/);
+    assert.doesNotMatch(serialized, /\$SF_getSelf/);
+    assert.match(serialized, /\.filter\(/);
+    assert.match(serialized, /\.map\(/);
+
+    const callWithArgument = convertEditorValue({
+      value: {
+        code: '[1].map(x => { return x; }).$SF_getSelf(1)',
+        str: [],
+      },
+      nodeId: 'txt1',
+      blockId: 'non-identity-get-self',
+    });
+    assert.match(JSON.stringify(callWithArgument), /\$SF_getSelf/);
+  } finally {
+    clearActiveEnv();
+  }
+});
+
+test('file upload callbacks append missing V5 lambda parameters', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  const textNode = v4CaseJson.stage.children[0];
+  textNode.events = {
+    list: [
+      {
+        tree: {
+          bid: 'upload-root',
+          type: 'root',
+          name: 'click',
+          children: [
+            {
+              bid: 'upload-action',
+              type: 'action',
+              object: '$sobj_file',
+              action: {
+                name: 'uploadFile',
+                callback: true,
+                paramsAsObj: true,
+                params: [
+                  { name: 'path', type: 'Formula', value: null },
+                  { name: 'readType', type: 'Select', value: 'preview' },
+                  { name: 'size', type: 'Formula', value: null },
+                  { name: 'minSize', type: 'Formula', value: null },
+                  { name: 'timeout', type: 'Formula', value: null },
+                  { name: 'accept', type: 'Formula', value: null },
+                ],
+              },
+              children: [
+                {
+                  bid: 'uploading-status',
+                  type: 'status',
+                  option: 'uploading',
+                  children: [
+                    {
+                      bid: 'uploading-action',
+                      type: 'action',
+                      object: '$sobj_base',
+                      action: {
+                        name: 'consoleLog',
+                        params: [
+                          {
+                            name: 'info',
+                            type: 'Formula',
+                            value: {
+                              code: 'cbParams.progress',
+                              str: [
+                                null,
+                                null,
+                                {
+                                  type: 'cbParams',
+                                  obj: 'uploaded file',
+                                  props: ['progress'],
+                                },
+                              ],
+                            },
+                          },
+                          { name: 'detail', type: 'Formula', value: null },
+                        ],
+                      },
+                      children: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  let uploadAction;
+  const pending = [v5CaseJson];
+  while (pending.length && !uploadAction) {
+    const item = pending.pop();
+    if (!item || typeof item !== 'object') continue;
+    if (item.ln === 'upload-action') {
+      uploadAction = item;
+      break;
+    }
+    pending.push(...(Array.isArray(item) ? item : Object.values(item)));
+  }
+
+  assert.ok(uploadAction);
+  const methodArgs = uploadAction.args[0].args[1].args;
+  const uploadingCb = methodArgs.find(item => item.key === 'uploadingCb');
+  assert.equal(uploadingCb?.op, 'alambda');
+  assert.deepEqual(uploadingCb?.val, ['param']);
+  assert.match(JSON.stringify(uploadingCb), /uploading-action/);
+});
+
 test('legacy editor formulas repair only a tokenized surplus trailing parenthesis', () => {
   ensureIvxMapNodeEnv();
   setActiveEnv(createV4ConvertEnv({ v4CaseJson: buildV4CaseJson() }));
@@ -1465,6 +1635,62 @@ test('legacy condition text values stay literal without hiding formulas', () => 
     }),
     undefined,
   );
+});
+
+test('block conditions treat a leading OR flag as the first branch', () => {
+  const v4CaseJson = buildV4CaseJson();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  const makeCondition = (index, flag) => ({
+    enable: true,
+    flag,
+    operator: 'equal',
+    value1: { code: JSON.stringify(`left-${index}`) },
+    value2: { code: JSON.stringify(`right-${index}`) },
+  });
+
+  try {
+    for (const count of [2, 5]) {
+      const ast = convertBlockCons({
+        cons: Array.from({ length: count }, (_, index) =>
+          makeCondition(index, 'or')),
+        scope: 'stage',
+        nodeId: 'txt1',
+        blockId: `leading-or-${count}`,
+      });
+
+      assert.equal(ast.op, 'or');
+      assert.equal(ast.args.length, count);
+      ast.args.forEach((branch, index) => {
+        assert.deepEqual(branch, {
+          op: '=',
+          args: [
+            { op: 'val', val: `left-${index}` },
+            { op: 'val', val: `right-${index}` },
+          ],
+        });
+      });
+    }
+
+    const mixedAst = convertBlockCons({
+      cons: [
+        makeCondition(0, 'and'),
+        makeCondition(1, 'and'),
+        makeCondition(2, 'or'),
+        makeCondition(3, 'and'),
+      ],
+      scope: 'stage',
+      nodeId: 'txt1',
+      blockId: 'mixed-and-or',
+    });
+    assert.equal(mixedAst.op, 'or');
+    assert.deepEqual(mixedAst.args.map(branch => [branch.op, branch.args.length]), [
+      ['and', 2],
+      ['and', 2],
+    ]);
+  } finally {
+    clearActiveEnv();
+  }
 });
 
 test('legacy application system conditions keep the original receiver and method args', () => {

@@ -85,6 +85,31 @@ const containsLocalIdentifier = (value, localNames) => {
   })
 }
 
+const unwrapLegacyGetSelfCalls = value => {
+  if (Array.isArray(value)) {
+    return value.map(unwrapLegacyGetSelfCalls)
+  }
+  if (!value || typeof value !== 'object') return value
+
+  for (const [key, child] of Object.entries(value)) {
+    if (['start', 'end', 'loc'].includes(key)) continue
+    value[key] = unwrapLegacyGetSelfCalls(child)
+  }
+
+  if (
+    value.type === 'CallExpression' &&
+    value.arguments?.length === 0 &&
+    value.callee?.type === 'MemberExpression' &&
+    value.callee.computed === false &&
+    value.callee.property?.type === 'Identifier' &&
+    value.callee.property.name === '$SF_getSelf'
+  ) {
+    return value.callee.object
+  }
+
+  return value
+}
+
 export default class V4FormulaCodeConverter {
   constructor(props) {
     this.props = props
@@ -202,10 +227,14 @@ export default class V4FormulaCodeConverter {
     )
   }
   processFullJsExpression = ({ str }) => {
-    const parsed = parseExpressionAt(str, 0, { ecmaVersion: 'latest' })
+    let parsed = parseExpressionAt(str, 0, { ecmaVersion: 'latest' })
     if (str.slice(parsed.end).trim()) {
       throw new Error('Unexpected trailing JavaScript tokens')
     }
+    // V4 的 `$SF_getSelf()` 是 receiver identity。full-js fallback 会把源码原样
+    // 放进 jsfn，V5 运行时却没有该原型方法，因此只在 ESTree 中折叠零参数成员调用。
+    // 带参数或计算属性调用保持原样，避免把未知用户代码当作旧占位符处理。
+    parsed = unwrapLegacyGetSelfCalls(parsed)
     const context = {
       num: 0,
       vList: [],

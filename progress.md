@@ -1734,3 +1734,70 @@
 - VxEditor41 三个目标文件定向 ESLint 0 error/0 warning；生产构建成功，webpack 0 error、33 组仓库既有 warning，目标转换器文件未出现在 warning 中。构建未要求改动用户文件。
 - VxEditor41 仅暂存三个目标转换器文件，提交 `9c6cacce1`（`fix: preserve legacy formula semantics`）已推送 `origin/master`；用户的 `.gitignore`、`src/stores/event.js` 与未跟踪组件目录保持原状，未进入提交。
 - **Phase 78 Status: complete。** tov5parser 修复提交 `24b0068`、Lambda 生产版本 14、VxEditor41 同步提交 `9c6cacce1` 均已完成；现在回到第 11/51 例人工审阅门禁，第 12 例尚未启动。
+- Stop hook 报告 82/83 phases；唯一未完成项仍是覆盖全部 51 个案例、必须由用户逐例确认推进的 Phase 67。第 11 例修复、发布与同步已经完成，自动 hook 不构成“继续”指令，因此保持人工审阅门禁，不启动第 12 例。
+
+## Session: 2026-08-04（Phase 67 第 12 例）
+
+- 用户已明确回复“继续”；人工审阅门禁解除，开始处理第 12/51 例。继续保留此前全部案例数据，本例汇报前不启动第 13 例。
+- session catchup 只检测到第 11 例最终交付、stop hook 等待状态与本轮“继续”，没有遗漏代码、部署或案例处理动作。
+- 恢复记录补丁首次因实际 catchup 文案与预期上下文不同而未应用，已读取文件尾部确认，无文件内容受损。
+- 已按 planning-with-files 恢复流程复读 `task_plan.md` 与 `findings.md`；当前规划指向第 12 例 `分类设置_11020389_温晓华.json`（nid `11020389`）。下一步先用源目录实物排序复核序号，再查询数据库版本与最新工作版本。
+- 源目录按字节序实物复核：共 51 个 JSON，`分类设置_11020389_温晓华.json` 确为第 12 个；前一例为 `内外包材包装方式_11073549_温晓华.json`，下一例为 `加工方案_11391428_温晓华.json`。本例 v4/v5 目标目录均尚不存在。
+- 尝试读取既有中文服完整案例导出说明时，规划中记录的 `/Users/lianghuang/Desktop/case-json-migrator/raw/中文服完整案例JSON导出.md` 已不存在（`rg` 返回 exit 2）；未执行任何数据库或文件写入。下一步在该项目实物中重新定位同类说明/脚本，再沿用既有只读查询与下载流程。
+- 已在 `case-json-migrator` 实物中找到只读数据库交接包与现成导出脚本：数据库 README 明确中文服只读账号可访问对应 editor/vxshow 库；`scripts/export_case_json.py` 通过 `https://ai.ivx.cn/edt/admin/work/exportCaseJson` 按 nid 导出完整 `data.caseJson`，Cookie 从本地文件读取且不打印。下一步仍先执行参数化只读数据库查询，确认本例确为 V4 及最新工作信息后再导出。
+- 已恢复权威元数据口径：查询 `vxshow.node_vx_data d` 联结 `node_vx n`、`users u`、`node_vx_work_group wg`；V4 由 `d.edt_ver`/`n.edt_ver` 判定，而 V5 仍可能显示 4.1，需额外检查 `n.extra.verDetail`。本例查询将固定 `d.nid=%s`，不执行写 SQL。
+- 中文服只读 env 实物存在且权限为 `0600`，只记录了变量名、未输出任何值；SSH 隧道 `127.0.0.1:13306` 正在监听。系统 Python 未安装 PyMySQL（`ModuleNotFoundError`），下一步沿用既有方式在独立 `/tmp` 目录安装纯客户端依赖后执行单条参数化 SELECT。
+- 第 12 例参数化只读查询成功且唯一命中：nid `11020389`，标题“服装—分类设置”，ntype `1`，gid `25391`，uid `10158452`，eid `10000586`；`data_edt_ver=node_edt_ver=4.1` 且 `ver_detail=null`，因此确认为 V4.1，不是伪装为 4.1 的 V5。最新 `work_id=cajv259l9ispg1dl0n3g-1463`、版本 `258`，未删除、已发布/上线。下一步导出该 nid 的最新完整 V4 JSON。
+- 已复核第 11 例的实际目录/README/报告格式：V4 必须来自 `GET https://editor.ivx.cn/work/load/{workId}?nid={nid}` 的二进制解码，保存紧凑 `app.json` 并记录 HTTP 大小、分段数、解码大小和摘要；不能用管理端 export 结果替代这一既有测试口径。现有 findings 也再次确认 PBKDF2/AES-GCM/Deflate Raw 解码与 `case/server/stage` 三根校验要求。
+- 旧导出文档虽然已不在原路径，但 VxEditor41 现有 `src/components/stageProxy.js` 仍是权威 codec 实现（`sjcl` + `pako.inflateRaw`）；已定位该文件，下一步只读取其解码函数并写一次性只读下载脚本，不改 VxEditor41。
+- 第 12 例最新 V4 下载/解码成功：HTTP 200、`application/octet-stream`、1,273,040 bytes、2 个压缩分段；紧凑 JSON 16,052,833 bytes、0 换行、SHA-256 `e51e450d3b21939ba458e408499adf1a5b5529eba4a3f4b3c01ec8e40f96ad04`，顶层 `case/server/stage` 和三根类型 `ih5-case/data-server/ih5-stage` 全部通过，`app.json` 权限 `0600`。
+- 为补齐数据库作者字段，对 `vxshow.users` 执行允许的 `SHOW COLUMNS` 后查询 uid `10158452`；可识别的 `name` 字段值为账号 `staff238@ih5.cn`，不是可确认的人名，因此报告将保留源文件标注作者“温晓华”，并把数据库账号与 uid 分开记录，不凭邮箱推断作者姓名。
+- 已写入本例 V4 来源 README，随后用数据库确认的 `ntype=1`、`--diag` 启动转换。转换入口退出 1，0/1 成功：最终崩溃为 `v4ToV5/utils/con.js:46` 的 `genConObj` 解构空 `conItem`（`TypeError: Cannot destructure property 'value1' of 'conItem' as it is undefined`）。此前日志中的 `&&`/`||` ParseError 属正常可诊断 fallback，不是中止原因。
+- 本例当前没有可信 V5 产物；已保留完整 V4 与日志，不启动第 13 例。下一步只读定位触发崩溃的 V4 条件块/BID、判断是可兼容源形态还是源案例损坏，并写本例失败报告；此轮“继续”未授权修改转换器。
+- 根因已定位到 `convertBlockCons` 的 OR 分组算法：它假定第一条启用条件不带 `flag:'or'`；当首条即为 OR 时先把空 `ands` 推入 `ors`，随后对空分组调用 `genConObj(undefined)`，因此解构崩溃。V4 实物存在 2 个这种合法保存形态，均在 stage：节点/BID `cmjezgpa3j50000rsdm0`（2 条 OR，`match`/`indexOf`）以及节点 `cetdqn6a3j50000vxq80`、BID `cfqfjv3a3j50000a2erg`（5 条 OR，比较 style/template/process/processGroup/measureBody）。
+- 这不是源数据字段缺失：两处每条条件均 `enable=true` 且 value/operator 完整，问题仅是首条 OR 标志未被转换器规范化为组首语义。第二处会在修复第一处后再次触发；修复时必须覆盖两处并加回归测试。目前仍只诊断、不改代码。
+- 触发上下文已补齐：`cmje...` 位于图标节点 `cdgwsw7a3j500002hgk0` 的 tap 事件，条件意图为“规格为空 OR 审批状态属于 [2,3]”；`cfqf...` 位于函数组 `cetdqn6a3j50000vxq80` 的 `callFuncGroup` 事件，意图为类型等于 style/template/process/processGroup/measureBody 任一值。两者都能明确恢复为 OR AST。
+- 转换失败后 V5 目标目录完全不存在，没有把半成品误留为结果。V4 基线为 4,914 个真实组件节点、7,746 个非 root 事件块、1,678 个条件块（1,889 条启用条件）、32 个 data-service、251 个 data-if；首条 OR 异常形态精确只有上述 2 个条件块。
+- 已创建 V5 `conversion-report.md`，明确标注转换失败、无 V5 产物、2 个命中 BID、根因和修复后需重跑的全量审计；`findings.md` 与 `task_plan.md` 当前检查点同步完成。现在停在第 12 例人工审阅门禁，等待用户决定是否修复转换器。
+- 最终交付核对：`git diff --check` 通过；V4 `app.json` 保持 `0600`、16,052,833 bytes/hash 与下载校验一致，V4 README 与 V5 失败报告存在，V5 无 `app.v5.json` 半成品。工作区仅规划文件有本轮修改，用户无关未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 未读取、未触碰。
+- Stop hook 再次报告 82/83 phases；session catchup 只检测到已交付的第 12 例失败结论与本次 hook，没有遗漏执行动作。`git diff --stat` 仅为本例同步后的 `findings.md`/`progress.md`/`task_plan.md` 规划记录。自动 hook 不构成“修复”或“继续下一例”授权，保持第 12 例人工审阅门禁。
+- 已按 hook 复读 `task_plan.md`：Current Phase 与 Phase 67 当前检查点均明确为“第 12 例发现转换器崩溃，等待用户审阅/修复授权”，且执行约束要求每例汇报后暂停。因此当前没有可在不扩张授权的前提下继续执行的步骤；等待用户明确回复“修复”或其他处置意见。
+
+## Session: 2026-08-04（Phase 79：修复第 12 例首条 OR 条件崩溃）
+
+- 用户已明确回复“修复”，第 12 例修复授权门禁解除；只处理已定位的首条启用条件 `flag:'or'` 导致空分组/`genConObj(undefined)` 崩溃，不启动第 13 例。
+- 本轮使用 planning-with-files；session catchup 只检测到上一轮等待状态与当前授权，没有遗漏执行动作。将先补失败回归、实施最小分组修复，再真实重转和全量审计；验证通过后按项目持续规则完成 tov5parser 推送、Lambda 部署、VxEditor41 同步推送。
+- 已复核 `AGENT.md`/`CLAUDE.md` 固定发布规则与仓库状态：`main` 对齐 `origin/main`，仅三份规划文件为本任务修改；用户无关未跟踪文档保持隔离。Phase 79 已加入 `task_plan.md` 并设为当前阶段。
+- 目标逻辑只在 `convertBlockCons` 的 OR 分组：正常语义是首项开启第一组，后续 `flag:'or'` 才切新组；当前代码无条件在任意 OR 前推入 `ands`，因此首项 OR 产生空组。回归将直接调用已导出的 `convertBlockCons`，用 2 条与 5 条全 OR 形态确认修复前崩溃、修复后得到等长 OR AST，并补混合 AND/OR 保持性断言。
+- 失败回归已加入 `v4ToV5/v4ToV5.test.js`：2 条与 5 条全 OR 分支、以及 2+2 混合 AND/OR 保持性。修复前定向运行精确复现生产错误，0/1 pass，堆栈仍为 `convertBlockCons → genConObj(undefined)`；证明测试命中了真实根因而非外围行为。
+- 已在 `v4ToV5/utils/con.js` 实施最小分组修复：仅当当前 AND 组非空时，`flag:'or'` 才结束前组；首条 OR 直接加入第一组。没有改动条件操作符、值转换或分支体。
+- 同一定向回归修复后 1/1 pass：2 条/5 条全 OR 均生成等长 `op:'or'` 分支，混合条件仍为两个各含 2 条的 AND 组。下一步运行完整测试，再真实重转第 12 例。
+- 完整项目测试 66/66 pass、0 fail；控制台中的既有 ParseError 是测试刻意覆盖的可诊断 fallback，未造成失败。
+- 第 12 例真实重转已成功，1/1 完成：V5 `app.v5.json` 约 9,994.4 KB；公式诊断调用 811 次、去重 663 条，其中 jsfn fallback 809、空值降级 2。原 `genConObj(undefined)` 崩溃完全消失。下一步先逐项审计 2 条 dropped，并验证两个目标 OR AST、节点/事件/jsfn/data-if/服务完整性。
+- 产物实物：V5 10,234,296 bytes、0 换行、SHA-256 `8db2f2e6ab9f423273455f4570f9d6b965abcfa6e163e8ce46c4cce7903a6385`；诊断 JSON/Markdown 分别为 458,851/165,357 bytes。
+- 诊断报告明确 2 条 dropped：节点 `cc3fba5a3j50000z09f0` 的模块属性绑定（`Unexpected ')'`）和后台服务 `cnmv3py2ntpg000ex9z0`、BID `cnmv4ah2ntpg000exae0` 的 URL 动作值（`Unexpected ':'`）。需要回查 V4 `_code`/tokens、V5 落点与运行语义，判断是否为可恢复转换缺陷；其余 809 次均进入 jsfn fallback，后续统一做语法和参数审计。
+- dropped #1 回查：V4 bind `X_can98mta3j500008xr2g` 的 editor `code` 在 `.map(...)` 与 `.sort(...)` 之间多一个 `)`，但运行 `_code` 只包含 map、完全没有 sort；V5 当前落成 `{op:'val'}`。这里“删括号保留 sort”与“按 V4 `_code` 丢弃 sort”语义冲突，无法机械确认正确意图，定性为 V4 源数据 code/_code 不一致，不用转换器猜测修复。
+- dropped #2 回查：`setPathsValue` 的 `ObjJsonMultiPaths` 嵌套值是完整纯 `str` tokens 拼成的绝对 HTTPS URL；该嵌套转换绕过了已有普通动作 `url` 文本兼容规则，V5 把 `uploadUrl` 落成空值。这是明确的转换器错误，将补窄回归：仅纯文本 tokens 严格拼接等于 code 且整体匹配 http/https/ftp URL 时，在嵌套多路径值中保留字符串；真实公式仍走原转换器。
+- 嵌套 URL 失败回归已加入：同时包含纯文本 HTTPS URL 与 `param.fileUrl` 真实公式，确保只恢复前者、不把后者字符串化。修复前定向运行 0/1 pass，URL 精确落为 `{op:'val'}` 而非带值字面量，复现本例 dropped；真实参数分支仍为变量 AST。
+- 已在 `convertObjJsonMultiPaths` 增加窄文本恢复：只接受非空 `str` tokens 全为字符串、逐字拼接等于原 code、且 trim 后整体匹配 http/https/ftp 绝对 URL；其他嵌套值继续调用 `convertEditorValue`。
+- OR 与嵌套 URL 两项定向回归现为 2/2 pass；`param.fileUrl` 仍生成变量 AST。下一步重新运行完整测试并再次重转，预期 dropped 从 2 降为仅剩 1 条已定性的 V4 code/_code 冲突。
+- 增补 URL 修复后完整项目测试 67/67 pass、0 fail。
+- 第二次真实重转成功：诊断从 811/663 条降为 810/662 条，dropped 从 2 降为 1，jsfn fallback 仍为 809；后台 `uploadUrl` 不再报错，精确验证窄修复生效。唯一 dropped 即已定性的 V4 bind code/_code 语义冲突。下一步执行全量结构、目标 OR AST、URL 落点、jsfn 语法/参数/自由变量、data-if、服务和旧占位符审计。
+- 首轮全量结构审计通过项：V4/V5 真实组件均 4,914（唯一 ID 均 4,911，0 丢失/0 新增）；根类型一致，`server.props.v2=1`；251/251 个 data-if 全有 `props.conditionVal.ast` 且 0 个 `binds.value`；32 个 data-service/32 个事件均有 `_code`；无 Legacy 类型、无当前路径占位符。
+- 两个目标条件 AST 已精确命中：`cmje...` 为 2 分支 `op:'or'`（typeIs/belongTo），`cfqf...` 为 5 分支 `op:'or'`（style/template/process/processGroup/measureBody），无空分支；修复后的 uploadUrl 也在 BID `cnmv4ah...` 对应 setPathsValue AST 中保留完整 HTTPS 字面量。
+- 766 个实际 jsfn 均非空、可编译且参数数目匹配，但专项发现 1 个 jsfn 残留 `$SF_getSelf()`，以及 1 个 jsfn 有自由标识符 `a`/`c`；必须回查 V4 源语义。事件 BID 差集为 10 个 status 包装与其下 2 个 action，均是 uploading 回调形态，下一步核对它们是否已折叠进文件上传 callback AST而非真正丢失。
+- 服务调用共 168 次/51 个目标；3 个目标在 V4 与 V5 都不存在，暂定源悬空引用，需列出调用位置复核。原始 V5 字符串仍含大量 `$SF/$refs/$sys` 是节点元数据的 `_code/code`，不能按全文件计数判错；真正可执行 jsfn 只命中上述 1 个 `$SF` 残留。
+- 自由标识符 `a`/`c` 已回查到 V4 节点 `cdgwsw7a3j500002hfcg` 的 `visible`：editor `code` 与运行 `_code` 都原样比较裸 `a`/`c`，tokens 也把它们保存为普通字符串字符且全树无定义；V5 只是参数化其余 refs。这是确定的 V4 源公式错误，不由转换器猜成字符串。
+- jsfn `$SF_getSelf` 残留来自一个启用公式的 full-js fallback，V4 伪方法语义是 receiver identity；V5 jsfn 运行时不会注入该原型方法，属于明确转换器错误。需在完整 JS AST fallback 中结构化去除零参数 member `$SF_getSelf()`，不可做任意字符串替换，并补真实链式/反例回归。
+- 事件差集中的 2 个 action 确为 uploading status 子动作；对应两个 V5 `uploadFile` 调用当前都没有 `uploadingCb` 参数，说明不是单纯 BID 折叠，而是回调未挂载，属于待修复转换器错误。其余 8 个 status 包装需按相同方式逐一核对。
+- 3 个悬空服务调用已定位到三个函数组，目标 `cd2ej992ntpg000faegg`、`cd4bsh6a3j50000cc89g`、`cd4bsh6a3j50000cc8e0` 在 V4/V5 均无定义；转换器完整保留调用和参数，定性为 V4 源悬空服务。
+- 首个 OR 分支中的 `$valid_Null` 被现有专用 `typeIs` 规则转换成 V5 local type sentinel（`genTypeIsAST` 的既定表示），不是本次分组修复产生的自由变量或空值；保留现有语义。
+- Phase79 回调路径复核更正：本例两个父动作确实都是 `$sobj_file.uploadFile`，且 V4 status option 都准确为 `uploading`；方法映射也声明 `beforeUploadCb/uploadingCb`。`dealSpecialCbs` 已正确提取回调，但初始 method args 只有 V4 显式的 6 个普通参数，挂载逻辑仅“替换同名占位参数”、不会在缺少占位时追加，导致 lambda 丢失。修复点应是安全追加缺失的 callback 参数，而不是扩大文件对象识别。
+- 已确定两项最小回归入口：完整 JS 公式用块体箭头函数强制进入 Acorn/jsfn fallback，验证零参 member `$SF_getSelf()` 仅折叠为 receiver；上传回调用最小 V4 `$sobj_file.uploadFile` 事件树验证缺少 callback 占位参数时仍追加 `uploadingCb` lambda，同时普通 `uploaded/onError` 回调保持原顺序。
+- 两项回归均先红后绿：修复前 0/2（jsfn 原样残留 `$SF_getSelf`、`uploadingCb` 为 undefined），修复后 2/2。full-js 现以 ESTree 后序遍历仅折叠非计算属性、零参数的 `$SF_getSelf()` member call，带参数调用保留；文件上传回调在同名占位不存在时追加带 key 的 alambda，存在时仍沿用替换逻辑。
+- 增补两项修复后项目全量测试 69/69 pass、0 fail（原有预期 ParseError 日志不影响测试结论）。准备以第 12 例原始 V4 重新生成 V5 与诊断，再做最终语义审计。
+- 第 12 例修复后真实重转成功：1/1，V5 约 9,996.1 KB；诊断仍为 810 条/662 去重，其中 jsfn fallback 809、dropped 1。诊断数量不变符合预期，因为 `$SF_getSelf` 是已生成 jsfn 的内容修正、上传回调是事件 AST 挂载修正；下一步以产物实值确认残留为 0 且两个 lambda 完整。
+- 修复后核心审计：766 个实际 jsfn 全部非空、可编译、参数/args 数一致，`$SF_` 残留 0；10 个 V4 uploading status（8 个 uploadPic、2 个 uploadFile）全部生成 `uploadingCb` alambda，且 10/10 子动作 BID 均保留在 lambda 内。事件差集现只剩这 10 个已按设计折叠的 status 包装节点，不再缺任何业务 action。
+- 结构审计保持稳定：V4/V5 节点口径相等且 ID 0 缺失/0 新增；251/251 data-if 都有 `props.conditionVal.ast` 且 0 个 `binds.value`；32/32 data-service 事件代码齐全；Legacy 类型与当前路径占位符均为 0。最终文件为 10,236,002 bytes，SHA-256 `797c5a51fbf11fc6e98361f1f301df55a4fc2cff6db0b6ff0a1467b71881c9b8`。
+- 目标条件与嵌套 URL 最终复核通过：`cmje...` 的 switch 条件为 2 分支 `or`（typeIs/belongTo），`cfqf...` 为 5 分支 `or`（style/template/process/processGroup/measureBody），均无空分支；BID `cnmv4ah...` 的 `uploadUrl` 精确保留为 `https://v4pre.h5sys.cn/ih5/resource/uploadFile?m=p&uploadType=preview&nid=11405038&eid=10000586`，同动作的 `param.fileUrl` 仍为参数 AST。
+- 最终 `conversion-report.md` 已改为修复通过结论并记录 4 类修复、69/69 测试、全量审计与 3 类 V4 源问题。`git diff --check` 通过；本地 `main` 与 `origin/main` 为 0/0 无分叉。待提交范围严格为 5 个转换器/测试文件和 3 个规划文件，无关未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 不读取、不暂存。

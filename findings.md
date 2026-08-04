@@ -1407,3 +1407,17 @@
 - 最终真实重转诊断从 96 降到 76，恰好移除 7 个 `Unexpected )`、7 个 `unknown varType` 与 6 个不支持 multiObj sysutil 的诊断；`dropped` 从 7 降为 0。
 - 结构化 multiObj 在 6 个目标公式中产生 9 次 sysutil 调用，与源公式调用次数一致；`ast2js` 实际执行回归证明运行链路调用 `$sys.util.sys_multiObjListToObjArr` 后能正确 map 出字段值。
 - 第 11 例修复后 V5 为 3,673,452 bytes，SHA-256 `574466a82d52a094df4e102c6b29123132a2d339543fb923bcfcaa89fac81168`；76 个 jsfn 语法/参数完整，节点 1,922/1,922，data-if、服务、后台编译与上传回调审计均无回归。
+
+## 2026-08-04：clothing 第 12 例 `分类设置_11020389_温晓华`
+
+- 源目录稳定排序第 12/51，nid `11020389`；下一例为 `加工方案_11391428_温晓华.json`，本例汇报/修复完成前不启动。
+- 只读数据库唯一命中：标题“服装—分类设置”、V4.1、`ntype=1`、版本 `258`、`work_id=cajv259l9ispg1dl0n3g-1463`、gid `25391`，`verDetail=null`；源文件标注作者温晓华，数据库 uid 账号为 `staff238@ih5.cn`，不据邮箱推断姓名。
+- 最新 `/work/load` 返回 1,273,040-byte 二进制、2 个压缩分段；解码 V4 为严格紧凑 JSON，16,052,833 bytes、SHA-256 `e51e450d3b21939ba458e408499adf1a5b5529eba4a3f4b3c01ec8e40f96ad04`，三棵树与根类型完整。
+- `ntype=1 --diag` 转换退出 1、0/1 成功；直接原因是 `convertBlockCons` 对首条启用条件 `flag:'or'` 创建空 OR 分组，随后 `genConObj(undefined)` 解构崩溃。普通 `&&`/`||` ParseError 是此前可诊断 fallback，不是中止原因。
+- V4 精确存在 2 个该形态且字段完整的条件块：BID `cmjezgpa3j50000rsdm0`（规格为空 OR approveStatus 属于 `[2,3]`）与 BID `cfqfjv3a3j50000a2erg`（值属于 style/template/process/processGroup/measureBody）。这是转换器未兼容组首 OR 标志，不是源字段缺失。
+- V4 基线为 4,914 个真实组件节点、7,746 个非 root 事件块、1,678 个条件块/1,889 条启用条件、32 个 data-service、251 个 data-if；首条 OR 形态仅上述 2 块。
+- 转换失败后没有 `app.v5.json` 或诊断半成品；V5 目录只保存 `conversion-report.md`。必须修复并重转后再执行节点、事件、jsfn、data-if、服务与测试全审计。
+- 首条 OR 分组、嵌套绝对 URL、full-js 零参 `$SF_getSelf()`、上传 callback 缺占位四项均已做通用窄修复。项目全量 69/69；真实 V5 10,236,002 bytes，SHA-256 `797c5a51fbf11fc6e98361f1f301df55a4fc2cff6db0b6ff0a1467b71881c9b8`。
+- 修复后 766 个 jsfn 全部非空、可编译、参数完整且 `$SF_*` 为 0；10 个 uploading status（8 uploadPic、2 uploadFile）10/10 生成 alambda 并保留全部子动作。事件差集只剩按设计折叠的 status 容器。
+- 两个首 OR 条件最终分别为 2/5 分支、无空分支；`cnmv4ah...` 的 uploadUrl 精确保留，旁边 `param.fileUrl` 仍为参数 AST；251 个 data-if 全走 `conditionVal.ast` 且无 `binds.value`，32 个 data-service 编译态完整。
+- 最终诊断 810/662、dropped 1：节点 `cc3fba5a3j50000z09f0` 的 editor code 多右括号但 `_code` 又完全没有 sort，二者业务语义冲突，转换器不能选边。裸 `a/c` 公式和 3 个缺失服务目标也在 V4 中原样存在，均列为源案例问题。
