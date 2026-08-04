@@ -16,9 +16,9 @@ import {
 import {
   convertBlockCons,
   genConObj,
-  getLegacyConditionTextValue,
 } from './utils/con.js';
 import { convertEditorValue } from './utils/formula.js';
+import { getLegacyV41FormulaString } from './utils/legacyFormulaValue.js';
 import {
   compileV5ServerAst,
   normalizeServerMethodErrorCallbacks,
@@ -946,225 +946,101 @@ test('convertV4CaseJsonToV5CaseJson rejects invalid input', () => {
   );
 });
 
-test('legacy text-like formula parameters stay literal without hiding real formulas', () => {
-  const formulaParam = (name, code, str) => ({
+test('formula conversion follows the V4.1 event-code literal semantics', () => {
+  const v4CaseJson = buildV4CaseJson();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  const convert = code =>
+    convertEditorValue({
+      value: { code },
+      nodeId: 'txt1',
+      blockId: 'legacy-v41-formula-str',
+    });
+
+  try {
+    const stringCases = [
+      ['6a939b74c7b83df984bb4ae9be230a18', '6a939b74c7b83df984bb4ae9be230a18'],
+      ['message', 'message'],
+      [' 选中数据审核字段有误', ' 选中数据审核字段有误'],
+      [' 否', ' 否'],
+      ['db error', 'db error'],
+      ['4新路径', '4新路径'],
+      ['wy 量体部门', 'wy 量体部门'],
+      ['session,key', 'session,key'],
+      ['typeof', 'typeof'],
+      ['10px', '10px'],
+      ['100vh', '100vh'],
+      ['100%', '100%'],
+      ['application/json', 'application/json'],
+      ['https://pricing.ivx.cn/path', 'https://pricing.ivx.cn/path'],
+      ['https://pricing.ivx.cn/a b', 'https://pricing.ivx.cn/ab'],
+      ['ftp://files.ivx.cn/archive', 'ftp://files.ivx.cn/archive'],
+      ['//cdn.ivx.cn/asset', '//cdn.ivx.cn/asset'],
+      ['http://localhost:8080/path', 'http://localhost:8080/path'],
+      ['www.ivx.cn', 'www.ivx.cn'],
+      ['-0.5%', '-0.5%'],
+    ];
+    for (const [code, expected] of stringCases) {
+      assert.deepEqual(convert(code), { op: 'val', val: expected }, code);
+    }
+
+    assert.deepEqual(convert('6'), { op: 'val', val: 6 });
+    assert.deepEqual(convert('true'), { op: 'val', val: true });
+    assert.deepEqual(convert('null'), { op: 'val', val: null });
+    assert.deepEqual(convert("'style'"), { op: 'val', val: 'style' });
+
+    const refAst = convert('$refs.txt1.p_value');
+    assert.equal(refAst.op, 'var');
+
+    const expressionAst = convert('1 + 2');
+    assert.notDeepEqual(expressionAst, { op: 'val', val: '1 + 2' });
+
+    const malformedAst = convert('user.name +');
+    assert.notDeepEqual(malformedAst, { op: 'val', val: 'user.name +' });
+
+    const incompleteUrlAst = convert('https:xxxx');
+    assert.notDeepEqual(incompleteUrlAst, { op: 'val', val: 'https:xxxx' });
+
+    assert.equal(
+      getLegacyV41FormulaString({ code: '【提示】' }),
+      undefined,
+    );
+    for (const code of [
+      ',',
+      'param.value',
+      'System.now',
+      'ids.current',
+      'Math.abs(1)',
+      '_loopevent',
+      'cbParams',
+      '$curPathValue',
+      '$refs',
+    ]) {
+      assert.equal(getLegacyV41FormulaString({ code }), undefined, code);
+    }
+  } finally {
+    clearActiveEnv();
+  }
+});
+
+test('legacy action API path text stays literal', () => {
+  const formulaParam = (name, code) => ({
     name,
     type: 'Formula',
-    value: str === undefined ? { code } : { code, str },
+    value: { code },
   });
-
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('是否成功', ' 否', [
-        { type: 'str', obj: ' ' },
-        { type: 'str', obj: '否' },
-      ]),
-    }),
-    '否',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('是否有数据', '是', [
-        { type: 'str', obj: '是' },
-      ]),
-    }),
-    '是',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('是否成功', '否'),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('value', '否', [
-        { type: 'str', obj: '否' },
-      ]),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('是否成功', 'cbParams.reason', [
-        { type: 'cbParams', obj: '返回结果', props: ['reason'] },
-      ]),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('是否成功', 'true', [
-        { type: 'str', obj: 'true' },
-      ]),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('toast', ' 选中数据审核字段有误', [
-        { type: 'str', obj: ' ' },
-        { type: 'str', obj: '选中数据审核字段有误' },
-      ]),
-    }),
-    '选中数据审核字段有误',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('toast', 'message', [
-        { type: 'str', obj: 'message' },
-      ]),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('toast', 'cbParams.message', [
-        { type: 'cbParams', obj: '返回结果', props: ['message'] },
-      ]),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('toast', '"提示文字"', [
-        { type: 'str', obj: '"提示文字"' },
-      ]),
-    }),
-    undefined,
-  );
 
   assert.equal(
     getLegacyFormulaTextValue({ param: formulaParam('path', '.style') }),
     '.style',
   );
   assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('paddingRight', '10px'),
-      paramName: 'paddingRight',
-    }),
-    '10px',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('width', '100%'),
-      paramName: 'width',
-    }),
-    '100%',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('height', '100vh'),
-      paramName: 'height',
-    }),
-    '100vh',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('info', '4新路径'),
-    }),
-    '4新路径',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('info', 'wy 量体部门'),
-    }),
-    'wy 量体部门',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('info', 'session,key'),
-    }),
-    'session,key',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('info', 'typeof'),
-    }),
-    'typeof',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('reason', 'db error'),
-    }),
-    'db error',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('session', '6a939b74c7b83df984bb4ae9be230a18', [
-        { type: 'str', obj: '6' },
-        { type: 'str', obj: 'a939b74c7b83df984bb4ae9be230a18' },
-      ]),
-    }),
-    '6a939b74c7b83df984bb4ae9be230a18',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('session', '6a939b74c7b83df984bb4ae9be230a18'),
-    }),
+    getLegacyFormulaTextValue({ param: formulaParam('value', '.style') }),
     undefined,
   );
   assert.equal(
     getLegacyFormulaTextValue({
-      param: formulaParam('value', '6a939b74c7b83df984bb4ae9be230a18', [
-        { type: 'str', obj: '6a939b74c7b83df984bb4ae9be230a18' },
-      ]),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('session', 'param.session || "fallback"'),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('url', 'https://pricing.ivx.cn/'),
-    }),
-    'https://pricing.ivx.cn/',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('url', 'ftp://files.ivx.cn/release.zip'),
-    }),
-    'ftp://files.ivx.cn/release.zip',
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('url', 'window.open("https://pricing.ivx.cn/")'),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('url', '"https://www.ivx.cn/" + path'),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('value', '$refs.node.p_value'),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('reason', 'param.reason || "db error"'),
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('paddingRight', '10 + offset'),
-      paramName: 'paddingRight',
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyFormulaTextValue({
-      param: formulaParam('width', 'total + "px"'),
-      paramName: 'width',
+      param: formulaParam('path', 'param.path || ".style"'),
     }),
     undefined,
   );
@@ -1609,61 +1485,52 @@ test('legacy current-path placeholders resolve to the target value AST', () => {
   }
 });
 
-test('legacy condition text values stay literal without hiding formulas', () => {
-  const textValue = (code, str = [
-    { type: 'str', obj: code },
-  ]) => ({ code, str });
-
-  assert.equal(
-    getLegacyConditionTextValue({
-      value: textValue('domain not registered', [
-        { type: 'str', obj: 'domain' },
-        { type: 'str', obj: ' ' },
-        { type: 'str', obj: 'not' },
-        { type: 'str', obj: ' ' },
-        { type: 'str', obj: 'registered' },
-      ]),
-      operator: 'equal',
-    }),
-    'domain not registered',
-  );
-  assert.equal(
-    getLegacyConditionTextValue({
-      value: textValue('www.ivx.cn', [
-        { type: 'str', obj: 'www' },
-        { type: 'str', obj: '.' },
-        { type: 'str', obj: 'ivx' },
-        { type: 'str', obj: '.' },
-        { type: 'str', obj: 'cn' },
-      ]),
-      operator: 'include',
-    }),
-    'www.ivx.cn',
-  );
-  assert.equal(
-    getLegacyConditionTextValue({
-      value: textValue('window.location.href'),
-      operator: 'include',
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyConditionTextValue({
-      value: {
-        code: 'param.value',
-        str: [null, { type: 'param', obj: 'value' }],
+test('legacy condition values use V4.1 literals and preserve formulas', () => {
+  const v4CaseJson = buildV4CaseJson();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+  const condition = (code, operator = 'equal') =>
+    genConObj({
+      conItem: {
+        value1: { code: '1' },
+        value2: { code },
+        operator,
       },
-      operator: 'equal',
-    }),
-    undefined,
-  );
-  assert.equal(
-    getLegacyConditionTextValue({
-      value: textValue('domain not registered'),
-      operator: 'greater',
-    }),
-    undefined,
-  );
+      scope: 'stage',
+      nodeId: 'txt1',
+      blockId: 'legacy-v41-condition',
+    });
+
+  try {
+    assert.deepEqual(condition('domain not registered').args[1], {
+      op: 'val',
+      val: 'domain not registered',
+    });
+    assert.deepEqual(condition('www.ivx.cn', 'include').args[1], {
+      op: 'val',
+      val: 'www.ivx.cn',
+    });
+    assert.deepEqual(condition('domain not registered', 'greater').args[1], {
+      op: 'val',
+      val: 'domain not registered',
+    });
+
+    const refAst = condition('$refs.txt1.p_value').args[1];
+    assert.equal(refAst.op, 'var');
+
+    const expressionAst = condition('window.location.href', 'include').args[1];
+    assert.notDeepEqual(expressionAst, {
+      op: 'val',
+      val: 'window.location.href',
+    });
+
+    const typeSentinelAst = condition('$valid_Null').args[1];
+    assert.notDeepEqual(typeSentinelAst, {
+      op: 'val',
+      val: '$valid_Null',
+    });
+  } finally {
+    clearActiveEnv();
+  }
 });
 
 test('block conditions treat a leading OR flag as the first branch', () => {

@@ -1451,3 +1451,60 @@
 - VxEditor41 同步只涉及 `src/utils/convertV4ToV5/utils/action.js`；定向静态检查无告警，完整构建 0 error。33 个 webpack warning 均来自仓库其他既有/用户修改文件，与本次 7 行转换器同步无关。
 - VxEditor41 同步提交为 `70bc972c19fc87ea1ad5e7f875cff27d60157428`，已推送且与远端无分叉；用户工作区既有修改未混入。
 - 最终发布闭环：tov5parser `3e7f0e2ce32a184968034d2eb6c6fe23b36a0b19`、Lambda prod 版本 16、VxEditor41 `70bc972c19fc87ea1ad5e7f875cff27d60157428`；第 13 例修复通过并等待用户继续指令。
+
+## 2026-08-04：legacy Formula 字符串识别架构复核
+
+- 当前 `getLegacyFormulaTextValue`、条件右值兼容和 `ObjJsonMultiPaths` 嵌套 URL 分别维护窄规则；`session`、是否文本、toast、path/CSS、info/reason、URL 等确实属于模式枚举，用户对长期扩展性的担忧成立。
+- 不能直接用“全部 token 为 `str`”作为统一字符串规则：扫描当前 15 个已保存 V4 案例得到 40,956 个全 str-token 动作 Formula，其中带引号字符串 15,031、数字 12,014、关键字 2,397、普通标识符 3,574、其他可解析形态 7,745、无效 JS 仅 195；同一表示同时承载字面量和真实公式。
+- 仅用 JavaScript 能否解析也不能消歧：中文“否”等可成为合法标识符，解析失败又可能是真正的源公式错误，不能一概吞成文本。
+- 推荐统一抽象为 `resolveLegacyValue(context) -> literal | formula | unknown`：优先语义 token 与参数/服务/函数组类型契约，其次标准字面量解析，最后才使用 URL/CSS/十六进制等高置信形态；未知情况保留诊断。DB 成功条件“是/否 → boolean”属于 API 语义迁移，仍需独立适配。
+- 当前虽取得部分 `paramType`，但字符串兼容入口没有使用它，且自定义服务、函数组和 paramsAsObj 的契约并不完整；真正重构需先统一参数契约采集，不应只合并成更大的正则。
+- 参数契约的作用是把判断问题从“值长得像什么”提升为“接收方要求什么”：同一 `code:'否'` 在 String、Boolean、Number、JsonVal 上需要不同处理。组件方法来自组件映射，服务与函数组来自案例内动态定义，因此三类契约都需收集。
+- 契约不是万能答案：Formula/JsonVal 仍可能过宽，缺失契约也必须回到 token/字面量/unknown 路径；DB 成功状态“是/否 → boolean”仍是独立的 V4→V5 API 语义适配。
+- `_code` 适合作为交叉证据而不是主判断源：15 个已保存 V4 案例共有 246,505 个带 `code` 的对象，只有 37,643 个带非空 `_code`（约 15.3%）；80,103 个具备“纯 str tokens 且拼接严格等于 code”的对象中，仅 297 个有非空 `_code`（约 0.37%）。第 13 例丢失的 `session` 实物也只有 `code + str`，没有 `_code`。
+- 更稳健的统一判断应先把 `code`/`_code` 解析为 AST 并按形态分类：显式引号字符串、数字、布尔、null 等可直接定型；成员访问、调用、运算及已知 V4 引用可判公式；裸 Identifier 必须进入当前作用域符号解析，不能因为语法合法就认定为变量，也不能因为未解析到符号就自动认定为字符串。
+- `_code` 与 `code` 同向时可提高置信度；两者冲突时必须降为 unknown/诊断。此前真实案例存在 editor `code` 包含 sort、运行 `_code` 丢失 sort 的语义冲突，证明不能无条件以 `_code` 覆盖 `code`。
+- 推荐证据顺序修正为：原参数非 Formula 的结构类型 → code/_code AST 形态 → V4 语义 token → 当前作用域符号表 → 接收方契约/默认值软证据 → 高置信内容形态 → unknown。这样 URL、十六进制 session 等通常可以由通用证据组合识别，正则只保留极少兜底。
+- 与用户进一步确认后调整主输入顺序：`code` 是普遍存在的主要判断源，`_code` 因覆盖不足只交叉验证。明确引号字符串/数字/布尔可由 code AST 直接定型；引用、调用和能在作用域中解析的 Identifier 判公式；裸 Identifier 未解析或 code 解析失败时，再依靠 `str` 是否含 obj/cbParams 等语义 token、纯文本拼接一致性及契约决定 literal/formula/unknown。解析失败本身不能推出字符串，否则会掩盖真实损坏公式。
+
+## 2026-08-04：事件级最终 code/_code 能否反推参数类型
+
+- 第 13 例目标 tap 事件路径 `$.stage.children[1].children[8].events.list[0]` 同时具有 518 字符 `code` 与 523 字符 `_code`；二者都包含目标调用 `$sys.invoke('cdeafmya3j50000jexx0', ...)`。
+- 虽然动作参数自己的 `session.value` 只有无引号 `code:'6a939b...' + str tokens`，事件级最终代码却明确生成 `'session':("6a939b74c7b83df984bb4ae9be230a18")`。同一对象中的 `auth` 保持 `(6)`，`formData/formId/innerCode` 保持 `$refs...`，说明事件生成器已经把文本、数字与引用区分开，事件代码可作为强语义回证。
+- 该事件的 `code/_code` 只在回调 detail 上不同：editor code 保留 `cbParams.$SF_getSelf()`，runtime `_code` 改写为 `$sys.util.getSelf(cbParams)`；目标 session 在两者中完全一致。因此本例使用任一个事件字段都能确认 session 是字符串。
+- 15 个已保存 V4 案例共有 13,360 个 stage/server 事件，其中 13,068 个同时具有非空 `code` 和 `_code`，覆盖率约 97.8%；没有只存在其中一个字段的事件。stage 为 11,709/11,918，server 为 1,359/1,442；其余 292 个无最终代码，需继续确认是否只是空事件。事件级代码的覆盖率远高于参数对象自己的 `_code`。
+- 13,068 个双字段事件中 7,668 个 `code === _code`，5,400 个存在运行态重写；这说明二者可互证，但 `_code` 仍可能包含 V4 运行时规范化，不能简单视为原 editor code 的同义字段。
+- VxEditor4 的保存源码 `src/store/modules/event.js#saveNodeEvent` 明确在保存时对每个启用事件调用 `saveDealSpec(v.tree)`，再把返回的 `item.code`（含条件与行号处理）写入事件 `v.code`；因此事件级 code 是从同一事件树重新编译得到的最终执行逻辑，不是用户随手维护的独立文本字段。
+- V4 保存代码还会为函数组、假事件和普通事件分别处理，且仅在生成结果非空时写入 code；这解释了无代码事件可能是空/禁用/未生成事件。下一步需读取公式 token 与动作参数的生成路径，确认字符串引号是由通用 token 编译器产生，以及事件级表达式如何稳定回映到具体 action param。
+- 动作生成路径确认：VxEditor4 `event.js` 在处理 `Formula/FormulaColor` 参数时调用 `formulaValue(v.value, info)` 得到最终参数表达式；原生 `Text/String` 参数则直接 `JSON.stringify(v.value)`。因此事件级 session 的双引号不是事件字符串搜索偶然匹配，而是 V4 参数编译函数的输出。
+- 公式编译函数定义位于 `VxEditor4/src/store/modules/event/eventFuncs.js:2706`；需继续读取它如何根据 token 序列生成普通文本与对象引用，以确认能否直接在转换器中复用相同判定而无需反解析整段事件代码。
+- `formulaValue(input, info)` 实际按 token 顺序生成两套结果：每个 `str` token 都先经过 `formulaStr(v.value)`，每个 `obj` token 则走对象/当前值/循环变量等结构化分支；开启 V4.1 代码生成时并行累积 `formulaCode`。所以事件代码中的类型结论源自参数局部 token 编译，理论上可直接复刻 `formulaStr + token` 规则，不必先解析整段事件代码。
+- VxEditor4 的 `formulaStr` 是现成的通用启发式：非数字、非逗号且没有运算符号的文本（或 MIME 专有名词）用 `JSON.stringify` 变成字符串；`true/false/null/undefined/$any` 保留特殊语义；`param/System/ids/Math` 开头、含运算符的表达式继续按公式；完整 URL 另行字符串化。它能统一解释 session、中文提示、普通英文文本和 URL，不依赖参数名枚举。
+- 但 VxEditor4 旧源码的 `formulaValue` 输入是 `{type,value}` token 数组，而下载的 V4.1 参数保存形态是 `{code,str:[{type,obj}]}`；且 session 保存为相邻 `"6" + "a..."` 两个 str token，若机械逐 token 套旧 `formulaStr` 会得到非法拼接，和事件最终整体字符串不一致。必须继续检查 VxEditor41 的 V4.1 事件编译路径或其 token 归并步骤，不能直接照搬旧函数。
+- VxEditor41 已找到对应 V4.1 实现：`src/utils/genCodeExtract.js#formulaValue(originValue, info, conType)` 先调用 `decodeFormulaCode(originValue, info)` 把整个 `{code,str}` 公式解码成一段 code，再对完整 code 调用 `formulaStr(code, conType)`，最后按需要加括号。它不是逐 token 调 `formulaStr`，所以 session 的相邻 `"6" + "a..."` 会先合并为完整十六进制串，再整体 JSON.stringify，和保存的事件代码完全吻合。
+- VxEditor41 的 `src/stores/funcs/codeUtils/formulaStr.js` 也保留同一通用规则，并新增 V4.1 内部变量白名单（`$refs/cbParams/$curValue/$curPathValue/...`）、带空格 URL、百分比等兼容。由此可确认：V4.1 自身已经有“decodeFormulaCode → formulaStr”的统一判定器，优先复用它比反解析事件最终代码或继续枚举参数名更合理。
+- `decodeFormulaCode` 的具体链路是：字符串原样、null 转空串、对象交给 `getFormulaCode(originValue)`；随后有 block/info 时再执行 `dealCode`，把 `$curUser/$curPathValue` 等上下文占位符转换为事件运行表达式。因此“字符串还是公式”的基础判定主要可由 `getFormulaCode + formulaStr` 复现，`dealCode` 属于后续上下文语义转换，不必混入字面量分类器。
+- VxEditor41 同时存在保存用 `genCodeExtract.js` 和事件视图用 `genCodeUtils.js` 两份等价的 `decodeFormulaCode/formulaValue` 实现，说明该链路是 V4.1 的正式生成规则而非遗留备份。
+- `genCodeExtract.js#getFormulaCode(codeItem)` 对普通公式对象直接返回 `codeItem.code`；因此 V4.1 的核心判定实际就是 `dealCode(code, context) → formulaStr(完整 code)`。第 13 例无需依赖事件字符串反解析：直接把同源 formulaStr 应用于参数 code，就会把无运算符、非数字的十六进制串 JSON.stringify 为字符串。
+- VxEditor41 `savePage.js#genNodeEventCode` 会为前台节点从结构化 block 重新调用 `genCodeExtract.genCode` 写入 `event.code`，再调用 `convertCode(event.code)` 写入 `_code`；后台节点有注释“暂时不需要重新生成 code”。所以事件代码可作为强回证，但前后台新鲜度并不完全相同。
+- 直接从整段事件代码反推参数仍有结构性成本：存储代码不包含 BID，嵌套条件、循环、回调和同一方法重复调用会使“某个字符串属于哪个 action param”的映射复杂；既然生成器的局部规则可直接复用，反解析事件应只用于转换后审计/交叉校验，而非主转换路径。
+- 292 个无最终 code/_code 的事件并不全是空事件：254 个含动作，244 个含 `enable !== false` 的动作；总计 800 个动作块、743 个动作自身启用。141 个事件根整体禁用、38 个无 children，其余还包括函数组/特殊/未生成等形态。因此任何“只依赖 event.code”的转换都会留下真实覆盖盲区。
+- 结论：事件级 code/_code 可以且应该用于高置信回证与回归审计；真正的通用转换判断应直接复用它的生成规则 `formulaStr(value.code, conType)`，再由现有结构化转换器处理 refs/调用/条件。这样既获得 V4.1 官方类型语义，也保留 BID/参数位置，并覆盖禁用或无最终事件代码的动作。
+
+## Phase 81 实施设计
+
+- 当前所有普通公式最终汇入 `utils/formula.js#convertEditorValue`，而动作文本枚举在 `utils/action.js#getLegacyFormulaTextValue`、条件英文文本在 `utils/con.js#getLegacyConditionTextValue`、嵌套 URL 在 `actionParamConvert.js#getLegacyMultiPathTextValue`。将同源分类放进 `convertEditorValue` 可以统一覆盖普通动作、条件、嵌套对象值和属性绑定，避免三处分叉。
+- V4.1 `formulaStr` 能通用覆盖现有 session、toast、info/reason、CSS 尺寸、绝对 URL、中文/英文裸文本；`path='.style'` 因含点号会被官方 formulaStr 当表达式，仍需保留为特定 API/PathString 兼容。数据库成功“是/否 → boolean”也是 V4→V5 API 语义迁移，不能被普通字符串分类替代。
+- 统一层只需回答“V4.1 是否把完整 code 编译为字符串”，无需把 V4 的 `replaceMathOp` 输出拿来替代现有 AST 转换。判断为字符串时直接生成 `{op:'val', val:原 code 对应文本}`；数字、布尔、null、refs、调用、运算和显式引号字符串继续进入现有 parser。
+- 现有动作单测包含故意要求裸 `message`、非 session 十六进制返回 undefined 的旧窄规则断言；按 V4.1 官方 formulaStr，两者都应是字符串，需要升级为统一语义断言，并增加 `cbParams/$refs/param/System/Math`、运算符、损坏表达式等反例。
+- 基线完整测试为 69/69。控制台 ParseError 均是既有 fallback 回归输出，无失败。
+- V4.1 条件特殊值共 15 个 `$valid_*`，现有转换器 `getCtx` 已识别同一集合。公共分类器需接受 `conditionValue` 上下文，在条件右值上把这些 sentinel 保持为公式；普通上下文继续忠实于 V4.1 formulaStr。
+- VxEditor41 strict URL regex 接受带协议/协议相对、localhost、IPv4、Unicode 域名、端口和路径；实现统一分类时应移植等价的只读匹配，不引入新依赖。带普通空格的 URL 按 V4.1 行为先去除空格再保存为字符串。
+- VxEditor41 的转换器对应 `utils/formula.js` 与 tov5parser 结构高度一致，公共分类实现可在验证后做等价同步；编辑器侧使用绝对 alias 和无分号风格，不能机械覆盖整个文件。
+
+## Phase 81 影响面审计结论
+
+- 不能用“已保存的旧 V5 产物 vs 新 V5”直接归因本轮：15 份旧产物来自不同历史版本，会混入 data-if、当前路径、回调等前轮修复。权威影响口径改为固定 Git `HEAD=2bc990d` 与当前工作树分别转同一 V4。
+- 15 例精确基线对比排除随机 XID/生成类型名后，共 17 个叶子差异，实际是 11 个 Formula 值：8 个旧规则曾错误 `trim`的前导空格被恢复，3 个无参 `jsfn` 被正确改为普通字符串（其中 PAD 同源案例重复 2 处）。
+- 所有启用动作的改变都可在 V4 事件 `code/_code` 中看到对应带引号字符串，并且前/后空格与 Formula `code` 一致；唯一无事件回证的 ` 保存失败` 来自 `enable:false` 动作，经同源 `formulaStr` 本地规则仍明确为字符串。
+- 第 13 例在本轮前已由 session 窄规则得到正确 AST，因此切换为通用规则后语义差异为 0；该结果证明本轮是“用官方统一语义替代专例”，没有改变已修复的 session 结果。

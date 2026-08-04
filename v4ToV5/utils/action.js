@@ -230,88 +230,17 @@ function isEmptyParamValue({ param }) {
   )
 }
 
-// v4 公式编辑器会把部分本质为文本的动作参数也保存成 { code, str }。
-// 这里只处理有明确参数语义且不可能是合法 JS 表达式的少量值，避免把真正的
-// 公式解析错误一概吞成字符串。
+// path 是特定动作 API 的路径语法，不是普通 V4.1 Formula 表达式。
+// 普通文本统一由 convertEditorValue 内的同源 formulaStr 语义识别。
 function getLegacyFormulaTextValue({ param, paramName }) {
   const code = param?.value?.code
   if (typeof code !== 'string') return undefined
 
   const name = paramName || param?.name
   const trimmed = code.trim()
-  const tokens = param?.value?.str
-  const hasPureTextTokenEvidence =
-    Array.isArray(tokens) &&
-    tokens.length > 0 &&
-    tokens.every(
-      token => token?.type === 'str' && typeof token.obj === 'string'
-    ) &&
-    tokens.map(token => token.obj).join('') === code
-  const isLegacyYesNoText =
-    /^是否/u.test(name || '') &&
-    /^(?:是|否)$/u.test(trimmed) &&
-    hasPureTextTokenEvidence
-  if (isLegacyYesNoText) {
-    return trimmed
-  }
-  const isLegacyToastText =
-    name === 'toast' &&
-    hasPureTextTokenEvidence &&
-    /\p{Script=Han}/u.test(trimmed) &&
-    /^[\p{L}\p{N}\s，。！？、：；（）【】《》“”‘’—…,.!?;:_-]+$/u.test(trimmed)
-  if (isLegacyToastText) {
-    return trimmed
-  }
-  const isLegacySessionToken =
-    name === 'session' &&
-    hasPureTextTokenEvidence &&
-    /^[0-9a-f]{32}$/iu.test(trimmed)
-  if (isLegacySessionToken) {
-    return trimmed
-  }
   if (
     name === 'path' &&
     /^(?:\.[\p{L}\p{N}_$]+)+$/u.test(trimmed)
-  ) {
-    return trimmed
-  }
-  if (
-    [
-      'width',
-      'height',
-      'minWidth',
-      'maxWidth',
-      'minHeight',
-      'maxHeight',
-      'marginTop',
-      'marginRight',
-      'marginBottom',
-      'marginLeft',
-      'paddingTop',
-      'paddingRight',
-      'paddingBottom',
-      'paddingLeft'
-    ].includes(name) &&
-    /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|rpx|em|rem|%|vh|vw|vmin|vmax)$/i.test(
-      trimmed
-    )
-  ) {
-    return trimmed
-  }
-  if (
-    (name === 'info' &&
-      (trimmed === 'typeof' ||
-        /^\d+\p{Script=Han}[\p{L}\p{N}_-]*$/u.test(trimmed) ||
-        /^[\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)+$/u.test(trimmed) ||
-        /^[\p{L}\p{N}_-]+(?:\s*,\s*[\p{L}\p{N}_-]+)+$/u.test(trimmed))) ||
-    (name === 'reason' &&
-      /^[\p{L}\p{N}_-]+(?:\s+[\p{L}\p{N}_-]+)+$/u.test(trimmed))
-  ) {
-    return trimmed
-  }
-  if (
-    name === 'url' &&
-    /^(?:https?|ftp):\/\/[^\s]+$/i.test(trimmed)
   ) {
     return trimmed
   }

@@ -451,26 +451,6 @@ function convertObjJsonParamsSelect(value, nodeId, blockId) {
   }
 }
 
-// ObjJsonMultiPaths 的嵌套值不会经过普通动作参数的文本兼容入口。
-// 仅在 tokens 能逐字证明它是纯文本绝对 URL 时恢复字符串，避免把
-// param/$refs 等真实公式误当文本。
-function getLegacyMultiPathTextValue(value) {
-  const code = value?.code
-  const tokens = value?.str
-  if (
-    typeof code !== 'string' ||
-    !Array.isArray(tokens) ||
-    tokens.length === 0 ||
-    !tokens.every(token => token?.type === 'str' && typeof token.obj === 'string') ||
-    tokens.map(token => token.obj).join('') !== code
-  ) {
-    return undefined
-  }
-
-  const trimmed = code.trim()
-  return /^(?:https?|ftp):\/\/[^\s]+$/i.test(trimmed) ? trimmed : undefined
-}
-
 function convertObjJsonMultiPaths(value, nodeId, blockId) {
   if (!value) {
     return { op: 'val' }
@@ -506,10 +486,7 @@ function convertObjJsonMultiPaths(value, nodeId, blockId) {
         }
       })
     }
-    const legacyTextValue = getLegacyMultiPathTextValue(v.value)
-    let _value = legacyTextValue === undefined
-      ? convertEditorValue({ value: v.value, nodeId, blockId })
-      : { op: 'val', val: legacyTextValue }
+    let _value = convertEditorValue({ value: v.value, nodeId, blockId })
 
     args.push(pathList, _value)
   })

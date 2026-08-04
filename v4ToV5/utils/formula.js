@@ -6,6 +6,7 @@ import {
   getNodeType
 } from '../env.js'
 import { pushDiagContext, popDiagContext } from './convertDiag.js'
+import { getLegacyV41FormulaString } from './legacyFormulaValue.js'
 
 // 少量旧案例会把一个多余的右括号作为普通文本 token 追加到 editor code，
 // 而运行态 _code 仍是有效表达式。只在三重证据同时成立时删除该尾字符：
@@ -42,7 +43,8 @@ function convertEditorValue({
   nodeId,
   blockId,
   paramName,
-  cloneChildId
+  cloneChildId,
+  legacyFormulaType
 }) {
   if (!value) {
     return { op: 'val' }
@@ -55,6 +57,14 @@ function convertEditorValue({
   const editorCode = repairLegacyEditorCode(value)
   if (editorCode === '' || editorCode === null || editorCode === undefined) {
     return { op: 'val' }
+  }
+
+  const legacyString = getLegacyV41FormulaString({
+    code: editorCode,
+    conditionValue: legacyFormulaType === 'conditionValue'
+  })
+  if (legacyString !== undefined) {
+    return { op: 'val', val: legacyString }
   }
 
   function wrapCtx(str) {

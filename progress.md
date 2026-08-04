@@ -1849,3 +1849,53 @@
 - VxEditor41 已仅暂存目标转换器文件（7 insertions），用户 `.gitignore`、event store、`.claude/` 与各组件目录全部保持未暂存；已创建提交 `70bc972c1`（`fix: preserve legacy session tokens`），准备推送 `master`。
 - VxEditor41 提交已成功推送 `origin/master`；完整哈希 `70bc972c19fc87ea1ad5e7f875cff27d60157428`。双仓远端分叉均为 0/0，VxEditor41 目标转换器文件无未提交 diff，用户原有其他修改仍原样保留。
 - Lambda 最终只读复核：`prod → 16`，版本 16 为 `Active`、`LastUpdateStatus=Successful`，CodeSha256 与部署输出一致，描述绑定 `3e7f0e2`。Phase 80 发布闭环完成，停回第 13/51 例人工审阅门禁，不启动第 14 例。
+- 已向用户正式汇报第 13 例修复、双仓推送及 Lambda 16 发布结果。stop hook 恢复检查点后确认本例交付已完成；长期 Phase 67 尚有后续案例，但当前仍必须等待用户明确“继续”，不越过逐例人工审阅门禁。
+- 已只读复核近期字符串兼容规则并回答用户架构疑问：当前确为多组“参数语义 + 内容形态”窄规则，适合作为保守补丁但不宜无限扩展。建议未来收敛为类型契约驱动的三态解析器（literal/formula/unknown），内容正则仅作兜底；本轮没有获得重构授权，未修改代码或发布状态。
+- 已进一步解释参数契约的必要性：它提供“接收方期望类型”，可区分同一 V4 `{code,str}` 在 String/Boolean/Number/JsonVal 上的不同语义；组件方法、案例服务和函数组分别有不同的参数定义来源，缺一类都会留下调用盲区。该解释仍属设计讨论，没有执行代码变更。
+- 已澄清“收集参数契约”不是运行时查询外部系统：固定转换算法可在每次转换开始时，从项目自带的组件方法映射和当前 V4 JSON 的 `props.inParams/outParams` 建立只读索引，再按 `action.object/action.name/param.name` 关联调用参数。
+- 第 13 例 `saveForm.session` 的实际声明没有明确 `type`，只有参数名、必填/默认值，因此案例内契约并不总是完整；契约明确时可以主导 literal/formula 判定，缺失或仅为宽泛 Formula/JsonVal 时仍须结合 token、标准字面量与 `unknown` 诊断，不能假设收集后必然得到 String。
+- 当前转换器已经局部具备查目标节点、组件 `method.params` 和自定义 `inParams` 的能力，但字符串兼容入口尚未统一使用这些上下文；统一契约索引仍是建议架构。本轮仅补记说明，没有修改转换器或启动第 14 例。
+- 本次补写进度的首个补丁误以 `findings.md` 中的两行作为 `progress.md` 上下文，校验失败且没有发生部分写入；读取实际文件尾部后改用正确锚点完成。
+- 已复读并同步 `task_plan.md`：唯一未完成项仍是 Phase 67；第 13 例修复/发布已经完成，统一参数契约 resolver 仅为架构讨论，必须继续停在人工审阅门禁，用户明确“继续”前不启动第 14 例。
+- 首次同步 `task_plan.md` 的两个补丁块按文件位置倒序排列，导致整体校验失败且未写入；将 Errors 与 Phase 67 两个块按实际文件顺序重排后成功，不重复原补丁。
+- 已只读评估用户提出的 `code/_code` 判断方向：结论是可明显改进，但不能单独依赖 `_code`。15 个已保存案例中 `_code` 仅覆盖约 15.3% 的带 code 对象，对纯文本 token 对象的覆盖约 0.37%；第 13 例 session 自身也没有 `_code`。
+- 建议把统一 resolver 设计成 AST 形态分类、当前作用域符号解析、`code/_code` 一致性校验、token 与接收方契约的多证据决策；裸中文等 Identifier 只有在符号表中解析成功才能确定为变量，解析失败仍应是 unknown 而非直接字符串化。本轮只做设计核对，没有修改转换器或推进第 14 例。
+- 已向用户正式说明改进方案：`_code` 只作辅助证据；统一判断以 `code/_code` 静态 AST、作用域符号解析、一致性检查、V4 token 和接收方契约组成证据链。第 13 例 session 可由“解析结果 + 纯文本 token + 服务声明/默认值”共同判定，无需把 32 位十六进制正则作为核心规则。
+- stop hook 后已补记上述结论并复读 Phase 67：当前检查点仍要求第 13 例审阅后暂停。没有统一 resolver 的实现授权，也没有“继续下一例”的明确指令，因此不修改转换器、不启动第 14 例。
+- 已按用户要求从第 13 例原始 V4 `app.json` 原样提取完整动作块：JSON 路径 `$.stage.children[1].children[8].events.list[0].tree.children[0]`，BID `cpx1pf1a3j500009dc60`，目标服务节点 `cdeafmya3j50000jexx0`。其中 `session` 参数完整结构为 `type:'Formula'`，`value` 仅含无引号的 `code:'6a939b74c7b83df984bb4ae9be230a18'` 和两个纯 `str` token，确实不存在 `_code`。本轮仅展示源数据，没有修改代码或案例文件。
+- 已明确修正候选架构的主次关系：`code` 应作为主要语义输入；先做字面量/表达式 AST 分类，再用 `str` 中的语义 token 与当前作用域符号表消歧，`_code`、接收方契约和默认值只作交叉证据。对第 13 例可用“code 不是合法表达式 + 全纯文本 token 且拼接一致 + 无引用 token”作通用字符串候选，不必以 `session + 32位十六进制` 为核心规则；但解析失败不能一概字符串化，损坏公式必须落入 unknown/诊断。
+- 已复读 Phase 67 并同步计划中的架构记录；当前仍停在第 13 例人工审阅门禁，未获得统一 resolver 实施或启动第 14 例的授权。
+- 开始只读核对用户提出的事件级最终代码方向。第 13 例目标 tap 事件同时有 `code/_code`，二者均将 session 输出为带双引号的字符串，而数字和 `$refs` 引用保持各自类型；这比参数局部 `value.code` 提供了更强语义证据。下一步评估事件代码覆盖率、动作到代码片段的稳定映射和循环/同值参数歧义。
+- 事件覆盖率初查：15 个案例 13,360 个事件中 13,068 个（约 97.8%）同时保存非空 `code/_code`，事件层证据具备较高可用性；但 5,400 个事件两字段不完全相同，仍需分析动作映射与 runtime 重写边界。
+- 已定位 VxEditor4 保存实现：`saveNodeEvent` 会从事件 `tree` 调用 `saveDealSpec` 重新编译最终执行代码并写入 `event.code`，所以第 13 例事件中带引号 session 是 V4 自身编译器的语义结论，证据强于转换器自行猜测。继续核对 token 编译规则与动作参数回映可行性。
+- 已追到 Formula 动作参数通过 `formulaValue(v.value, info)` 生成事件实参，而 Text/String 走 `JSON.stringify`。下一步直接审查 `formulaValue`；若它能从参数局部 token 得出同样结果，则应复用其规则，优先于从整段事件代码按位置反推。
+- `formulaValue` 已确认逐 token 编译：`str` 交给 `formulaStr`，`obj` 走结构化对象/作用域转换，并同时形成 V4 与 V4.1 代码。因此当前最关键的是 `formulaStr` 的通用字符串规则，以及保存 JSON 的 `str` 形态与该函数输入形态之间的对应关系。
+- 已读出旧 V4 `formulaStr` 的通用分类规则，它确实可以替代大量参数名正则；但旧源码 token 结构与当前 V4.1 保存 JSON 不同，且 session 的两个相邻 str token 证明不能逐 token 机械套用。下一步转查 VxEditor41 的 V4.1 事件编译/归并逻辑。
+- VxEditor41 的真实 V4.1 生成链路已确认：`decodeFormulaCode` 先将整个保存公式恢复成 code，`formulaStr` 再对完整 code 统一定型并加括号。这正是第 13 例事件把 session 生成字符串的原因；继续核对 `decodeFormulaCode` 是否可安全移植到独立转换器，以及事件 code 作为回证时的映射限制。
+- `decodeFormulaCode` 已拆解为 `getFormulaCode`（恢复完整 code）与 `dealCode`（按事件上下文替换当前值/服务占位符）两层。下一步定位 `getFormulaCode`，判断当前 JSON 已有 `value.code` 时能否直接使用、何时必须由 `str` 重建。
+- 已确认 `getFormulaCode` 对当前 V4.1 公式对象就是读取 `value.code`；事件级字符串判定来自统一 `formulaStr(code)`。因此推荐实现方向已从“解析 event.code 找参数”收敛为“移植 V4.1 formulaStr，在参数局部直接重现事件编译结论；event.code/_code 仅做回证”。还需检查无代码/禁用事件边界后给用户最终结论。
+- 无事件代码边界已核完：292 个事件没有 code/_code，其中仍有 800 个动作块、743 个动作自身启用，说明最终事件代码不能成为唯一判断源。本轮只读结论已完成：移植 V4.1 `formulaStr(code)` 作统一分类，event code/_code 作强回证；尚未修改转换器。
+- 已向用户正式汇报事件级调查结论和源码证据：第 13 例 event `code/_code` 均明确将 session 编译为双引号字符串；VxEditor41 正式保存链路是 `value.code → decodeFormulaCode → formulaStr → event.code → convertCode → event._code`。建议直接复用同源 `formulaStr`，事件最终代码仅用于交叉验证；本轮未实施重构。
+
+## 2026-08-04：Phase 81 统一 V4.1 Formula code 语义分类
+
+- 用户已明确授权按上述同源方案完善转换器；第 13 例审阅门禁对本次修复解除，但仍禁止启动第 14 例。
+- 已复核仓库状态：`main` 对齐 `origin/main`；当前只有本任务三份规划文件修改和既有无关未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md`。该无关文件不读取、不修改、不暂存。
+- `AGENT.md`/`CLAUDE.md` 固定发布流程仍生效：修复验证后自动完成 tov5parser 提交推送、Lambda 部署及 VxEditor41 同步提交推送。Phase 81 已建立，先写同源分类回归，再实施最小统一规则。
+- 实施落点已确定为公共 `convertEditorValue`：统一分类后可替代动作参数、条件文本和嵌套 URL 的重复规则；仅保留 `.style` path 等特定 API 兼容和 DB 成功状态布尔迁移。现有旧窄规则测试需按 V4.1 官方行为更新，并补充公式/损坏表达式反例。
+- 修改前完整测试 69/69 通过。已补齐实现边界：条件 `$valid_*` 需通过上下文保持 sentinel，V4.1 URL/百分比/特殊值行为按同源规则复刻；VxEditor41 对应 formula.js 可定向同步。下一步先把新测试改成预期失败，再实施。
+- 已新增公共入口失败回归：session、裸 identifier、中文/英文文本、CSS、百分比、MIME、URL/带空格 URL、www 主机应生成字符串；数字/布尔/null/显式引号、refs、运算和损坏公式保持原语义。修复前定向运行 0/1，通过首个断言精确复现 session 落成无 val，进入实现阶段。
+- 首次跨 5 文件实现补丁因 `con.js` 导出顺序上下文不匹配整体拒绝，已确认没有部分写入；改为按文件拆分补丁。核查命令中的 shell 串接也已记录并停止使用。
+- 已新增独立 `legacyFormulaValue.js`，按 V4.1 formulaStr 同源规则识别普通文本、MIME、严格 URL/带空格 URL和百分比，并保护特殊值、内部变量及条件 `$valid_*`。公共 `convertEditorValue` 已在进入现有 parser 前调用该分类层；下一步移除各调用方重复枚举并接入条件上下文。
+- 动作参数枚举已收窄为仅保留 `.style` 等 path API 特例；session/toast/info/reason/CSS/URL/是否文本全部改走公共分类。条件英文短语/www 专用规则已移除，三类条件右值入口均传入 `conditionValue` 上下文以保护 `$valid_*`。
+- ObjJsonMultiPaths 的嵌套 URL 专用分支已删除并改走公共 `convertEditorValue`。旧动作枚举单测已收敛为仅验证 path API 特例，公共 V4.1 语义由新入口回归覆盖；条件旧 helper 导入已移除，待把条件测试改为最终 AST 行为断言。
+- 条件测试已改为最终 AST 行为断言，覆盖英文短语、www、非等值运算、refs、window 表达式和 `$valid_Null` sentinel。四项定向测试全部通过；控制台的损坏公式/unknown window 日志为反例预期 fallback，断言确认没有误字符串化。
+- Phase 81 统一 V4.1 Formula 字符串分类已完成首轮实现：公共入口复刻 `decodeFormulaCode → formulaStr`的整段 `code` 语义，删除 session/提示语/条件文本/嵌套 URL 等枚举分支；仅保留 API 语义特例 `.style` 路径和数据库成功“是/否”布尔迁移。
+- 定向回归通过，项目完整测试从 69 增至 70，结果 70/70 pass、0 fail；既有预期 ParseError 日志不影响结论。
+- 对照 VxEditor41 调用边界确认：只有事件条件右值传入 `CON_VALID`，数据库查询条件仍走普通 Formula 语义；转换器的 `legacyFormulaType:'conditionValue'` 已与此一致。
+- 对照时发现并校准两个微小差异：V4.1 也将中文方括号 `【】` 视为公式符号，严格 URL 的后续域名分段只允许源实现的连字符形态。
+- 第 13 例已用统一规则真实重转：诊断仍为 106 条 `jsfn` fallback、0 dropped；`session` 仍精确生成字符串 AST。与上一份通过审计的 V5 忽略随机行 ID 后语义差异为 0。
+- 第 13 例复审稳定：V4/V5 节点 3,304/3,304（唯一 ID 3,292/3,292），全部事件 BID 缺失 0，106 个 `jsfn` 的语法/参数/占位符/旧符号问题均为 0，52 个 data-service 代码语法问题 0，120/120 服务调用对齐，236/236 data-if 结构稳定。
+- 已从 Git `HEAD=2bc990d` 建立隔离基线，对 15 个已保存 V4 clothing 案例做“本轮前/本轮后”内存转换对比；排除随机 XID 后只有 17 个叶子差异，对应 11 个 Formula 值，均为字符串类型/空格保真修正。
+- 影响面具体为：7 处中文提示恢复 V4 原有前导空格；1 处 ` 否` 恢复前导空格；1 处禁用动作的 ` 保存失败` 从无参 `jsfn` 改为字符串；两份同源 PAD 案例中的 `afterSaleAssistAttributeId ` 从无参 `jsfn` 改为保留尾空格的字符串。
+- V4 事件 `code/_code` 已回证所有可生成事件代码的变化点：均以带引号字符串输出且保留前/后空格。`保存失败` 所在动作 `enable:false`，不出现于最终事件代码，但它按同一 V4.1 `formulaStr(code)` 正式规则也应分类为字符串。
