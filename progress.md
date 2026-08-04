@@ -1542,3 +1542,12 @@
 - 本例 `conversion-report.md` 已更新为修复后通过结论、最终大小/hash 和 247/244 诊断指标。
 - `AGENT.md` 与 `CLAUDE.md` 已写入相同的固定自动发布流程，包括测试门禁、精确暂存、Lambda prod 冒烟、VxEditor41 同步和禁止变基/强推覆盖用户修改。
 - 发布前 `git diff --check` 通过；fetch 后 tov5parser `main` 与 `origin/main` ahead/behind 为 `0/0`，当前 HEAD `8ae1040`。待提交严格为两份规则、转换器、回归测试和三份规划记录；无关未跟踪文档继续排除。
+- tov5parser 已创建提交 `25ab607`（`fix: preserve legacy yes-no action text`）并成功推送至 `origin/main`；提交严格包含两份规则、转换器、回归测试和三份规划记录，无关未跟踪文档未进入提交。
+- 部署前 `prod` 指向版本 11；部署脚本使用 `--allow-dirty --run-tests --smoke --keep-history`，完整测试再次 61/61 通过，S3 留档包为 `archive-25ab607-20260804T025025Z.zip`。
+- Lambda 已发布版本 12 并切换 `prod`；脚本冒烟 HTTP 200、ExecutedVersion 12、FunctionError null。独立复核版本 12 为 Active/Successful、描述含 `25ab607`、CodeSha256 `cBW3QzuHFJmJE/r7OIWtDEYGjD5kiKeNuqPMvxZGYuE=`；`prod` 无加权路由。
+- S3 留档包独立复核大小 1,959,375 bytes、ETag `2d0dad1b920c64322a1365aaa4a66b70`。下一步同步 VxEditor41 对应 action 文本识别逻辑并验证、提交、推送。
+- VxEditor41 的等价入口 `src/utils/convertV4ToV5/utils/action.js` 原先无未提交差异；已同步同一窄范围“是否… + 纯文本 是/否”识别，保留编辑器侧诊断和格式差异。
+- VxEditor41 目标 ESLint 0 error/0 warning；生产构建成功，webpack 0 error、33 类仓库既有 warning，目标转换器文件无 warning。构建未生成新的待提交文件。
+- VxEditor41 仅暂存并提交目标转换器文件，提交 `1700c5de1`（`fix: preserve legacy yes-no action text`）已推送至 `origin/master`；`.gitignore`、`src/stores/event.js` 与未跟踪组件目录保持用户原状，未进入提交。
+- 最终远端复核：tov5parser `main/origin/main` 同为 `25ab607efc3b29fbc90ec2c0078b6024044b4adf`，VxEditor41 `master/origin/master` 同为 `1700c5de17f654e2dae7cb6c2db35a698ded697a`，两边 ahead/behind 均为 `0/0`；Lambda `prod` 仍仅指向版本 12。
+- **Phase 76 Status:** complete。中文文本转换错误已修复、真实案例重转通过、双仓库提交推送与 Lambda 部署完成；Phase 67 回到第 8/51 例人工审阅门禁，第 9 例尚未启动。

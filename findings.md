@@ -1311,3 +1311,6 @@
 - 修复后的真实 AST 直接把“是否成功”的值写成 `{op:'val', val:'否'}`，不再生成 jsfn；本例全树没有任何 code 为裸“是/否”的 jsfn。
 - 诊断次数和 jsfn 数量均恰好减少 1（248→247、245→244），与唯一已确认错误闭合，没有造成其它公式批量改写。
 - 完整重转审计没有结构回归：4,858 个源节点全部保留、7,248 个非根事件块全部有落点、244 个 jsfn 的语法与参数完整、41 个服务目标全部存在。
+- 生产 Lambda 版本 12 已包含提交 `25ab607`，代码摘要 `cBW3QzuHFJmJE/r7OIWtDEYGjD5kiKeNuqPMvxZGYuE=`，`prod` 已无权重地切换至该版本并通过版本接口冒烟。
+- VxEditor41 同步提交为 `1700c5de17f654e2dae7cb6c2db35a698ded697a`；目标文件 lint 与全仓生产构建均通过，用户既有工作区修改未被纳入提交。
+- Phase 76 最终发布闭环：tov5parser `25ab607efc3b29fbc90ec2c0078b6024044b4adf`、Lambda 版本 12、VxEditor41 `1700c5de17f654e2dae7cb6c2db35a698ded697a`。
