@@ -1462,3 +1462,23 @@
 - fetch 后确认 tov5parser `main` 与 VxEditor41 `master` 相对各自远端均为 ahead/behind `0/0`，无需合并。
 - tov5parser 提交前完整测试 61/61 通过；控制台的 ParseError 是回归测试主动验证 custom-expression fallback 的既有诊断输出，不是失败。
 - `git diff --check` 通过；当前待提交文件仍严格为公式转换器、对应测试和三份规划记录，无关未跟踪文档保持隔离。
+- 已仅暂存 5 个预期文件并创建提交 `4366647`（`fix: preserve nested callback formula scope`）；提交包含本轮生产修复、回归测试和规划记录。
+- 提交已成功推送至 `origin/main`；无关未跟踪文档未进入提交。
+- 部署前确认 AWS 身份为账号 `587849590304` 下的专用用户 `vl-case-json-converter-deployer`；目标区域/函数保持 `cn-northwest-1` / `vl-case-json-converter`。
+- 当前生产 `prod` 指向版本 10、无加权路由；函数状态 Active/Successful，代码摘要 `+KBroIKw+LqwT17ONteUzbOZyzTV1oyslUidqzKs4l4=`。
+- 提交后仅 `progress.md`、`task_plan.md` 有发布记录差异；所有 Lambda 打包白名单运行时文件与提交 `4366647` 一致。部署将使用 `--allow-dirty --run-tests --smoke --keep-history`，其中 allow-dirty 只容纳规划记录和隔离的无关文档。
+- 部署过程再次执行完整测试，61/61 通过，并构建约 1.9 MB 运行包。
+- 运行包已留档到 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-4366647-20260804T021506Z.zip`；发布 Lambda 版本 11 并将 `prod` 切换至版本 11。
+- 部署脚本的别名冒烟成功：HTTP 200、ExecutedVersion 11、FunctionError null，版本接口返回 code 0。
+- 独立复核确认 Lambda 版本 11 为 Active/Successful，描述包含提交 `4366647`，代码摘要 `S6/nOE5cbDWPRqu0CDqQ3ZgGuew03qqW4JVyxZDwDVY=`；`prod` 仅指向版本 11、无加权路由，S3 留档包大小 1,959,245 bytes。
+- VxEditor41 等价入口为 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`；已只同步 AST 克隆、full-js 局部词法作用域保护和解构回调整体 jsfn fallback，保留其编辑器专用 imports、MapCreator 和诊断行为。
+- VxEditor41 当前转换器文件原先无用户未提交差异；同步后仓库仍只有该目标文件加用户原有 `.gitignore`、`src/stores/event.js` 与未跟踪组件目录。
+- 首次目标 ESLint 为 0 error/2 个 Prettier warning；已按仓库既有格式用最小排版修正，未使用自动修复触碰其他代码。下一步重新运行 ESLint并执行生产构建。
+- 排版修正后目标 ESLint 为 0 error/0 warning。
+- VxEditor41 生产构建成功：webpack 0 error，以仓库既有代码产生 33 类 warning；本次目标转换器文件没有 warning。
+- 构建后未新增需提交的生成文件；`git diff --check` 通过。已只暂存目标转换器文件，用户原有修改与未跟踪目录全部保持未暂存。
+- VxEditor41 已创建提交 `0631d17b1`（`fix: preserve nested callback formula scope`），提交严格只含 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`。
+- VxEditor41 提交已成功推送至 `origin/master`。
+- 最终远端复核通过：tov5parser `main` 与 `origin/main` 均为 `436664703b7e93da85d2c42a2cc1dfb55497cd4a`；VxEditor41 `master` 与 `origin/master` 均为 `0631d17b170d5b1d9f81d40716f3ca739b048d6e`，两边 ahead/behind 均为 `0/0`。
+- Lambda 版本 11 最终仍为 Active/Successful，代码摘要 `S6/nOE5cbDWPRqu0CDqQ3ZgGuew03qqW4JVyxZDwDVY=`；`prod` 仅指向版本 11、无加权路由。
+- **Phase 75 Status:** complete。发布与同步全部完成；回到 Phase 67 第 7/51 例审阅门禁，第 8 例尚未启动。
