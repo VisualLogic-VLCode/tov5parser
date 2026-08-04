@@ -1447,3 +1447,7 @@
 - VxEditor41 工作区在同步前已有大量用户修改，均不属于本任务；后续精确核对 `src/utils/convertV4ToV5` 的目标文件并只暂存该文件，禁止混入现有修改。
 - 最终实现规则为 `name === 'session' && hasPureTextTokenEvidence && /^[0-9a-f]{32}$/iu`；这会保留大小写十六进制 token，同时拒绝缺 token、其他参数名与一般 JavaScript 公式。定向和全量测试均通过。
 - 真实重转验证闭环：目标 `session` 普通值完整，dropped 清零；其余结构指标与修复前完全一致。新 V5 为 6,666,301 bytes、SHA-256 `1ce9f60b39076d6921b538f05c3b30ca78dfa30df8e165a35b908498f899d489`。
+- Lambda 生产版本 16 已承载提交 `3e7f0e2` 的修复，代码摘要 `qLu1kM+jdcZs+JILCXRWXknYlBLMlatWZrnO7JvJV4o=`，`prod` 冒烟通过。
+- VxEditor41 同步只涉及 `src/utils/convertV4ToV5/utils/action.js`；定向静态检查无告警，完整构建 0 error。33 个 webpack warning 均来自仓库其他既有/用户修改文件，与本次 7 行转换器同步无关。
+- VxEditor41 同步提交为 `70bc972c19fc87ea1ad5e7f875cff27d60157428`，已推送且与远端无分叉；用户工作区既有修改未混入。
+- 最终发布闭环：tov5parser `3e7f0e2ce32a184968034d2eb6c6fe23b36a0b19`、Lambda prod 版本 16、VxEditor41 `70bc972c19fc87ea1ad5e7f875cff27d60157428`；第 13 例修复通过并等待用户继续指令。

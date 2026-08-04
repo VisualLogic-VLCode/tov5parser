@@ -1840,3 +1840,12 @@
 - 全量复审通过：组件 3,304/3,304、事件 BID 缺失 0、106 个 jsfn 错误 0、data-if 236 个、服务 52 个且 `_code` 错误 0、120 个 runsvc、上传 BID 全部保留、Legacy/当前路径残留 0。3 个悬空服务目标仍与 V4 一致，不属于转换器修复范围。
 - 已更新第 13 例转换报告和新产物哈希，进入 tov5parser 精确提交/推送阶段。
 - 提交前复核通过：`git diff --check` 无错误；`main` 与 `origin/main` 为 0/0 无分叉。计划仅暂存转换器实现、回归测试和三份本轮规划记录；既有无关未跟踪文档保持排除。
+- tov5parser 已精确提交 `3e7f0e2ce32a184968034d2eb6c6fe23b36a0b19`（`fix: preserve legacy session tokens`）并成功推送 `origin/main`；无关未跟踪文档未纳入。进入生产 Lambda 部署。
+- 首次运行部署脚本在任何上传前按预期拒绝 dirty tree：提交后新增的 `progress.md`/`task_plan.md` 记录以及既有无关未跟踪文档使洁净检查失败。不得重复同一命令；下一步核对脚本的 `--allow-dirty` 边界或使用已提交版本的隔离部署方式，确保生产包只来自提交代码。
+- 已核对打包脚本：运行包只复制显式 runtime 文件/目录并剔除测试，不包含规划 Markdown 或无关未跟踪文档；当前转换器实现相对 HEAD 无未提交差异。因此改用 `--allow-dirty --run-tests --smoke` 安全继续，部署描述固定引用提交 `3e7f0e2`。
+- 生产 Lambda 部署成功：部署前完整测试 69/69；运行包 1.9 MB；函数代码 CodeSha256 `qLu1kM+jdcZs+JILCXRWXknYlBLMlatWZrnO7JvJV4o=`；发布版本 `16` 并将 `prod` 别名切换至 16。别名冒烟 HTTP/Lambda 执行成功，`ExecutedVersion=16`、`FunctionError=null`、响应 `code=0`。
+- VxEditor41 未发现额外仓库指令文件；目标转换器文件同步前无自身 diff，`master` 与 `origin/master` 为 0/0 无分叉。已仅向 `src/utils/convertV4ToV5/utils/action.js` 同步同一 7 行最小规则；用户既有其他修改保持不动。
+- VxEditor41 定向 `git diff --check` 与目标文件 ESLint 均通过（0 输出）；生产 webpack 构建成功，33 个既有/用户工作区 warning、0 error。构建未要求修改任何用户文件，进入精确暂存与提交。
+- VxEditor41 已仅暂存目标转换器文件（7 insertions），用户 `.gitignore`、event store、`.claude/` 与各组件目录全部保持未暂存；已创建提交 `70bc972c1`（`fix: preserve legacy session tokens`），准备推送 `master`。
+- VxEditor41 提交已成功推送 `origin/master`；完整哈希 `70bc972c19fc87ea1ad5e7f875cff27d60157428`。双仓远端分叉均为 0/0，VxEditor41 目标转换器文件无未提交 diff，用户原有其他修改仍原样保留。
+- Lambda 最终只读复核：`prod → 16`，版本 16 为 `Active`、`LastUpdateStatus=Successful`，CodeSha256 与部署输出一致，描述绑定 `3e7f0e2`。Phase 80 发布闭环完成，停回第 13/51 例人工审阅门禁，不启动第 14 例。
