@@ -26,6 +26,40 @@ const findAst = (ast, predicate) => {
   }
 }
 
+const collectAst = (ast, predicate, found = []) => {
+  if (!ast || typeof ast !== 'object') return found
+  if (predicate(ast)) found.push(ast)
+  for (const value of Object.values(ast)) {
+    if (Array.isArray(value)) {
+      for (const item of value) collectAst(item, predicate, found)
+    } else {
+      collectAst(value, predicate, found)
+    }
+  }
+  return found
+}
+
+const assertJsfnArgumentsComplete = ast => {
+  const jsfns = collectAst(ast, item => item.op === 'jsfn')
+  assert.ok(jsfns.length > 0)
+  for (const jsfn of jsfns) {
+    const code = jsfn.val?.[0] || ''
+    const requiredArgCount = Math.max(
+      0,
+      ...(code.match(/\$v\d+/g) || []).map(name => Number(name.slice(2)))
+    )
+    assert.equal(
+      jsfn.args?.length || 0,
+      jsfn.val.length - 1,
+      `jsfn 参数名与实参数量不一致: ${code}`
+    )
+    assert.ok(
+      (jsfn.args?.length || 0) >= requiredArgCount,
+      `jsfn 缺少 $v 参数: ${code}`
+    )
+  }
+}
+
 test('jsepWrap registers the v4 formula syntax plugins', () => {
   const arrowAst = jsep('items.find(item => item.id === 1)')
   assert.equal(arrowAst.arguments[0].type, 'ArrowFunctionExpression')
@@ -224,6 +258,76 @@ test('nested array callbacks keep outer and inner item references distinct', () 
     }
   )
   assert.deepEqual(result, [{ id: 2, roleList: [20] }])
+})
+
+test('nested callback custom expressions keep their own jsfn arguments', () => {
+  loadRuntimeMaps()
+  const formulas = [
+    '!!fParamgroup.items.find(i => !!i.permission && !!i.permission.save && !!i.permission.save.enabled) && fParamgroup.status != "done"',
+    'fParamgroup.items.filter(item => !item[fParamgroup.error] && item.details.filter(x => x.error || x[fParamgroup.error]).length > 0)'
+  ]
+
+  for (const str of formulas) {
+    const ast = new V4FormulaCodeConverter({
+      str,
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    }).exec()
+    assertJsfnArgumentsComplete(ast)
+  }
+})
+
+test('full JavaScript callbacks keep nested custom-expression arguments', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.map(i => { if (fParamgroup.keys.includes(i.index) && !!fParamgroup.filters.find(j => i.index == j.index) && !!fParamgroup.filters.find(j => i.index == j.index).value) i.value = fParamgroup.filters.find(j => i.index == j.index).value; return i })',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  assertJsfnArgumentsComplete(ast)
+  const jsfns = collectAst(ast, item => item.op === 'jsfn')
+  assert.equal(jsfns.length, 1)
+  assert.match(jsfns[0].val[0], /\.includes\(i\.index\)/)
+  assert.match(jsfns[0].val[0], /\.find\(j => i\.index == j\.index\)/)
+})
+
+test('destructured callback parameters stay inside a callable jsfn', () => {
+  loadRuntimeMaps()
+  const cases = [
+    {
+      str: 'Object.entries(fParamgroup.obj).map(([key,value]) => `${key}${value}`).join(",")',
+      input: ['name', 2],
+      expected: 'name2'
+    },
+    {
+      str: 'fParamgroup.items.map(({title,code}) => ({name:title,code}))',
+      input: { title: '标题', code: 'code-1' },
+      expected: { name: '标题', code: 'code-1' }
+    }
+  ]
+
+  for (const item of cases) {
+    const ast = new V4FormulaCodeConverter({
+      str: item.str,
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    }).exec()
+    const jsfns = collectAst(ast, value => value.op === 'jsfn')
+    assert.equal(jsfns.length, 1)
+    assert.match(jsfns[0].val[0], /=>/)
+    const callback = new Function(
+      ...jsfns[0].val.slice(1),
+      `return (${jsfns[0].val[0]});`
+    )()
+    assert.deepEqual(callback(item.input), item.expected)
+  }
 })
 
 test('full JavaScript fallback preserves block arrows as parameterized jsfn', () => {

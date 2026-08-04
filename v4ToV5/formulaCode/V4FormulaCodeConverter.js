@@ -9,6 +9,82 @@ import { genXid } from '../env.js'
 // （从 window 读映射），移植后直接使用 vlparser 完整版（支持 Node 的 global 读取）
 import MapCreator from '../../utils/MapCreator.js'
 
+const cloneParsedTree = value => {
+  if (Array.isArray(value)) return value.map(cloneParsedTree)
+  if (value instanceof RegExp) return new RegExp(value.source, value.flags)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, cloneParsedTree(item)])
+  )
+}
+
+const addPatternIdentifierNames = (pattern, names) => {
+  if (!pattern || typeof pattern !== 'object') return
+  switch (pattern.type) {
+    case 'Identifier':
+      names.add(pattern.name)
+      break
+    case 'RestElement':
+      addPatternIdentifierNames(pattern.argument, names)
+      break
+    case 'AssignmentPattern':
+      addPatternIdentifierNames(pattern.left, names)
+      break
+    case 'ArrayPattern':
+      for (const element of pattern.elements || []) {
+        addPatternIdentifierNames(element, names)
+      }
+      break
+    case 'ObjectPattern':
+      for (const property of pattern.properties || []) {
+        addPatternIdentifierNames(
+          property.type === 'RestElement' ? property.argument : property.value,
+          names
+        )
+      }
+      break
+    default:
+      break
+  }
+}
+
+const collectLocalIdentifierNames = (value, names = new Set()) => {
+  if (!value || typeof value !== 'object') return names
+  if (Array.isArray(value)) {
+    for (const item of value) collectLocalIdentifierNames(item, names)
+    return names
+  }
+  if (
+    ['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'].includes(
+      value.type
+    )
+  ) {
+    addPatternIdentifierNames(value.id, names)
+    for (const param of value.params || []) addPatternIdentifierNames(param, names)
+  } else if (value.type === 'VariableDeclarator') {
+    addPatternIdentifierNames(value.id, names)
+  } else if (value.type === 'CatchClause') {
+    addPatternIdentifierNames(value.param, names)
+  }
+  for (const [key, child] of Object.entries(value)) {
+    if (['exprStr', 'start', 'end', 'loc'].includes(key)) continue
+    collectLocalIdentifierNames(child, names)
+  }
+  return names
+}
+
+const containsLocalIdentifier = (value, localNames) => {
+  if (!value || typeof value !== 'object' || !localNames?.size) return false
+  if (Array.isArray(value)) {
+    return value.some(item => containsLocalIdentifier(item, localNames))
+  }
+  if (value.type === 'Identifier' && localNames.has(value.name)) return true
+  return Object.entries(value).some(([key, child]) => {
+    if (['exprStr', 'start', 'end', 'loc'].includes(key)) return false
+    return containsLocalIdentifier(child, localNames)
+  })
+}
+
 export default class V4FormulaCodeConverter {
   constructor(props) {
     this.props = props
@@ -108,7 +184,8 @@ export default class V4FormulaCodeConverter {
       num: 0,
       vList: [],
       jsFnArgs: [],
-      fullJsMode: true
+      fullJsMode: true,
+      localNames: collectLocalIdentifierNames(parsed)
     }
     this.walkCustomExprParsed({ parsed, context })
     return {
@@ -592,6 +669,15 @@ export default class V4FormulaCodeConverter {
     callbackBlockId
   }) => {
     let { params, body } = parsed || {}
+    if ((params || []).some(param => param?.type !== 'Identifier')) {
+      // V5 结构化 lambda 只有 item/index 这类平面形参，无法直接表达
+      // ([key, value]) 或 ({ title, code })。保留完整箭头函数为 jsfn，
+      // 让解构绑定与回调体继续处于同一个 JavaScript 词法作用域。
+      throw new ParseError({
+        message: 'not support destructured callback parameters',
+        type: 'CallbackParamPattern'
+      })
+    }
     let { inParams = [] } =
       callbackParamInfo || sysutilInfo?.params?.[0] || {}
     let lambdaParams = inParams
@@ -1735,6 +1821,11 @@ export default class V4FormulaCodeConverter {
   }
   /**自定义表达式 */
   processCustomExpr = ({ parsed }) => {
+    // custom-expression 参数化会把外部引用原地替换成 $vN。同一回调子树
+    // 可能先后被 Unary/Call 等试探路径结构化多次；若直接修改源 AST，后续
+    // 只能看到 $vN 而找不到对应参数来源，最终会生成 args=[] 的坏 jsfn。
+    // 每次在独立副本上工作，保证代码占位符与参数 AST 始终成对产生。
+    parsed = cloneParsedTree(parsed)
     let context = {
       num: 0,
       vList: [],
@@ -1768,8 +1859,7 @@ export default class V4FormulaCodeConverter {
               let ast
               if (
                 type === 'ArrowFunctionExpression' ||
-                (context.fullJsMode &&
-                  this.containsFunctionExpression({ parsed: item }))
+                this.shouldWalkFullJsSubtree({ parsed: item, context })
               ) {
                 // 完整 JavaScript 中，参数子树可能是 reduce(blockArrow) 这类
                 // “调用中嵌套回调”的表达式。必须保留整棵 JS 子树，仅递归
@@ -1795,10 +1885,7 @@ export default class V4FormulaCodeConverter {
       case 'MemberExpression':
         {
           let { object, property } = parsed || {}
-          if (
-            context.fullJsMode &&
-            this.containsFunctionExpression({ parsed: object })
-          ) {
+          if (this.shouldWalkFullJsSubtree({ parsed: object, context })) {
             this.walkCustomExprParsed({ parsed: object, context })
           } else {
             let ast = this.processParsedTree({
@@ -1828,6 +1915,10 @@ export default class V4FormulaCodeConverter {
         {
           let { elements } = parsed || {}
           elements.map(item => {
+            if (this.shouldWalkFullJsSubtree({ parsed: item, context })) {
+              this.walkCustomExprParsed({ parsed: item, context })
+              return
+            }
             let ast = this.processParsedTree({
               parsed: item,
               customExprContext: context
@@ -1844,6 +1935,10 @@ export default class V4FormulaCodeConverter {
       case 'SpreadElement': // 展开运算符
         {
           let { argument } = parsed || {}
+          if (this.shouldWalkFullJsSubtree({ parsed: argument, context })) {
+            this.walkCustomExprParsed({ parsed: argument, context })
+            break
+          }
           let ast = this.processParsedTree({
             parsed: argument,
             customExprContext: context
@@ -1899,6 +1994,10 @@ export default class V4FormulaCodeConverter {
       case 'UnaryExpression': {
         // eg: !phone.match(/^1[3-9]\d{9}$/)
         let { argument } = parsed || {}
+        if (this.shouldWalkFullJsSubtree({ parsed: argument, context })) {
+          this.walkCustomExprParsed({ parsed: argument, context })
+          break
+        }
         let ast = this.processParsedTree({
           parsed: argument,
           customExprContext: context
@@ -1915,6 +2014,10 @@ export default class V4FormulaCodeConverter {
         let { expressions } = parsed || {}
         if (Array.isArray(expressions) && expressions.length > 0) {
           expressions.map(item => {
+            if (this.shouldWalkFullJsSubtree({ parsed: item, context })) {
+              this.walkCustomExprParsed({ parsed: item, context })
+              return
+            }
             let ast = this.processParsedTree({
               parsed: item,
               customExprContext: context
@@ -1981,15 +2084,19 @@ export default class V4FormulaCodeConverter {
       }
     }
   }
+  shouldWalkFullJsSubtree = ({ parsed, context }) => {
+    return Boolean(
+      context?.fullJsMode &&
+        (this.containsFunctionExpression({ parsed }) ||
+          containsLocalIdentifier(parsed, context.localNames))
+    )
+  }
   walkOrReplaceCustomExpr = ({ parsed, context }) => {
     if (!parsed) return
     // 完整 JavaScript 中带回调的调用必须保留为 JS 子树；若把整个子树
     // 折叠成一个原生 AST 参数，其内部失败的 custom expression 会被旧打印器
     // 单独序列化，容易丢失 receiver 或 block body。
-    if (
-      context.fullJsMode &&
-      this.containsFunctionExpression({ parsed })
-    ) {
+    if (this.shouldWalkFullJsSubtree({ parsed, context })) {
       this.walkCustomExprParsed({ parsed, context })
       return
     }

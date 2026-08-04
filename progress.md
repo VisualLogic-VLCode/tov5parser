@@ -1390,3 +1390,75 @@
 - VxEditor41 提交已推送至 `origin/master`，完整 SHA `4b195555287ee423779346ef6a1bab65f20fcdcd`，本地/远端 ahead/behind 为 `0/0`。
 - 最终复核通过：tov5parser `main` 与 VxEditor41 `master` 均和远端对齐；Lambda 版本 10 仍为 Active/Successful，`prod` 无加权路由且描述/代码摘要与本轮部署一致。
 - **Phase 73 Status:** complete。补充本次部署记录的跟进文档提交后回到 Phase 67 第 6/51 例审阅门禁，第 7 例尚未启动。
+- Phase 73 跟进文档已提交并推送：`e35b9a7d45b32c8ab8328cb73152fd025d59d3ae`（`docs: record data-if bind deployment`）；tov5parser `main` 最终与远端一致。
+- Stop hook 报告 77/78 phases；唯一未完成项仍为逐例人工审阅推进的 Phase 67。该提示不授权第 7 例，当前保持等待。
+
+## Session: 2026-08-03（Phase 67 第 7 例）
+
+- 用户已明确回复“继续”；当前案例切换为 `产品调校中心_11283496_温晓华.json`（nid `11283496`）。
+- 排序复核确认该文件是源目录第 7/51 例；第 8 例为 `人员管理与组织架构_11020409_温晓华.json`，本例汇报前不会启动。
+- 中文服只读数据库隧道 `127.0.0.1:13306` 正常监听；所有既有 V4/V5 案例目录继续保留。下一步执行 nid `11283496` 的只读元数据查询。
+- 数据库交接包与只读账号说明仍存在，平台 Cookie 权限为 600；此前 `/tmp` 下的隔离 PyMySQL 目录已不存在，本轮将创建新的临时依赖目录，不修改项目依赖。
+- 已在全新临时目录安装 PyMySQL 并完成只读查询：第 7 例为 V4.1（`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`），`ntype=1`、版本 277、最新 `work_id=cic0rcfl557ut9e0ea40-552`。
+- 数据库当前标题“FRP_产品调校中心”、作者刘土明（源文件名标注温晓华），已发布/已上架；下一步按最新 work_id 下载并解码完整 V4 JSON。
+- 项目内没有现成 `export-full-case` 脚本；将按权威文档的同一 sjcl/pako 解码流程以内联 Node 程序下载，不新增项目脚本。
+- 本例 V4/V5 目标目录均尚不存在，不会覆盖历史案例；准备创建 V4 目录并写入紧凑完整 JSON。
+- 最新 V4 下载与解码成功：HTTP 二进制 1,374,480 bytes、2 个分段，完整恢复 `case/server/stage`；根类型为 `ih5-case/data-server/ih5-stage`。
+- V4 紧凑 JSON 为 16,903,495 bytes、SHA-256 `e057e7157321785add87e2bae50e78f74083fd9bd207bea9abc821ce787569fe`，案例名“FRP_产品调校中心”；来源 README 已写入。
+- 下一步使用当前已部署同源转换器以 `ntype=1 --diag` 生成 V5 与诊断报告。
+- 本例转换成功：V5 紧凑 JSON 为 11,593,947 bytes、SHA-256 `4d48ebce31af9400bb112171ef608761cb5cf9f084035434047801f719073ec7`，`server.props.v2=1`。
+- 诊断 752 次、去重 730 条，全部为 `custom-expression` fallback，`dropped=0`；主要类别为 `||` 250、`&&` 126、完整 JavaScript 114、模板字符串 99、`sysutil.match` 31、unknown varType 28、SpreadElement 26、findIndex 24。
+- 初步审计确认 10,779/10,779 个非根事件块均有 V5 `ln` 落点，739 个 `jsfn` 全部语法可编译且普通形参/实参数量匹配；另发现 9 个 `jsfn` 使用 `$vN` 却没有对应参数，正在回查其 V4 源公式、可达性与转换路径后再判定。
+- 本例共有 375 个 data-if，其中 373 个生成正式 `props.conditionVal.ast`；另 2 个保留 `binds.value`，正在核对其源节点是否缺少正式 conditionVal，从而判断是兼容兜底还是转换遗漏。
+- 初版“任意对象 `id+type`”计数得到 V4 10,925、V5 5,849，口径混入事件/描述对象，不能据此判断节点丢失；下一步改按 `case/stage/server → children/classes` 组件树严格复核。
+- 严格组件树复核通过：V4/V5 均为 5,849 个节点，节点 ID 缺失 0；此前差额全部来自非组件对象。非根事件块仍为 10,779/10,779 保留。
+- 两个保留 `binds.value` 的 data-if（`ctne2mta3j500004ttx0`、`cmqsrcha3j50000f3mx0`）在 V4 中均为 `props.condition=null` 加空 `{_code:'',code:''}` 占位；V5 保留 `{op:'val'}` 是正确兼容兜底，不是错误。
+- 9 个缺参 `jsfn` 已定性为转换器错误：代码使用 `$v1`～`$v3`，但自身 `args=[]`。其中 8 个位于启用/可达逻辑，涉及确认收货按钮权限、两个方案筛选函数组和同步异常状态；另 1 个位于 V4 已禁用的“人员处理”分组。
+- 服务审计：135 次调用、67 个唯一目标，唯一缺失目标 `ccrnnwfa3j500001ftm0` 在 V4 源树中同样不存在；启用函数组 `cp19vqpa3j50000d9x40` 仍会调用它，属于源案例已有的活跃悬空引用。
+- 唯一旧式 `cbParams.data` 残留位于 `d34cxcxa3j50000ff9w0` / `d34d0zba3j500005z6kg`；V4 本就把它放在非回调分支，且两层父条件均禁用，V5 正确保留为 `skip`，不是转换新增问题。
+- 项目全量测试 58/58 通过；已生成本例 `conversion-report.md`。当前转换结论为“产物生成成功，但存在 9 个嵌套 jsfn 缺参转换错误（8 个可达）”，准备向用户汇报并暂停。
+- 第 7/51 例结论已向用户交付；Stop hook 报告 77/78 phases，唯一未完成项仍是按人工审阅逐例推进的 Phase 67。自动 hook 不构成修复或启动第 8 例的授权，当前保持暂停，等待用户明确选择“修复本例”或“继续”。
+
+## 2026-08-03：Phase 74 修复嵌套回调 `jsfn` 参数丢失
+
+- 用户明确要求修复第 7 例发现的转换器错误；本轮范围为生产修复、回归测试、重转与完整审计，不创建 Git 提交。
+- 已确认当前工作区只有三份规划记录修改，以及与本任务无关的未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md`；后者保持不动。
+- 待修复症状：9 个嵌套 `jsfn` 的 `val[0]` 使用 `$v1`～`$v3`，但自身 `args=[]`；8 个位于可达逻辑。
+- 已用四类真实公式在 `V4FormulaCodeConverter` 单体层稳定复现：权限 `find` 内层生成 `(!!$v1) && !!$v2 && !!$v3`/0 args；块体 `map` 的两个 `find` 生成 `i.index == $v1`/0 args；`filter` 条件生成 3 变量/0 args；双层 `filter` 生成 `$v1 || $v2`/0 args。
+- 复现同时确认外层 `jsfn` 参数完整，缺失只发生在回调体内部二次 custom-expression fallback；下一步跟踪 `processArrowFunctionExpression(gateway:true)` 对共享解析树的变异与重复处理顺序。
+- 新增两条回归测试，覆盖表达式箭头的嵌套 `find/filter` 和块体 `map` 中的嵌套 `find`。修复前定向测试按预期 0/2 通过：分别精确报出 `(!!$v1) && !!$v2 && !!$v3` 与 `i.index == $v1` 缺少 args。
+- 调用跟踪确认同一回调体会被试探性转换三次：第一次内层 custom expression 生成 3 个 args，随后因为第一次直接把源解析树改写成 `$v1/$v2/$v3`，第二、第三次只生成同样代码但 0 args，最终一次覆盖了正确结果。
+- 第一层修复已让原两条缺参测试通过：`processCustomExpr()` 改为在保留 RegExp 的深拷贝 AST 上参数化，不再污染共享解析树。
+- 扩展语义检查发现块体 `map` 仍产生 4 个 jsfn，而正确结果应只有外层 1 个：`i.index` 被抽成无参独立 jsfn，另外两个比较也被移出 `i/j` 的词法作用域。新增断言后定向测试按预期失败（4 !== 1），将继续修复完整 JavaScript 局部变量作用域保护。
+- 加入局部名收集和 `walkOrReplaceCustomExpr` 保护后，块体用例由 4 个 jsfn 降到 3 个，但仍未满足 1 个；失败为 3 !== 1。
+- 剩余两个都来自 `!!filters.find(j => i.index == j.index)`：`UnaryExpression` 分支绕过了统一保护，直接结构化整个 argument，把依赖外层 `i` 的 find 仍抽到外层参数。下一步将 full-js 子树保护统一应用到 Unary、Call 参数、Member receiver 等直接结构化入口。
+- 已把统一 full-js 子树保护应用到 Call 参数、Member receiver、数组元素、Spread、Unary 和模板表达式入口；含局部变量或函数表达式的子树继续递归，只把外部引用替换为 `$vN`。
+- 定向回归测试现为 2/2 通过：表达式回调所有嵌套 jsfn 参数完整；块体 `map` 只剩外层 1 个 jsfn，代码原位保留 `.includes(i.index)` 与 `.find(j => i.index == j.index)`。
+- 项目全量测试增至 60/60 通过；现有 full-js、条件、正则、服务、data-if、后台编译与结构转换测试均无回归。控制台 ParseError 为测试主动触发 custom-expression fallback 的既有诊断输出，不是测试失败。
+- 修复后真实案例重转成功：诊断由 752 降到 736（去重 730→725），仍全部为 custom-expression、`dropped=0`。V5 变为 11,595,498 bytes，SHA-256 `6488d1f1bc8d36a25adf3e45db40109966c3d21d278489b5b101f28bfc61351a`。
+- 首轮真实产物审计通过：5,849/5,849 节点、10,779/10,779 事件块保留；729 个 jsfn 全部可编译，`$vN` 缺参 0、val 参数名与 args 数量不匹配 0。原两条块体方案公式已各收敛为单一外层 jsfn，并原位保留 `i/j`。
+- 自由变量审计另发现两处解构回调问题：`([key,value]) => template` 被拆成无参 ``jsfn(`${key}${value}`)``，`({title,code}) => object` 被拆成无参 `jsfn({name:title,code})`。两处动作均启用，继续纳入本轮通用回调作用域修复。
+- 一次用于检查 jsep 解构 AST 的内联命令因嵌套模板字符串引号冲突报 SyntaxError；没有修改文件。改用普通双引号字符串后成功，确认 jsep 分别把参数表示为 `ArrayExpression` 和 `ObjectExpression`。
+- 新增解构回调失败测试，修复前精确得到无箭头的 ``jsfn(`${key}${value}`)``，测试 0/1 通过。
+- `processArrowFunctionExpression()` 现在检测非 Identifier 参数并触发整箭头 custom-expression fallback；定向测试 1/1 通过，两个 jsfn 都返回可调用函数，数组解构输出 `name2`，对象解构输出 `{name:'标题',code:'code-1'}`。
+- 加入解构覆盖后项目全量测试增至 61/61 通过。
+- 第二次重转成功：诊断 737 次、去重 726 条、`dropped=0`；比上一版多 1 条是新增的 `CallbackParamPattern` 明确 fallback 诊断，语义由坏的回调体 jsfn 改为完整箭头函数 jsfn。下一步重跑最终结构、参数、自由变量和源问题审计。
+- 最终主审计：V5 为 11,594,872 bytes、SHA-256 `6d4311000473d8f3401be501499e74f522f5f53eef0cb0fc32c4f4361aa3c4a1`、0 换行；5,849/5,849 节点和 10,779/10,779 非根事件块保留，`server.props.v2=1`。
+- 最终共有 730 个 jsfn：语法错误 0、`$vN` 缺参 0、val 参数名/args 数量不匹配 0。自由变量分析排除合法 `$curPathValue` 后只剩源案例禁用分支的已知 `cbParams.data`；`i/j/item/x/key/value/title/code` 等回调局部变量悬空为 0。
+- 解构回调明确 fallback 共 3 处：除已知 `[key,value]`、`{title,code}` 外，还覆盖“换片列表”中的 `({}, index)`；三者现在都以完整箭头函数 jsfn 保留。
+- data-if 仍为 375 个（373 正式 conditionVal、2 个源空占位兼容 value bind）；服务调用仍为 135 次/67 个唯一目标，唯一缺失 `ccrnnwfa3j500001ftm0` 仍是 V4 源案例已有问题。
+- 本例 `conversion-report.md` 已更新为修复后结论、最终 hash、三类通用修复和源案例剩余问题；`git diff --check` 通过。
+- **Phase 74 Status:** complete。生产转换器、3 类回归测试、真实案例重转与完整审计均完成；依 AGENTS.md 不自动创建 Git 提交，等待用户确认是否提交。第 8/51 例未启动。
+- 最终工作区复核：本轮代码文件仅 `V4FormulaCodeConverter.js`、`jsepWrap.test.js`，另有三份规划记录；用户原有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 未触碰。当前没有创建提交。
+- Stop hook 报告 78/79 phases：唯一未完成项是需要逐例人工审阅推进的 Phase 67；Phase 74 本身已完成。自动提示不授权 Git 提交、推送或第 8 例处理，继续等待用户明确指令。
+
+## Session: 2026-08-04（Phase 75 提交、部署并同步 VxEditor41）
+
+- 用户已明确授权：提交并推送 tov5parser、部署生产 Lambda、同步 VxEditor41 转换器后同样提交并推送。
+- 会话恢复检查确认当前修复未提交；tov5parser `main` 与 `origin/main` 均位于 `e35b9a7`，待提交为公式转换器、回归测试与三份规划文档。
+- 与本任务无关的未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 继续排除，不读取、不修改、不提交。
+- VxEditor41 `master` 与 `origin/master` 均位于 `4b1955552`；其 `.gitignore`、`src/stores/event.js` 和多个未跟踪组件目录是用户原有工作，本轮只允许修改并提交转换器相关文件。
+- 两个仓库当前均未显示远端分叉；发布前仍将 fetch 并计算 ahead/behind，禁止变基。
+- fetch 后确认 tov5parser `main` 与 VxEditor41 `master` 相对各自远端均为 ahead/behind `0/0`，无需合并。
+- tov5parser 提交前完整测试 61/61 通过；控制台的 ParseError 是回归测试主动验证 custom-expression fallback 的既有诊断输出，不是失败。
+- `git diff --check` 通过；当前待提交文件仍严格为公式转换器、对应测试和三份规划记录，无关未跟踪文档保持隔离。

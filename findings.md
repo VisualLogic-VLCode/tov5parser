@@ -1236,3 +1236,44 @@
 - 新产物共有 136 个 jsfn，136/136 语法可编译且形参/实参数量匹配。原来冗余 data-if binds 中的 12 个坏 jsfn 已随重复字段消失；只剩未引用函数组 `cpwtrd1a3j50000ks1zg` 中既知的 1 个 `$v1/$v2` 自由变量 jsfn。
 - 诊断由 221 降到 138（去重 180→129），全部 138 条仍为 custom-expression fallback、dropped 0；data-if value bind 诊断为 0。正式 conditionVal 的转换仍发生在专用路径，不会写入通用 bind 诊断。
 - 修复后 V5 为 1,541,940 bytes，SHA-256 `472d29baa769338b6c79335418122f9ade9c859900474789e82a2c4b28341bf9`。
+
+## 2026-08-03：clothing 第 7 例 `产品调校中心_11283496_温晓华`
+
+- 源目录排序第 7/51，nid `11283496`；数据库当前标题为“FRP_产品调校中心”，作者刘土明（源文件名标注温晓华）。
+- 当前元数据：`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`，确认为 V4.1；`ntype=1`、版本 277、`work_id=cic0rcfl557ut9e0ea40-552`、gid 25391，已发布且已上架。
+- 应按该最新 work_id 下载完整案例，不能复用源目录中的清单 JSON或历史 work_id。
+- 最新完整 V4 已下载：16,903,495 bytes，SHA-256 `e057e7157321785add87e2bae50e78f74083fd9bd207bea9abc821ce787569fe`；顶层完整包含 `case/server/stage`。
+- 当前转换器成功生成 11,593,947 bytes 的紧凑 V5，SHA-256 `4d48ebce31af9400bb112171ef608761cb5cf9f084035434047801f719073ec7`，诊断 752 次/730 条去重、`dropped=0`。
+- 初审 739 个 `jsfn` 均可编译，但 9 个使用 `$vN` 而形参数组为空；这些不属于普通 args/params 数量不匹配，需结合源公式与可达性单独判断。
+- 375 个 data-if 中 373 个已有正式 `props.conditionVal.ast`，2 个保留兼容 `binds.value`；需确认源节点是否本就缺正式条件字段。
+- 严格按三根的 `children/classes` 递归后，V4/V5 均为 5,849 个组件节点，节点 ID 100% 保留；10,779 个非根事件块也全部有 V5 `ln` 落点。
+- 两个特殊 data-if 在 V4 中均没有正式条件，只含空 `binds.value` 占位；V5 保留空 `{op:'val'}` 兼容字段正确，其余 373 个正式 data-if 均无冗余 value bind。
+- 9 个缺参 `jsfn` 属于真实转换错误而非审计误报：它们的 `val[0]` 使用 `$v1`～`$v3`，自身 `args=[]`。8 个位于可达逻辑，1 个位于源案例已禁用动作。
+- 错误集中在自定义表达式内部嵌套 `find/filter` 回调：外层 `jsfn` 参数正常，内层回调再次降级为 `jsfn` 时参数未随之带入。受影响节点为 `cktkmjja3j50000nkr1g`、`cm0jj30a3j500009d1ng`、`cm0nphaa3j500009dgm0`、`cs64jy3a3j50000n1ny0`、`cr6cewva3j50000qh7xg`。
+- 唯一缺失服务目标 `ccrnnwfa3j500001ftm0` 在 V4 中也无定义，但启用函数组仍调用它；这是源案例已有问题。唯一旧式 `cbParams.data` 残留在两层禁用条件内，也是源数据遗留且 V5 不可达。
+- 全量测试 58/58 通过；本例报告结论是“成功生成，但有 9 个嵌套 jsfn 缺参转换错误，修复重转前不作为最终可用产物”。
+
+## 2026-08-03：嵌套回调 `jsfn` 参数丢失修复
+
+- 用户已授权修改转换器；目标不是补写案例 JSON，而是让任意嵌套 `find/filter/map` custom expression 都携带自身需要的 `args`。
+- 当前可疑边界位于 `V4FormulaCodeConverter.walkCustomExprParsed()` / `walkOrReplaceCustomExpr()`：外层 custom-expression 的 context 与 `processParsedTree()` 内部再次创建的 custom-expression context 没有稳定合并，需用最小公式验证实际变异顺序后再决定修法。
+- 单体复现证明错误与完整案例环境无关；`$refs` 默认识别即可触发。所有坏节点都满足：外层不支持的 `&&/||` 进入 custom expression，遍历到 `find/filter/map` 时先结构化箭头回调，回调体又因 `&&/||` 以 `gateway:true` 创建内层 custom expression，随后同一解析子树继续被外层 walker 使用。
+- 外层 jsfn 自身的 args 正常；内层 jsfn 代码保留 `$vN` 但 args 被清空，说明修复必须维持内层 custom expression 的代码与参数 AST 原子性，不能只在最终 JSON 上补参数数量。
+- 根因已由运行跟踪确定：`processCustomExpr()` 的 walker 通过 `genReplacement()` 原地修改传入的 jsep/acorn AST；外层 walker 的 Unary/Call 等试探路径会重复结构化同一回调，后续调用看到的是已经参数化、却不再含参数来源的树。
+- 最小通用修复方向：`processCustomExpr()` 先深拷贝解析子树，再只在副本上做参数化和打印。拷贝必须保留 `RegExp` Literal，不能使用会把正则降成空对象的 JSON 序列化。
+- 仅避免 AST 变异可以补回 9 个 `$vN` args，但不足以保证块体回调语义：`external.keys.includes(i.index)` 被整体抽成外层 jsfn 参数，导致 `i.index` 离开 `map(i => ...)` 作用域并变为 `jsfn("i.index")`。
+- 完整 JavaScript walker 还需收集函数参数和局部声明名；候选子树只要依赖这些名字，就不能整体结构化为外层参数，而应继续递归、只替换其中的外部引用。
+- `walkOrReplaceCustomExpr` 的局部变量保护有效修复 `keys.includes(i.index)`，输出已变为 `$v2.includes(i.index)`；但 `UnaryExpression` 自己直接调用 `processParsedTree(argument)`，因此两个 `!!find(...)` 仍绕过保护。
+- 该保护不能只放在一个入口：所有 full-js 模式下“先结构化、失败再递归”的直接入口都应共享同一判断，避免 Unary/Call/Member/数组或模板分支再次把含局部变量的子树移出词法作用域。
+- 完整修复包含两层：custom-expression 在保留 RegExp 的 AST 副本上参数化；full-js walker 收集箭头/函数参数、变量声明和 catch 参数，并统一保护依赖这些局部名的子树。
+- 修复后块体真实形态不再生成任何内层 jsfn：外部 `items/keys/filters` 成为外层参数，`i/j` 及其比较仍在原 JavaScript 回调作用域内。
+- 修复后真实案例 729 个 jsfn 的 `$vN`/args、val 参数名/args 与语法全部通过，但词法自由变量分析发现两个未覆盖的解构回调：
+  - `cr6cewva3j50000qh7xg` / `d3aec9ha3j5000036yb0`：`Object.entries(...).map(([key,value]) => `${key}${value}`)`；生成的模板 jsfn 看不到 key/value。
+  - `cr6cewva3j50000qh22g` / `cznnpaha3j500000e49g`：`.map(({title,code}) => ({name:title,code}))`；生成的对象 jsfn 看不到 title/code。
+- jsep arrow 插件把这两种参数分别表示成 `ArrayExpression` 与 `ObjectExpression`；当前 `processArrowFunctionExpression()` 只通过 `param.name` 识别普通 Identifier，因此解构绑定不会进入 callback context。
+- 最稳妥的兼容方式是把带非 Identifier 参数的整个箭头函数降级为一个返回函数值的 jsfn，而不是尝试把任意嵌构模式映射到 V5 固定的 item/index lambda schema。
+- 该方案已由实际执行验证：jsfn 代码保留完整 `([key,value]) => ...` / `({title,code}) => ...`，运行后返回的回调函数能正确解构输入并生成预期值。
+- 真实案例还有第三种解构 `({}, index) => ...`，同一通用检测自动覆盖，无需案例特判。
+- 最终自由变量审计只剩 `$curPathValue`（V5 路径更新约定）和禁用源分支 `cbParams.data`；排除这两类后，转换器生成的 callback-local 悬空引用为 0。
+- 原 9 个 `$vN` 缺参节点全部清零；此外两个方案块体公式中原先隐藏的 `jsfn("i.index")` 也消失，说明修复同时恢复了完整词法作用域，而非只补齐 args 数组。
+- Phase 74 最终结论：转换器错误已修复；第 7 例可判定转换成功。剩余活跃悬空服务和禁用分支 `cbParams.data` 均来自 V4 源案例，不属于本轮转换器缺陷。
