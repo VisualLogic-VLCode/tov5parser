@@ -993,6 +993,39 @@ test('legacy text-like formula parameters stay literal without hiding real formu
     }),
     undefined,
   );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('toast', ' 选中数据审核字段有误', [
+        { type: 'str', obj: ' ' },
+        { type: 'str', obj: '选中数据审核字段有误' },
+      ]),
+    }),
+    '选中数据审核字段有误',
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('toast', 'message', [
+        { type: 'str', obj: 'message' },
+      ]),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('toast', 'cbParams.message', [
+        { type: 'cbParams', obj: '返回结果', props: ['message'] },
+      ]),
+    }),
+    undefined,
+  );
+  assert.equal(
+    getLegacyFormulaTextValue({
+      param: formulaParam('toast', '"提示文字"', [
+        { type: 'str', obj: '"提示文字"' },
+      ]),
+    }),
+    undefined,
+  );
 
   assert.equal(
     getLegacyFormulaTextValue({ param: formulaParam('path', '.style') }),
@@ -1099,6 +1132,71 @@ test('legacy text-like formula parameters stay literal without hiding real formu
     }),
     undefined,
   );
+});
+
+test('legacy editor formulas repair only a tokenized surplus trailing parenthesis', () => {
+  ensureIvxMapNodeEnv();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson: buildV4CaseJson() }));
+  try {
+    const repaired = convertEditorValue({
+      value: {
+        _code:
+          "$sys.util.getSelf($sys.util.objArr_rowItem($refs.txt1.p_value, 0)) ? 'selected' : 'idle'",
+        code:
+          "$refs.txt1.p_value.$SF_objArr_rowItem($P_row:0).$SF_getSelf() ? 'selected' : 'idle')",
+        str: [
+          {
+            type: 'str',
+            obj:
+              "$refs.txt1.p_value.$SF_objArr_rowItem($P_row:0).$SF_getSelf() ? 'selected' : 'idle'",
+          },
+          { type: 'str', obj: ')' },
+        ],
+      },
+      nodeId: 'txt1',
+    });
+    assert.equal(repaired.op, 'switchexp');
+    assert.deepEqual(repaired.args[1], { op: 'val', val: 'selected' });
+    assert.deepEqual(repaired.args[3], { op: 'val', val: 'idle' });
+
+    const withoutRuntimeCode = convertEditorValue({
+      value: {
+        code:
+          "$refs.txt1.p_value.$SF_objArr_rowItem($P_row:0).$SF_getSelf() ? 'selected' : 'idle')",
+        str: [
+          {
+            type: 'str',
+            obj:
+              "$refs.txt1.p_value.$SF_objArr_rowItem($P_row:0).$SF_getSelf() ? 'selected' : 'idle'",
+          },
+          { type: 'str', obj: ')' },
+        ],
+      },
+      nodeId: 'txt1',
+    });
+    assert.deepEqual(withoutRuntimeCode, { op: 'val' });
+
+    const realBracket = convertEditorValue({
+      value: {
+        _code:
+          "$sys.util.getSelf($sys.util.objArr_rowItem($refs.txt1.p_value, 0)) ? 'selected' : 'idle'",
+        code:
+          "$refs.txt1.p_value.$SF_objArr_rowItem($P_row:0).$SF_getSelf() ? 'selected' : 'idle')",
+        str: [
+          {
+            type: 'str',
+            obj:
+              "$refs.txt1.p_value.$SF_objArr_rowItem($P_row:0).$SF_getSelf() ? 'selected' : 'idle'",
+          },
+          { type: 'bracket', obj: ')' },
+        ],
+      },
+      nodeId: 'txt1',
+    });
+    assert.deepEqual(realBracket, { op: 'val' });
+  } finally {
+    clearActiveEnv();
+  }
 });
 
 test('legacy current-path placeholders resolve to the target value AST', () => {

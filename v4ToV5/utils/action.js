@@ -240,16 +240,26 @@ function getLegacyFormulaTextValue({ param, paramName }) {
   const name = paramName || param?.name
   const trimmed = code.trim()
   const tokens = param?.value?.str
-  const isLegacyYesNoText =
-    /^是否/u.test(name || '') &&
-    /^(?:是|否)$/u.test(trimmed) &&
+  const hasPureTextTokenEvidence =
     Array.isArray(tokens) &&
     tokens.length > 0 &&
     tokens.every(
       token => token?.type === 'str' && typeof token.obj === 'string'
     ) &&
     tokens.map(token => token.obj).join('') === code
+  const isLegacyYesNoText =
+    /^是否/u.test(name || '') &&
+    /^(?:是|否)$/u.test(trimmed) &&
+    hasPureTextTokenEvidence
   if (isLegacyYesNoText) {
+    return trimmed
+  }
+  const isLegacyToastText =
+    name === 'toast' &&
+    hasPureTextTokenEvidence &&
+    /\p{Script=Han}/u.test(trimmed) &&
+    /^[\p{L}\p{N}\s，。！？、：；（）【】《》“”‘’—…,.!?;:_-]+$/u.test(trimmed)
+  if (isLegacyToastText) {
     return trimmed
   }
   if (

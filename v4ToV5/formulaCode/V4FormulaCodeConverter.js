@@ -102,6 +102,32 @@ export default class V4FormulaCodeConverter {
     $SF_db_getDbObjArrRow: '$SF_arr2d_aArrRow', // 对象数组的某一行
     $SF_db_getDbObjArrItem: '$SF_objArr_item' // 对象数组的某个值
   }
+  // 文件上传回调中的旧运行时工具存在于 widgets，但未进入通用公式 map。
+  // 显式保留其 V5 sysutil 名称，避免未知方法退化为带 `$SF_*` 的 jsfn。
+  static legacySysutilMap = {
+    $SF_sys_multiObjListToObjArr: {
+      name: '$SF_sys_multiObjListToObjArr'
+    }
+  }
+  static canParseEditorCode = ({ str }) => {
+    if (typeof str !== 'string') return false
+    try {
+      const converter = new V4FormulaCodeConverter({ str })
+      jsep(converter.replaceSFParamPrompt({ str }))
+      return true
+    } catch {
+      return false
+    }
+  }
+  static canParseRuntimeCode = ({ str }) => {
+    if (typeof str !== 'string') return false
+    try {
+      const parsed = parseExpressionAt(str, 0, { ecmaVersion: 'latest' })
+      return str.slice(parsed.end).trim() === ''
+    } catch {
+      return false
+    }
+  }
   // 静态方法
   static isGetAST = ({ ast }) => {
     let walkAst = ({ ast }) => {
@@ -1255,7 +1281,8 @@ export default class V4FormulaCodeConverter {
     let sysutilMap = MapCreator.genSysutilMap()
     // 反包函数的别名映射
     funcName = V4FormulaCodeConverter.sfutilAliasMap[funcName] || funcName
-    let sysutilInfo = sysutilMap[funcName]
+    let sysutilInfo =
+      sysutilMap[funcName] || V4FormulaCodeConverter.legacySysutilMap[funcName]
     return sysutilInfo
   }
   // 生成反包函数的arg

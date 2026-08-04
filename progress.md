@@ -1605,3 +1605,122 @@
 - VxEditor41 首次定向 ESLint 为 0 error/5 个仅属新代码的 Prettier warning，已手工按项目格式修正；复验为 0 error/0 warning。生产构建成功，webpack 0 error、33 类仓库既有 warning，目标转换器文件无 warning，构建未产生新待提交文件。
 - VxEditor41 仅暂存四个目标文件，提交 `93d6ee722220e1f8205613aedaf0cbd80cd71153`（`fix: preserve legacy path expressions`）已推送 `origin/master`，远端 ahead/behind 0/0；`.gitignore`、`src/stores/event.js`、`.claude/` 及未跟踪组件目录保持用户原状。
 - **Phase 77 Status:** complete。第 9 例三类转换器缺陷已修复，真实重转、双仓库提交推送与 Lambda 版本 13 部署全部完成；现回到 Phase 67 第 9/51 例人工审阅门禁，不启动第 10 例 `任务中心导出资料_11899135_温晓华.json`。
+- Stop hook 报告 81/82 phases；唯一未完成项是覆盖 51 个案例、必须由用户逐例确认推进的 Phase 67。第 9 例已完整交付并等待审阅，自动 hook 不构成用户“继续”指令，因此不会启动第 10 例。
+- session catchup 检出 8 条未同步上下文，内容仅为第 9 例最终交付、本次 stop hook 与只读恢复检查；发布和检查结论此前已写入规划文件，没有遗漏的代码、部署或同步动作。
+- 用户询问当前路径占位符的处理方式；已说明转换器会在转换期按动作目标和 index/row/col/JSON path 构造真实 V5 `value → obj_item` AST，`setCusPathValue` 使用带异常兜底的动态路径 jsfn，不依赖 V5 运行时全局占位符。该问答没有产生新的代码或发布动作。
+- Stop hook 再次报告 81/82 phases；未完成项仍仅为需要用户逐例确认推进的 Phase 67。第 9 例继续等待审阅，不启动第 10 例。
+
+## Session: 2026-08-04（Phase 67 第 10 例）
+
+- 用户已明确回复“继续”；当前案例切换为 `任务中心导出资料_11899135_温晓华.json`（nid `11899135`）。
+- `LC_ALL=C` 排序确认本文件为第 10/51 例；第 11 例为 `内外包材包装方式_11073549_温晓华.json`，本例汇报前不会启动。
+- session catchup 的 4 条未同步上下文仅包含第 9 例等待状态和本次“继续”；没有遗漏任务。当前规划文件含 hook 产生的未提交记录，用户无关未跟踪文档继续保持不动。
+- 中文服只读 SSH 隧道仍在 `127.0.0.1:13306` 监听；权威交接 env 位于 `/Users/lianghuang/Desktop/case-json-migrator/raw/lianghuang-cn-db-20260630/lianghuang_ro.mysql.env`，权限为 600。仅检查了变量名，没有输出任何凭证值。
+- `/tmp` 中已没有可复用的 PyMySQL 模块；将按此前成功路径新建隔离临时目录安装依赖，再执行参数化单条 SELECT，不污染项目依赖。
+- 已在隔离目录 `/tmp/clothing-pymysql.9e3CpQ` 安装 PyMySQL，并通过只读隧道参数化查询成功：`data_edt_ver=node_edt_ver=4.1`、`ver_detail=null`，确认为 V4.1；`ntype=1`、作品版本 162、最新 `work_id=cvll1i0vs0lgmk54omr0-426`。
+- 数据库标题“任务中心导出资料”、作者温晓华、gid 25391，与文件名一致；作品已发布且已上架，正式/预览链接码均为 `pxRLcgwH`。下一步按最新 work_id 下载编辑器完整 V4 JSON。
+- 最新完整 V4 下载与解码成功：HTTP 200、二进制 174,708 bytes、2 个压缩分段；恢复 `case/server/stage` 三棵树，根类型为 `ih5-case/data-server/ih5-stage`。
+- V4 紧凑 JSON 为 2,512,761 bytes、SHA-256 `fe9f0d1ddbc102cc1daa08d98691ae4a273c39216604f9a2108de93c5a63297f`、0 换行、权限 600；来源 README 已补齐且不含 Cookie 或数据库凭证。下一步用 `ntype=1 --diag` 转换。
+- 本例转换 1/1 成功，生成 2,160,302 bytes 的紧凑 V5；诊断 23 次且 23 条均为 custom-expression jsfn fallback，`dropped=0`、去重 23。
+- 首轮结构审计通过：V4/V5 唯一节点 312/312，非根事件块落点 723/723；23 个 `jsfn` 全部可编译，空 code 0、缺参 0、形参与实参数量不匹配 0、legacy `$refs/$SF_/fParam/_loop/cbParams/$curPathValue` 残留 0。
+- V4 有 16 处 legacy 当前路径占位符，V5 残留 0；data-if 3 个全部使用正式 `props.conditionVal.ast`；20 次 runsvc 的 6 个唯一服务目标全部存在，`server.props.v2=1`。下一步逐项复核 23 个 fallback 的打印与自由标识符语义。
+- 23 个 jsfn 已逐项列出并核对：Set/spread、正则、flat、模板字符串、findIndex、逻辑或与完整 JS reduce 的打印结构和参数均与源公式对应，未发现空 receiver、错误括号或参数丢失。
+- 首次自由标识符审计没有给 eslint-scope 的 AST 提供 `range`，其中 3 个含回调的表达式被分析器报内部读取错误；这不是案例公式解析失败。已用 `ranges/locations` 重新解析，23/23 均无除显式 `$vN` 参数和标准内建对象外的自由标识符。
+- raw JSON 字符串中的当前路径名称计数为 16，是因为 8 个 Formula 同时保存 `code/_code`；按真实动作公式去重后为 8 个启用 `setOneValue`。逐 BID 检查 8/8 均生成目标变量 `value` 加正确 index 的 `obj_item` AST，无禁用样本、无误配。
+- 组件映射复核通过：V4/V5 节点类型分布完全一致，Legacy 类型 0、无效节点 0；转换日志除 23 个已记录 fallback 的 ParseError 外没有 missing/not-found/unknown 错误。
+- 项目全量测试 63/63 通过、0 fail；测试输出中的 ParseError 均为回归用例验证 fallback 的既有日志。
+- 已生成本例 `conversion-report.md`。最终结论：转换成功，未发现转换器错误，也未发现 V4 源案例的悬空服务引用；停在第 10/51 例人工审阅门禁。
+- 交付前文件复核通过：V5 2,160,302 bytes、SHA-256 `c3c0c1ea7c1ac967ea2dea0fc522274ece391ae54066edf5a26c8b25558707a1`、0 换行且等于重新紧凑序列化结果；`case/server/stage` 与 `server.props.v2=1` 完整。工作区没有生产代码改动，用户无关未跟踪文档保持不动。
+- 第 10/51 例已向用户交付“转换通过、转换器错误 0、源案例悬空引用 0”的完整结论与 V4/V5/报告路径，当前等待审阅。
+- Stop hook 报告 81/82 phases；唯一未完成项仍是必须逐例由用户确认推进的 Phase 67。自动 hook 不构成“继续”授权，因此不启动第 11 例。
+
+## Session: 2026-08-04（Phase 67 第 11 例）
+
+- 用户已明确回复“继续”；当前案例切换为 `内外包材包装方式_11073549_温晓华.json`（nid `11073549`）。
+- `LC_ALL=C` 排序确认本文件为第 11/51 例；第 12 例为 `分类设置_11020389_温晓华.json`，本例汇报前不会启动。
+- 已通过中文服只读数据库确认 nid `11073549` 当前为 V4.1、版本 `24`、`ntype=1`，最新 `work_id=cc8s34qfmpllnjbhfucg-114`，可进入完整案例下载。
+- 数据库当前标题为 `FRP_内外包材包装方式`、作者为 `朱芮`，与源文件名标注的标题/作者（`内外包材包装方式` / `温晓华`）存在差异；下载目录继续按源文件名命名，并在最终报告保留当前数据库元数据。
+- 当前记录还显示 gid `25391`，案例已发布且已上线，短链为 `gz7OrREU`。
+- session-catchup 仅检测到本轮恢复/读取操作，没有未同步的案例处理结果；已按实际数据库查询补齐记录。
+- 编辑器 `/work/load` 下载与解码成功：HTTP 200，原始二进制 427,836 bytes、2 个压缩分段，得到含 `stage/server/case` 的紧凑 V4 JSON 5,455,302 bytes。
+- V4 产物已保存为 `localCases/v4/clothing/内外包材包装方式_11073549_温晓华/app.json`，权限 `0600`，SHA-256 `f50d9947d32c347f47a6e4463e276197f3538bff1b474855235df38944d2b6fc`；来源 README 已补齐。
+- 当前转换器成功生成 V5 紧凑 JSON（日志报告 3,577.0 KB，耗时 248ms）及 `.json/.md` 两份诊断文件；诊断去重后 96 条，其中空值降级 7、`jsfn` 兜底 89，转换进程为 1/1 成功。
+- 转换日志中的 `&&`、`||`、`hasOwnProperty` 等 ParseError 属于已设计的完整 JavaScript `jsfn` 兜底路径；是否存在真实错误需结合落盘 AST、空值降级位置和作用域审计判断，当前不提前下结论。
+- V5 产物严格紧凑（0 个换行），大小 3,662,844 bytes，SHA-256 `831b783e19b9f20eecc3fa59bcaec09b780db18a87643b84d5cf5fc84eca7e3e`。
+- 96 条诊断明细：`custom-expr` 89、`dropped` 7；主要类别为 `&&` 36、正则字面量 22、`||` 12、`Unexpected )` 7、`$SF_sys_multiObjListToObjArr` 6、`hasOwnProperty` 3、完整 JavaScript fallback 2，以及 `unknown varType` 7。下一步优先逐条核对 7 个 dropped 是否为应保留的普通文本。
+- 7 个 dropped 均不是普通文本，而是 7 个组件的 `binds.bgColor`：V4 `code` 末尾多一个右括号，解析失败后 V5 全部变成空 `{op:"val"}`。但同一 V4 bind 的 `_code` 字段是去掉该多余括号的有效运行时表达式，说明源数据仍携带可恢复语义；当前转换器没有在 `code` 解析失败时利用有效 `_code`，暂记为 1 类转换器兼容缺陷（影响 7 个绑定），待其余审计完成后一并汇报。
+- 修正节点统计口径后，V4/V5 均为 1,922 个带 `id/type/props` 的真实节点，节点 ID 0 丢失、0 新增；此前泛型对象统计混入事件根，不采用。
+- V5 有 90 个 `runsvc`、25 个唯一目标；按全部真实节点核对仅 `cjzmmjta3j500001xrv0` 缺失，且该 ID 在 V4/V5 节点中都不存在，初步属于源案例悬空服务引用，待回查调用点确认。
+- 后台 `server.props.v2=1`；12 个 `data-service` 均带编译态 `_code`。另外 14 个 `data-sharedService` 与 12 个 `server-api` 不按同一事件字段统计，需结合节点结构复核，不将其直接判为未编译。
+- 共 212 个 `data-if`：210 个使用 `props.conditionVal`；另 2 个源条件为空，对应 V5 `binds.value={op:"val"}` 空占位。当前没有发现“有条件却缺 conditionVal”的样本，后续对照 V4 确认这两个空节点。
+- 当前路径样本包含 1 个 `$curPathValue`；V5 原始 JSON不再残留该占位符。`$curObj` 在 V5 仅作为标准 AST `_blockType` 标记存在，不是未转换字符串。
+- `jsfn` 的真实结构为 `val: [code]`、`args: [...]`，首次脚本把 `val` 误按字符串读取，得到的 89 个 syntax/empty 结论无效，已撤销；下一步按 `val[0]` 重新审计。首个样本 `val[0]` 是未加引号的中文提示文字，提示可能还有第 2 类文本识别错误。
+- 正确的 `jsfn` 审计结果：89/89 均非空且语法可编译，`args` 数量分布为 0:29、1:9、2:25、3:19、4:3、5:2、6:2；没有 `$vN` 超出 `args` 范围。
+- 自由标识符审计精确发现 7 条运行时问题：6 条裸 `选中数据审核字段有误`、1 条裸 `选中数据状态字段有误`，全部来自 `fireFuncGroup.toast`，本应是普通提示文字，却被转换成无参数 `jsfn`。JavaScript 允许中文标识符，所以语法检查会通过，但执行时会查找不存在的变量；暂记为第 2 类转换器错误（影响 7 个动作参数）。
+- 另有 6 个 `jsfn` 保留 `$SF_sys_multiObjListToObjArr()`：它们与 6 条“不支持该 sysutil 方法”的诊断一一对应。已在 VxEditor41-widgets 找到实际实现，下一步核对 V5 是否支持同名方法调用或是否需要在 full-js fallback 中改写，暂不下结论。
+- V5 `ast2js` 的 `jsfn` 实现直接用 `new Function` 执行 `val[0]`，只把 `args` 的普通运行值传给 `val[1..]` 参数，不会给对象注入 `$SF_*` 方法；仓库中 `$SF_sys_multiObjListToObjArr` 只在 V4 组件 map 注册，实际函数是独立的 `sys_multiObjListToObjArr(value)`。因此这 6 个残留会调用不存在的对象方法，确认为第 3 类转换器错误（影响 6 个公式）。
+- 该 V4 工具的语义是把“各字段为数组”的多对象列表按最大数组长度逐行组装成对象数组；修复时不能简单删除调用或当 identity，需把它映射到等价 V5 sysutil/JS 实现。
+- `jsfn` 最终按运行时真实参数名 `val[1..]` 复验：89/89 参数名与 `args` 数量完全一致，89/89 语法通过；此前的 7 个自由中文标识符和 6 个 `$SF_*` 残留仍是运行语义错误，不影响这一语法结论。
+- 唯一 `$curPathValue` 位于 BID `cd81m1ga3j50000hbex0` 的 `setOneValue.value`，V4 为 `'%'+当前位置值+'%'`；V5 精确还原为 `%` + 目标对象当前行/`内容填写`字段值 + `%`，路径上下文与目标对象均正确。
+- 2 个无 `conditionVal` 的 data-if 在 V4 本来就只有 `binds.value={_code:"",code:""}` 空占位、没有条件；V5 的 `{op:"val"}` 是等价空值，不属于条件丢失。
+- 悬空服务 `cjzmmjta3j500001xrv0` 只有 1 个 V4 `fireService` 调用（BID `cwcvpmja3j50000tnv4g`），源 V4 全树本来就没有对应服务定义；V5 保留该调用，归类为源案例错误而非转换器丢失。
+- 后台编译态审计闭环：server 下只有 12 个带事件的 `data-service`，12/12 事件均有 `_code`，没有仅 `code` 未编译事件；`server.props.v2=1`。
+- 4,404 个 V4 BID 中有 553 不作为 V5 `ln`：549 个是事件 `root` 容器（按设计由 event AST 外层承接），另 4 个是启用的 `status` 包装（`uploading`/`beforeUpload`），其子动作 BID 均存在；需继续确认 V5 是否正确承接状态分支，而不是把子动作无条件扁平化。
+- 审计检索时误给 `rg` 一个不存在的 `tests` 路径，出现一次 `No such file or directory`；已确认真实测试文件为 `v4ToV5/v4ToV5.test.js` 并改用准确路径，错误已记录且不影响代码/产物。
+- 转换器对 `status` 并非简单丢弃：`convertBlock` 会转入 `convertActionCb`，`dealSpecialCbs` 会把 `$sobj_file` 动作的 `beforeUpload` / `uploading` status 子树组装为专用文件上传回调。下一步只需核对本例 4 个 status 的父动作确属该分支、V5 回调参数中含其子动作。
+- 4 个 status 落点复核通过：两组父动作分别为 `$sobj_file.uploadPics`（BID `cwcvpmja3j50000tnt1g`）和 `uploadVideos`（BID `cwcvpmja3j50000tnt90`）；V5 均生成 `beforeUploadCb`/`uploadingCb` 两个 `alambda`，并分别保留四个子动作 BID 与“上传中...”参数。status 自身无 `ln` 是结构折叠，不是动作丢失。
+- V4 运行/代码生成实现明确优先读取 `bind._code || bind.code`；因此 7 个 bgColor 虽然编辑态 `code` 多右括号，但 V4 实际使用有效 `_code`。这进一步确认 V5 将其置空是转换器语义丢失，不能归为“V4 本来就坏”。
+- 项目全量测试通过：63/63 pass、0 fail；测试中打印的 ParseError 是现有 fallback 回归用例的预期日志，不影响测试结果。
+- 最终产物复验通过：可解析、严格等于 `JSON.stringify(parsed)`、3,662,844 bytes、SHA-256 `831b783e19b9f20eecc3fa59bcaec09b780db18a87643b84d5cf5fc84eca7e3e`；`git diff --check` 通过。
+- 转换日志共有 87 行预期 ParseError 入口，没有 TypeError/ReferenceError/SyntaxError/权限/文件或 0 成功错误，末尾为 1/1 成功。
+- `jsfn` 字符串专项最终统计发现 `$SF_*` 出现 9 次，其中 6 次是已确认错误的 `$SF_sys_multiObjListToObjArr`；另外 3 次需列出上下文后再确认，不能漏报。
+- 工作区仅新增/更新本例产物与规划记录；用户既有未跟踪文档保持未读、未改、未纳入任何操作。
+- 复核 `$SF_*` 明细后确认 9 次出现全部来自同一批 6 个 `$SF_sys_multiObjListToObjArr` 问题公式，没有新增错误类别。
+- 已生成 `localCases/v5/clothing/内外包材包装方式_11073549_温晓华/conversion-report.md`：结论为 3 类转换器错误（影响 20 个位置）+ 1 个 V4 源悬空服务引用，其他专项检查通过。
+- **第 11/51 例已完成并停在人工审阅门禁。** 不修改转换器、不提交/部署，也不启动第 12 例，等待用户明确指令。
+- session catchup 的 4 条未同步上下文仅包含第 10 例等待状态和本次“继续”，没有遗漏动作。当前规划文件继续保留前两次 hook 与第 10 例记录，用户无关未跟踪文档保持不动。
+- Stop hook 报告 81/82 phases；唯一未完成项仍是必须逐例人工审阅推进的 Phase 67。第 11 例已交付 3 类转换器错误和 1 个源案例错误的结论，自动 hook 不构成“修复转换器”或“继续下一例”的授权，因此保持第 11/51 例审阅门禁，不启动第 12 例。
+- 本次 session-catchup 只回放了第 11 例最终汇报与本次 hook/恢复操作，没有遗漏新的案例处理或代码修改。
+
+## Session: 2026-08-04（Phase 78 第 11 例转换器修复与自动发布）
+
+- 用户明确要求“修复”，启动 Phase 78；目标是修复第 11 例报告中的 3 类转换器错误：有效 `_code` 未回退、中文 toast 被误作 `jsfn`、`$SF_sys_multiObjListToObjArr` 残留。
+- 按项目固定发布流程，验证通过后自动提交/推送 tov5parser、部署 Lambda，并同步/提交/推送 VxEditor41；V4 源悬空服务不在转换器修复范围内，第 12 例不启动。
+- session-catchup 仅检测到上一轮等待结论和本轮授权，没有遗漏代码修改。tov5parser 当前只有规划文件与案例产物变更；用户既有未跟踪文档继续保持不读不改。
+- VxEditor41 当前存在 `.gitignore`、`src/stores/event.js` 及多个新目录等用户既有修改；后续只触碰 `src/utils/convertV4ToV5` 下对应转换文件，并用精确路径暂存，绝不纳入这些修改。
+- 初步定位：`convertEditorValue` 只读取 `value.code`，解析失败不会尝试 `value._code`；bind 入口也没有回退逻辑，因此第 1 类错误应在公式转换入口实现受控回退，而不是针对 7 个节点修补。
+- 中文文本识别位于 `utils/action.js#getLegacyFormulaTextValue`，当前仅对 yes/no、尺寸、path、info、reason、url 等少数参数生效，没有 `toast` 语义；第 2 类修复应利用 V4 `str` 全文本 token 证据限定 toast，避免把真实 toast 公式文本化。
+- `$SF_*` 转换先查 `MapCreator.genSysutilMap()`，缺少映射就抛 ParseError 并进入 full-js fallback；`$SF_sys_multiObjListToObjArr` 当前不在 map，导致伪方法原样残留。下一步核对 V5 `$sys.util` 是否已有同语义函数与可用 AST 名称。
+- V5 `ast2js` 对链式 `op:sysutil` 生成 `$sys.util.<val>(receiver, ...args)`；播放器把 `VxEditor41-widgets/src/utils/sysFunc.js` 全量导入为 `$sys.util`，其中确有 `sys_multiObjListToObjArr(value)`。因此第 3 类可安全映射为 `op:sysutil,val:sys_multiObjListToObjArr`，无需内联复制算法。
+- 现有公式文本回归位于 `v4ToV5.test.js` 的 `legacy text-like formula parameters...`，可直接增加 toast 的正/反例；sysutil 则应在公式转换测试中覆盖精确 AST和真实 jsfn 残留清零。
+- 首次内存探测把完整案例直接传给裸 `index.js`，未执行本地脚本的 ivx map 初始化，导致 `MapCreator.genSysutilMap()` 读取未初始化 map 并终止；没有得到 `_code` 可否直接解析的有效结论。该失败已记录，后续改用带 map 初始化的真实转换入口或合成定向环境。
+- 使用 `loadRuntimeMaps()` 后重新探测有效：直接把 `_code` 当 editor code 能生成 `jsfn`，但代码内残留 `$sys.util.*`。V5 `jsfn` 由 `new Function` 执行，不能捕获外层局部 `$sys`，所以“解析失败后直接改用 `_code`”仍会产生运行时错误，不可采用。
+- 第 1 类修复必须更窄：从编辑态 `code` 中修复可证明为多余的闭合符号，或把 `_code` 的 `$sys.util` 调用结构化转换；不能无条件把运行码塞入 full-js fallback。
+## 2026-08-04 会话续接（第 11 例修复）
+
+- 已按 `planning-with-files` 执行 session catchup；仅检测到本轮恢复后的说明和只读操作，没有遗漏的代码修改。
+- 当前继续 Phase 78：先为尾部多余右括号、Toast 中文纯文本、旧 `$SF_sys_multiObjListToObjArr` 三类错误补回归测试，再修复并完成自动发布链路。
+- 已复读 Phase 78、进度与研究结论；工作区仍只有三份规划记录变更及用户无关未跟踪文档，尚无生产代码修改。
+- 真实 toast 的 `str` 证据已核对：7 条均由“前导空格 + 中文正文”两个纯文本 token 构成，token 拼接与 `code` 完全一致；修复会同时用参数名、纯文本 token 与中文正文收窄。
+- `_code` 不能直接回退；`parseStr()` 会在 jsep/full-JS 都失败后内部返回空值，因此将对 editor `code` 做受 `_code` 佐证的窄尾括号修复，再交给原转换流程处理 V4 引用。
+- sysutil 将通过精确 legacy 映射生成结构化 `sysutil` AST，不做 jsfn 字符串替换。
+- 已确认 `sys_multiObjListToObjArr` 同时存在于 VxEditor41-widgets 与 VxEditor5-widgets 的 `sysFunc.js`，且两个 widgets 的 systemFile map 都声明旧函数名；目标 V5 AST 名称有双运行时依据。
+- 回归测试设计完成：公式入口验证受控尾括号修复及无佐证反例；动作文本验证 toast 正例和变量/引号反例；公式转换验证 multiObj 方法生成结构化 sysutil 且无 jsfn 残留。
+- 已先写入三组回归并运行定向测试；修复前结果按预期为 0/3 通过：toast 返回 `undefined`、尾括号公式落成空 `val`、multiObj 仍触发 `not support sysutil method` 并找不到目标 AST。三类测试均精确命中本例缺陷。
+- 三处最小修复已实施：受 `_code`/token/parser 三重约束的尾括号修复、带纯文本 token 和中文正文约束的 toast 文本恢复、精确 legacy multiObj sysutil 映射。
+- 同一组定向回归现为 3/3 通过；两条 `Unexpected ")"` 日志来自明确要求“不应修复”的无 `_code` 与真实 bracket 反例，断言均通过。
+- 项目完整测试现为 65/65 通过、0 fail；新增 2 个测试使原 63 项增至 65 项。控制台 ParseError 均为测试覆盖既有 fallback/负例的预期日志。
+- 已复核第 11 例旧报告和转换脚本参数，下一步仅重转本例 `clothing/内外包材包装方式_11073549_温晓华/app.json`，不会批量触碰其他已测试案例。
+- 首次修复后真实重转为 1/1 成功，但诊断仅从 96 降到 83：Toast 与 multiObj 对应 13 条已消失，7 个 `Unexpected ")"` dropped 仍存在。说明合成尾括号测试通过但真实 `_code` 校验未命中；该真实门禁偏差已记录，下一步直接用真实公式定位并补回归，不重复盲目重转。
+- 根因确认是测试公式未包含真实 `$P_row:` 参数提示；正式转换器会先删提示再解析，而首版预检漏了这一步。回归已升级为含 `$P_row:`、`$refs`、`$SF_*` 的真实结构，并让预检复用 `replaceSFParamPrompt()`。
+- 升级后的三组定向测试再次 3/3 通过；无 `_code` 和正常 bracket token 两个反例仍保持不修复。
+- 真实 7 个 bgColor 已用修复 helper 逐个探测，7/7 都只删除 1 个尾字符并得到可解析候选。
+- 第二次重转命令中的转换进程已执行，但收尾脚本误把 zsh 只读变量 `status` 用作退出码，命令因此报 `read-only variable`；这是包装命令错误，不代表转换失败。后续改用非保留变量并先检查已生成日志/产物，不重复假定转换结果。
+- 日志与产物时间戳确认第二次真实重转实际成功：诊断 76 条、dropped 0、custom-expression 76、去重 76；旧 96 条中三类目标诊断共 20 条全部消失。
+- 20 个原错误位置逐项实物复核通过：7 个 bgColor 均为完整嵌套 `switchexp`；7 个 toast 均为中文 `op:'val'`；6 个相关 BID 均出现结构化 `sys_multiObjListToObjArr`，旧 `$SF_*` 不再用于这些公式。
+- 首轮全量审计的核心指标均通过（节点 1922/1922、jsfn 76/76 可编译且参数完整、dropped 0、multiObj sysutil 9 次、服务与 data-if 指标不变），但脚本因三个过宽的原始字符串计数退出 1：Toast 文本有 1 个额外合法出现，`$SF_` 也存在于非 jsfn 元数据，上传回调名包含定义/引用共 3 次而非此前假设的 2 次。下一步改为按目标 BID、AST 类型和 jsfn 作用域断言，不用原始字符串总数判错。
+- 修正审计口径后全量结构检查通过：1922/1922 节点、0 缺失/新增、76 个 jsfn 全部可编译且参数完整，jsfn 内 `$SF_`/`$sys`/裸 Toast 均为 0；212 个 data-if、90 次 runsvc/25 目标、12/12 后台服务事件与 4 个上传回调子动作均保持原审计结论。
+- multiObj 回归已增加 `ast2js` 及实际执行验证：字段数组对象成功转成行对象数组后再 map，结果为 `['first','second']`；完整项目测试再次 65/65 通过。
+- 最终 V5 为 3,673,452 bytes，SHA-256 `574466a82d52a094df4e102c6b29123132a2d339543fb923bcfcaa89fac81168`；诊断 JSON/Markdown 分别为 51,457/20,007 bytes，hash `7c9c9e...0430a` / `af89fe...ad9b`；`git diff --check` 通过。
+- `conversion-report.md` 已更新为修复后通过结论，保留 1 个 V4 源悬空服务说明；第 12 例仍未启动。
+- 发布前代码复核将运行码完整性校验收敛到已依赖 Acorn 的 `V4FormulaCodeConverter` 静态方法，`formula.js` 不再新增解析依赖或导出调试 helper；行为不变，完整测试仍为 65/65 通过。

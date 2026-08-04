@@ -198,6 +198,62 @@ test('ordinary array callbacks use block-scoped item and index parameters', () =
   )
 })
 
+test('legacy multi-object-list conversion becomes a structured V5 sysutil call', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.uploads.$SF_sys_multiObjListToObjArr().map(item => item.name)',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const multiObjListToObjArr = findAst(
+    ast,
+    item =>
+      item.op === 'sysutil' && item.val === 'sys_multiObjListToObjArr'
+  )
+  assert.ok(multiObjListToObjArr)
+  assert.equal(
+    collectAst(ast, item => item.op === 'jsfn').length,
+    0
+  )
+  assert.doesNotMatch(JSON.stringify(ast), /\$SF_sys_multiObjListToObjArr/)
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'test-node',
+    getNodeByIdFunc() {}
+  })
+  assert.match(code, /\$sys\.util\.sys_multiObjListToObjArr\(/)
+  const result = new Function('$sys', 'param', `return ${code}`)(
+    {
+      util: {
+        sys_multiObjListToObjArr(value) {
+          const length = Math.max(
+            0,
+            ...Object.values(value).map(item => item.length)
+          )
+          return Array.from({ length }, (_, index) =>
+            Object.fromEntries(
+              Object.entries(value).map(([key, item]) => [key, item[index]])
+            )
+          )
+        },
+        objArr_map: (value, callback) => value.map(callback),
+        obj_item: (value, key) => value[key]
+      }
+    },
+    {
+      uploads: {
+        name: ['first', 'second'],
+        url: ['/first', '/second']
+      }
+    }
+  )
+  assert.deepEqual(result, ['first', 'second'])
+})
+
 test('nested array callbacks keep outer and inner item references distinct', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({

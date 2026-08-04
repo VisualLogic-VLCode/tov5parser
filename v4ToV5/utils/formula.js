@@ -7,6 +7,36 @@ import {
 } from '../env.js'
 import { pushDiagContext, popDiagContext } from './convertDiag.js'
 
+// 少量旧案例会把一个多余的右括号作为普通文本 token 追加到 editor code，
+// 而运行态 _code 仍是有效表达式。只在三重证据同时成立时删除该尾字符：
+// 1) _code 是完整 JS 表达式；2) 尾 token 明确是普通文本而非括号 token；
+// 3) 原 editor code 解析失败，但删除该字符后能由 V4 parser 完整解析。
+function repairLegacyEditorCode(value) {
+  const code = value?.code
+  const runtimeCode = value?._code
+  if (
+    typeof code !== 'string' ||
+    typeof runtimeCode !== 'string' ||
+    runtimeCode.trim() === '' ||
+    !V4FormulaCodeConverter.canParseRuntimeCode({ str: runtimeCode }) ||
+    !Array.isArray(value?.str)
+  ) {
+    return code
+  }
+
+  const lastToken = [...value.str].reverse().find(Boolean)
+  if (lastToken?.type !== 'str' || lastToken.obj !== ')') return code
+
+  const match = /\)(\s*)$/u.exec(code)
+  if (!match) return code
+  const candidate = code.slice(0, match.index) + match[1]
+
+  if (V4FormulaCodeConverter.canParseEditorCode({ str: code })) return code
+  return V4FormulaCodeConverter.canParseEditorCode({ str: candidate })
+    ? candidate
+    : code
+}
+
 function convertEditorValue({
   value,
   nodeId,
@@ -22,7 +52,8 @@ function convertEditorValue({
     return { op: 'val', val: value }
   }
 
-  if (value.code === '' || value.code === null || value.code === undefined) {
+  const editorCode = repairLegacyEditorCode(value)
+  if (editorCode === '' || editorCode === null || editorCode === undefined) {
     return { op: 'val' }
   }
 
@@ -40,10 +71,10 @@ function convertEditorValue({
   let nodeInServer = isServerRootNode(node)
 
   let scope = nodeInServer ? 'server' : 'stage'
-  pushDiagContext({ nodeId, blockId, paramName, cloneChildId, scope, code: value.code })
+  pushDiagContext({ nodeId, blockId, paramName, cloneChildId, scope, code: editorCode })
   try {
     return new V4FormulaCodeConverter({
-      str: value.code,
+      str: editorCode,
       getCtx: wrapCtx,
       scope
     }).exec()

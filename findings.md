@@ -1338,3 +1338,72 @@
 - 最终 V5 有 865 个 `jsfn`，865/865 可编译且参数完整；唯一节点 7,731/7,731、非根事件块 12,357/12,357 保留。4 个缺失服务目标继续确认为 V4 源悬空引用。
 - `setCusPathValue` 的动态路径不能按 `.` 简单切分，否则 `['a.b']` 会被拆错；最终实现保留 V4 的动态属性访问语义，并在无效路径时返回 `undefined`。带点键名回归和真实禁用样本均已验证。
 - Phase 77 发布闭环：tov5parser `9bd16be2bb131f41cd5b4c61b9f4a56a58da697f`；生产 Lambda 版本 13、CodeSha256 `2ZnblJHjuedolaWBIedioeSZGh/k/bkPE+xMvw+zacE=`；VxEditor41 `93d6ee722220e1f8205613aedaf0cbd80cd71153`。两个远端均无分叉。
+
+## 2026-08-04：clothing 第 10 例 `任务中心导出资料_11899135_温晓华`
+
+- 源目录排序第 10/51，nid `11899135`；下一例为 `内外包材包装方式_11073549_温晓华.json`。
+- 只读数据库结果：V4.1、`ntype=1`、作品版本 162、`work_id=cvll1i0vs0lgmk54omr0-426`、gid 25391；标题和作者与源文件一致，发布链接码 `pxRLcgwH`。
+- 最新完整 V4 已从编辑器 `/work/load` 下载并解码：2,512,761 bytes、SHA-256 `fe9f0d1ddbc102cc1daa08d98691ae4a273c39216604f9a2108de93c5a63297f`；顶层三棵树和根类型完整。
+- 初次转换 `dropped=0`，23 条诊断全部生成可编译 jsfn。312 个节点、723 个非根事件块和全部服务目标均完整；V4 的 16 处当前路径占位符在 V5 中已全部解析，无残留。
+- 23 个 jsfn 的源码、参数和自由标识符审计通过：所有 fallback 都只依赖 `$vN` 显式参数与标准 JavaScript 内建对象，没有案例自定义裸全局或 legacy 引用残留。
+- 当前路径专项实际为 8 个启用 setOneValue 公式（`code/_code` 使原始字符串出现 16 次）；8/8 的目标变量与 index 路径 AST 均正确。
+- V4/V5 节点类型分布完全一致，无 Legacy 类型；项目 63/63 测试通过。本例最终判定为转换成功，未发现转换器错误或源案例悬空服务引用。
+# 2026-08-04：clothing 第 11 例 `内外包材包装方式_11073549_温晓华`
+
+- 源目录排序为第 11/51 例，nid `11073549`；下一例为 `分类设置_11020389_温晓华.json`，本例汇报前不启动。
+- 中文服只读数据库当前记录：V4.1、版本 `24`、`ntype=1`、`work_id=cc8s34qfmpllnjbhfucg-114`、gid `25391`，已发布且已上线，短链 `gz7OrREU`。
+- 数据库当前标题/作者为 `FRP_内外包材包装方式` / `朱芮`，源文件名标注为 `内外包材包装方式` / `温晓华`。这是来源元数据差异，不是查询或转换错误；案例目录仍采用源文件名，报告同时记录两者。
+- `/work/load` 最新数据成功解码为完整三段式 V4 JSON：HTTP 二进制 427,836 bytes，解码后紧凑 JSON 5,455,302 bytes，SHA-256 `f50d9947d32c347f47a6e4463e276197f3538bff1b474855235df38944d2b6fc`。
+- 首次转换成功，诊断为 96 条去重公式记录（空值降级 7、完整 JavaScript `jsfn` 兜底 89）。日志出现不支持逻辑运算和 `hasOwnProperty` 的旧 AST ParseError，但这些本身不等于转换错误，需以兜底后的 V5 AST 是否完整、可编译且作用域正确为准。
+- 产物 `app.v5.json` 为 3,662,844 bytes、0 换行、SHA-256 `831b783e19b9f20eecc3fa59bcaec09b780db18a87643b84d5cf5fc84eca7e3e`。
+- 诊断类别详细分布：`not support &&` 36、`not support Literal` 正则类合计 22、`not support ||` 12、`Unexpected )` 7、`$SF_sys_multiObjListToObjArr` 6、`hasOwnProperty` 3、完整 JavaScript表达式 fallback 2、`unknown varType: undefined` 7。只有后 7 条落入 dropped，必须逐条回查源参数与目标 AST；其余 89 条均已进入 jsfn 兜底，仍需编译与作用域审计。
+- dropped 实际对应 7 个 `bgColor` 绑定，而不是此前第一条自定义表达式记录中的提示文字。7 条 V4 `code` 都在嵌套三元表达式末尾多出 `)`，V5 因而落成空 `{op:"val"}`；然而对应 V4 `_code` 均为没有该多余括号的有效表达式。就 V4 运行语义仍可从 `_code` 恢复这一点看，当前“只因编辑态 code 失效便丢弃绑定”的行为应归为转换器兼容缺陷，而非不可恢复的源案例错误。
+- 真实组件节点口径（对象同时有 `id/type/props`）下，V4/V5 均为 1,922，节点 ID 完全一致；泛型递归会把 V4 事件根误算成节点，不能使用。
+- `runsvc` 共 90 次、25 个唯一目标；24 个目标均存在，唯一缺失的 `cjzmmjta3j500001xrv0` 在 V4/V5 真实节点中都不存在，倾向源数据悬空引用。
+- V5 `server.props.v2=1`，12 个 `data-service` 均有编译 `_code`。`data-sharedService` 和 `server-api` 的编译态字段结构不同，不能用 `events.list[0]._code` 一刀切判断。
+- 212 个 `data-if` 中，210 个具备 `props.conditionVal`；2 个没有源条件且只保留空 `binds.value={op:"val"}`。这与前面已确认的 V5 conditionVal 主路径一致，需再核对两个空节点在 V4 是否同样无条件。
+- 当前路径：V4 有 `$curPathValue` 公式且 V5 字符串中已消失；V5 的 `$curObj` 仅见于转换后的标准 AST `_blockType`，不是占位符残留。
+- 重要审计纠偏：V5 `jsfn` 代码存于 `val[0]`，参数存在 `args`；首次把 `val` 当字符串的脚本结论无效。首个真实 `jsfn` 样本却是裸中文 `选中数据审核字段有误`，可能会在运行时被当变量而非提示文本，需按 7 条 `unknown varType` 诊断逐项核对。
+- 正确按 `val[0]` 与 `$v1..$vN ← args` 复核后，89 个 `jsfn` 均可编译、均非空、均无缺参；但这不足以证明运行安全，因为 JavaScript 把连续中文视为合法标识符。
+- ESLint scope 自由变量审计锁定 7 个错误 `jsfn`：六个 `选中数据审核字段有误`、一个 `选中数据状态字段有误`。对应诊断均为 `unknown varType: undefined`，位置是 `fireFuncGroup` 的 `toast` 参数；应保留成字符串字面量，而不是零参数函数表达式。涉及 BID：`cdxf52ma3j50000x5dx0`、`cdxjqgpa3j50000x5nng`、`cdy7gsva3j500007bzv0`、`cdy8t0ga3j500007c4dg`、`cdxftf1a3j50000x5hj0`、`cdysv64a3j50000sr0t0`、`cdyxw30a3j50000sr2hg`。
+- 6 个 `jsfn` 仍含 V4 方法名 `$SF_sys_multiObjListToObjArr()`；实现位于 `VxEditor41-widgets/src/utils/sysFunc.js`，组件 map 中也作为 V4 公式方法注册。需要继续确认 V5 `jsfn` 执行值是否带该原型方法；若没有，这将是第 3 类转换器残留。
+- 已确认 V5 `src/utils/ast2js.js` 的 `jsfn` 只执行 `new Function(val[1..], 'return '+val[0])(...args)`，不会装饰参数值；全仓也没有把 `$SF_sys_multiObjListToObjArr` 挂到对象原型的实现。因此 6 个 `jsfn` 中的对象式伪方法必然运行时报错，是明确的第 3 类转换器缺陷。
+- `sys_multiObjListToObjArr(value)` 的真实语义：遍历 value 中的数组字段，取最大长度，按索引生成对象数组。正确修复需提供同等语义，而非把调用当作无操作。
+- `jsfn` 真实运行约定是 `val[1..]` 提供参数名、`args` 提供实参；本例 89 条参数长度和 `$vN` 顺序全部一致，全部可编译。
+- 当前路径专项通过：BID `cd81m1ga3j50000hbex0` 的 V4 `'%'+$curPathValue+'%'` 被转换为从目标 `cd81j1ga3j50000hbdzg` 当前行（local `cd81jxba3j50000hbecg`）读取 `内容填写` 后两侧拼 `%`，没有错误退化为目标整体 value。
+- 两个空 data-if（`ctne2mta3j500004ttx0`、`cmqsrcha3j50000f3mx0`）在 V4 就无 condition，只保留兼容空 bind；V5 `{op:"val"}` 等价，不是转换问题。
+- 唯一缺失服务目标 `cjzmmjta3j500001xrv0` 在 V4 只有调用、没有定义，V5 未新增或删掉定义，属于源数据悬空引用。调用 BID 为 `cwcvpmja3j50000tnv4g`。
+- server 编译态完整：`props.v2=1`，12 个后台 `data-service` 的 12 个事件均有 `_code`，无漏编译。
+- BID 差集由 549 个 root 容器和 4 个 status 包装组成；4 个 status 都启用，option 分别为两组 `uploading` / `beforeUpload`，每个内部是“上传中...”提示动作。子动作已保留，但需检查包装语义是否被保留。
+- 实现侧确认 status 通过 `convertActionCb` 处理；`dealSpecialCbs` 对 `$sobj_file` 的 `beforeUpload` / `uploading` 有显式分支，会构造文件上传回调而非无条件执行。仍需用本例 AST 做最终落点核对。
+- 本例落盘 AST 证明两组 file status 均正确：`uploadPics`/`uploadVideos` 的 method args 包含 `beforeUploadCb` 与 `uploadingCb`，四个回调子动作 BID 都在对应 lambda 内，参数值完整。
+- V4 `stageProxy` 与事件代码生成均采用 `_code || code`；7 个 bgColor 的 `_code` 有效，所以 V4 运行语义正常。转换器只尝试无效 `code` 后置空，构成确定的兼容缺陷。
+- 项目测试 63/63 通过；V5 产物可解析且为严格紧凑 JSON，最终 hash `831b783e19b9f20eecc3fa59bcaec09b780db18a87643b84d5cf5fc84eca7e3e`。
+- jsfn 原始代码残留总计 `$SF_*` 9 次，已解释的 multiObj 伪方法为 6 次；尚有 3 次必须继续定位，避免仅凭前一版 regex 报告误判为已清零。
+- `$SF_*` 最终复核：是 6 个问题 jsfn 中合计 9 次同名调用，没有其他 `$SF_*` 类型。第 11 例最终为 3 类转换器错误：有效 `_code` 未回退（7 bind）、中文 toast 被当 jsfn 标识符（7 参数）、multiObj 伪方法残留（6 公式/9 调用）；另有源悬空服务 1 个。
+- 完整结论已写入 V5 案例目录 `conversion-report.md`，下一步只等用户审阅；不自动修复或启动第 12 例。
+
+## 2026-08-04：第 11 例三类转换器错误修复授权
+
+- 用户已明确要求“修复”，范围为第 11 例报告确认的 3 类错误；源案例悬空服务保持报告结论，不由转换器自动补造。
+- `AGENT.md`/`CLAUDE.md` 要求修复验证后自动执行 tov5parser 提交推送、Lambda 部署、VxEditor41 同步提交推送，无需再次询问。
+- VxEditor41 工作区已有大量与本任务无关的用户修改；只允许同步转换器对应文件并精确暂存。
+- `convertEditorValue` 当前逻辑：对象公式只检查/解析 `value.code`；`_code` 完全未参与转换。这解释了有效 V4 运行码仍被 dropped。
+- `getLegacyFormulaTextValue` 是动作参数文本兼容的正确扩展点。已有规则严格按参数名及形态收窄，但未覆盖 `toast`；本例 7 条 code 前有空格，且应结合 `str` token 判断，而不能只看“中文可作标识符”。
+- `genSysutilMethodAST` 依赖 MapCreator sysutil map；未知 `$SF_sys_multiObjListToObjArr` 会主动抛 ParseError，随后 full-js fallback 把伪方法保留下来。应优先补标准 sysutil AST 映射，前提是确认 V5 运行时真实函数名与语义。
+- V5 runtime 已确认支持 `$sys.util.sys_multiObjListToObjArr(value)`：`ast2js` 会把 sysutil AST 编译成该调用，而 player 将整个 `sysFunc` 模块作为 util 注入。最小修复是补 legacy funcName → 同名 sysutil AST 映射。
+- 第 3 类不应在 `jsfn` 文本层做字符串替换；结构化 sysutil AST能同时正确承接 receiver 和循环/动作参数，且与运行时真实函数对齐。
+- 裸调用公共转换 API 不会自动装入 CLI 使用的 runtime map，不能用来探测真实 `_code`；必须复用 `load-runtime-maps` 流程或测试 helper，避免把环境初始化错误误判为公式解析结果。
+- 加载 runtime map 后的真实探测表明：`_code` 可被 full parser 接受，但输出 jsfn 保留 `$sys.util.getSelf/objArr_rowItem`。由于 V5 jsfn 的 `new Function` 无词法闭包，`$sys` 不可用；因此 `_code` 不能直接作为通用 fallback。
+- 安全方向是只修复 editor code 中可机械证明的多余尾部右括号，并以 `_code` 存在为兼容信号；这样仍让原有 V4 伪语法转换器负责 refs/sysutil/循环变量映射。
+- 7 个真实 toast 参数的 token 形态完全一致：`code` 为一个前导空格加中文提示，`str` 是两个纯 `str` token（空格、中文正文），拼接后严格等于 `code`；因此可在 `name === 'toast'` 下利用“全纯文本 token + 拼接一致 + 中文正文”作窄兼容判断。
+- `V4FormulaCodeConverter.parseStr()` 已经按“jsep 失败 → full JS 失败 → 空 val”内部吞掉解析错误，所以公式入口无法通过捕获异常判断是否重试；尾括号修复必须在调用转换器前完成，或让转换器暴露成功状态。
+- sysutil 生成的唯一拦截点是 `getSysutilInfoFromFuncName()`；这里补一项明确的 legacy 兼容映射即可让对象方法链生成 `op:'sysutil', val:'sys_multiObjListToObjArr'`，并避免进入危险的 jsfn 文本替换。
+- 7 个 bgColor 的 editor `code` 都只多出最后一个 `)`；token 数组也把这个最后字符记录成独立 `type:'str', obj:')'`，而不是 `type:'bracket'`。这提供了比单纯括号计数更强的修复证据：只在 `_code` 非空、最后非空 token 是纯文本 `)`、且从 `code` 删除同一个尾字符后能够用 V4 parser 成功转换时才采用候选。
+- 对照公式内部的正常闭合括号 token 都标为 `type:'bracket'`；因此最后这个 `str` 右括号可认定为历史编辑器误录字符，不需要从 `_code` 反编译回 editor 语法。
+- 首次实现的真实门禁失败原因已精确定位：真实 editor code 含 `$P_row:` 参数提示，裸 `jsep(candidate)` 会在字符 60 报 `Expected comma`；正式 `parseStr()` 在解析前会先执行 `replaceSFParamPrompt()` 删除 `$P_*:`。因此候选可解析性检查必须复用同一预处理，不能在原始 editor code 上直接调用 jsep。
+- 真实 `_code` 本身经 Acorn 完整解析为 262/262 字符，运行码有效性门禁没有问题；唯一未命中项是候选漏做 V4 参数提示预处理。
+- 最终尾括号兼容实现复用 `V4FormulaCodeConverter.replaceSFParamPrompt()` 后再用 jsep 校验候选；真实 7 个公式均只删除 1 个尾字符，生成嵌套 `switchexp`，而无 `_code` 或尾 token 为 `bracket` 的反例仍降级，不会被误修复。
+- 最终真实重转诊断从 96 降到 76，恰好移除 7 个 `Unexpected )`、7 个 `unknown varType` 与 6 个不支持 multiObj sysutil 的诊断；`dropped` 从 7 降为 0。
+- 结构化 multiObj 在 6 个目标公式中产生 9 次 sysutil 调用，与源公式调用次数一致；`ast2js` 实际执行回归证明运行链路调用 `$sys.util.sys_multiObjListToObjArr` 后能正确 map 出字段值。
+- 第 11 例修复后 V5 为 3,673,452 bytes，SHA-256 `574466a82d52a094df4e102c6b29123132a2d339543fb923bcfcaa89fac81168`；76 个 jsfn 语法/参数完整，节点 1,922/1,922，data-if、服务、后台编译与上传回调审计均无回归。
