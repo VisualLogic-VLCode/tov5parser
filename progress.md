@@ -1597,3 +1597,11 @@
 - 发布前复核发现第一版 `setCusPathValue` 动态路径按点切分会误处理 `['a.b']` 一类含点键名；已改为沿用 V4 的动态属性访问语义，并用捕获异常返回 `undefined` 保持失败行为。首次新增回归因误用本测试文件中不存在的 `findAst` 辅助函数而失败，属于测试代码错误；已改为测试内遍历 AST，不重复该调用。
 - 动态路径回归现已通过，包含 `['a.b'][0]` 键名场景；全量测试再次为 63/63 通过。最终重转仍为 972 条诊断、`dropped=0`、去重 829。
 - 最终产物更新为 17,907,265 bytes、SHA-256 `30ffeffae82778081614c0aaa2179fb055862f1f424ca8ffc9d1dd264bd493e1`、0 换行；7,731 节点、12,357 事件落点、865 个 jsfn、CSS 字面量、Compound 三参数及 legacy 占位符清零再次通过审计。
+- tov5parser 修复提交 `9bd16be2bb131f41cd5b4c61b9f4a56a58da697f` 已推送至 `origin/main`，远端 ahead/behind 为 0/0；用户未跟踪文档未进入提交。
+- 首次 Lambda 部署在任何 AWS 更新前被 clean-tree 预检拦截：唯一脏项是必须保留且不能代用户提交的无关未跟踪文档。运行包脚本只复制明确白名单，已确认项目提供 `--allow-dirty` 专门处理该场景；记录后将带此选项重试，不触碰或打包该文档。
+- 带 `--allow-dirty --run-tests --smoke` 的生产发布成功：部署过程再次通过 63/63 测试，运行包 1.9 MB，发布 Lambda 版本 13，`prod` 无权重地指向 13，版本接口冒烟 `StatusCode=200`。
+- 部署后首次状态复核误用了本机不存在的旧 profile `vl-case-json-converter-deployer`，三个只读查询均在客户端配置阶段失败；已改用脚本权威 profile `vl-case-json-converter-cn`。最终确认 `$LATEST` 与版本 13 均为 `Active/Successful`，代码摘要 `2ZnblJHjuedolaWBIedioeSZGh/k/bkPE+xMvw+zacE=`，`prod` routing config 为空。
+- 已仅同步 VxEditor41 的四个对应转换器文件：`ExprAstToString.js`、`V4FormulaCodeConverter.js`、`utils/action.js`、`utils/formula.js`；编辑器侧特有 imports 与 `ConvertV4ToV5.getNodeById` 依赖保持不变。
+- VxEditor41 首次定向 ESLint 为 0 error/5 个仅属新代码的 Prettier warning，已手工按项目格式修正；复验为 0 error/0 warning。生产构建成功，webpack 0 error、33 类仓库既有 warning，目标转换器文件无 warning，构建未产生新待提交文件。
+- VxEditor41 仅暂存四个目标文件，提交 `93d6ee722220e1f8205613aedaf0cbd80cd71153`（`fix: preserve legacy path expressions`）已推送 `origin/master`，远端 ahead/behind 0/0；`.gitignore`、`src/stores/event.js`、`.claude/` 及未跟踪组件目录保持用户原状。
+- **Phase 77 Status:** complete。第 9 例三类转换器缺陷已修复，真实重转、双仓库提交推送与 Lambda 版本 13 部署全部完成；现回到 Phase 67 第 9/51 例人工审阅门禁，不启动第 10 例 `任务中心导出资料_11899135_温晓华.json`。

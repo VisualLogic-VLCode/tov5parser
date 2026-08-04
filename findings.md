@@ -1337,3 +1337,4 @@
 - 修复后真实产物的 `dropped` 为 0；33 个 legacy 当前路径公式逐 BID、目标变量及路径 AST 审计全部通过，原 Compound 空 `jsfn` 已变为带 3 个参数的 `$v1, $v2, $v3`，两个 CSS `100%` 已恢复为字面量。
 - 最终 V5 有 865 个 `jsfn`，865/865 可编译且参数完整；唯一节点 7,731/7,731、非根事件块 12,357/12,357 保留。4 个缺失服务目标继续确认为 V4 源悬空引用。
 - `setCusPathValue` 的动态路径不能按 `.` 简单切分，否则 `['a.b']` 会被拆错；最终实现保留 V4 的动态属性访问语义，并在无效路径时返回 `undefined`。带点键名回归和真实禁用样本均已验证。
+- Phase 77 发布闭环：tov5parser `9bd16be2bb131f41cd5b4c61b9f4a56a58da697f`；生产 Lambda 版本 13、CodeSha256 `2ZnblJHjuedolaWBIedioeSZGh/k/bkPE+xMvw+zacE=`；VxEditor41 `93d6ee722220e1f8205613aedaf0cbd80cd71153`。两个远端均无分叉。
