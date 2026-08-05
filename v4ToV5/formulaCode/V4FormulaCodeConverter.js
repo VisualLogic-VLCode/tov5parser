@@ -85,6 +85,75 @@ const containsLocalIdentifier = (value, localNames) => {
   })
 }
 
+const LEGACY_RUNTIME_IDENTIFIER_ALIASES = new Map([
+  ['$serverSys', '$sobj_serverSys']
+])
+
+const isStaticIdentifierName = ({ parent, parentKey }) => {
+  if (!parent) return false
+  if (
+    parent.type === 'MemberExpression' &&
+    parentKey === 'property' &&
+    !parent.computed
+  ) {
+    return true
+  }
+  if (
+    ['Property', 'MethodDefinition', 'PropertyDefinition'].includes(parent.type) &&
+    parentKey === 'key' &&
+    !parent.computed
+  ) {
+    return true
+  }
+  return (
+    (parent.type === 'LabeledStatement' && parentKey === 'label') ||
+    (['BreakStatement', 'ContinueStatement'].includes(parent.type) &&
+      parentKey === 'label')
+  )
+}
+
+const normalizeLegacyRuntimeIdentifiers = parsed => {
+  const normalized = cloneParsedTree(parsed)
+  const localNames = collectLocalIdentifierNames(normalized)
+
+  const walk = ({ value, parent, parentKey }) => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        walk({ value: item, parent, parentKey })
+      }
+      return
+    }
+    if (!value || typeof value !== 'object') return
+
+    if (value.type === 'Identifier') {
+      const alias = LEGACY_RUNTIME_IDENTIFIER_ALIASES.get(value.name)
+      if (
+        alias &&
+        !localNames.has(value.name) &&
+        !isStaticIdentifierName({ parent, parentKey })
+      ) {
+        value.name = alias
+        if (
+          parent?.type === 'Property' &&
+          parentKey === 'value' &&
+          parent.shorthand
+        ) {
+          parent.shorthand = false
+        }
+      }
+      return
+    }
+
+    for (const [key, child] of Object.entries(value)) {
+      if (['exprStr', 'start', 'end', 'loc'].includes(key)) continue
+      walk({ value: child, parent: value, parentKey: key })
+    }
+  }
+
+  walk({ value: normalized })
+  return normalized
+}
+
 const unwrapLegacyGetSelfCalls = value => {
   if (Array.isArray(value)) {
     return value.map(unwrapLegacyGetSelfCalls)
@@ -194,7 +263,7 @@ export default class V4FormulaCodeConverter {
         })
         return ast
       }
-      parsed = jsep(str)
+      parsed = normalizeLegacyRuntimeIdentifiers(jsep(str))
     } catch (e) {
       // jsep 只解析表达式子集，块体箭头函数、IIFE 与赋值表达式交给
       // 完整 ESTree 解析器，再沿用 jsfn 的 v4 引用参数化逻辑。
@@ -234,7 +303,9 @@ export default class V4FormulaCodeConverter {
     // V4 的 `$SF_getSelf()` 是 receiver identity。full-js fallback 会把源码原样
     // 放进 jsfn，V5 运行时却没有该原型方法，因此只在 ESTree 中折叠零参数成员调用。
     // 带参数或计算属性调用保持原样，避免把未知用户代码当作旧占位符处理。
-    parsed = unwrapLegacyGetSelfCalls(parsed)
+    parsed = normalizeLegacyRuntimeIdentifiers(
+      unwrapLegacyGetSelfCalls(parsed)
+    )
     const context = {
       num: 0,
       vList: [],

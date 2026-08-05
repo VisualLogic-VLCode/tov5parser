@@ -335,6 +335,51 @@ test('nested callback custom expressions keep their own jsfn arguments', () => {
   }
 })
 
+test('legacy server system references are canonicalized without rewriting static names', () => {
+  const getCtx = name => {
+    if (name === 'fParamgroup') return { varType: 'param' }
+  }
+  const ordinaryAst = new V4FormulaCodeConverter({
+    str: 'fParamgroup.ok && ({label:"$serverSys", $serverSys:$serverSys.f__sysTime("ymdhms"), property:plain.$serverSys})',
+    getCtx,
+    scope: 'server'
+  }).exec()
+  const ordinaryJsfn = findAst(ordinaryAst, item => item.op === 'jsfn')
+
+  assert.match(
+    ordinaryJsfn.val[0],
+    /\$serverSys: \$sobj_serverSys\.f__sysTime\("ymdhms"\)/
+  )
+  assert.match(ordinaryJsfn.val[0], /label: "\$serverSys"/)
+  assert.match(ordinaryJsfn.val[0], /property: plain\.\$serverSys/)
+  assertJsfnArgumentsComplete(ordinaryAst)
+
+  const fullJsAst = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.map(item => { return $serverSys.f__sysTime("ymdhms") })',
+    getCtx,
+    scope: 'server'
+  }).exec()
+  const fullJsfn = findAst(fullJsAst, item => item.op === 'jsfn')
+
+  assert.match(
+    fullJsfn.val[0],
+    /return \$sobj_serverSys\.f__sysTime\("ymdhms"\)/
+  )
+  assert.doesNotMatch(fullJsfn.val[0], /return \$serverSys\./)
+  assertJsfnArgumentsComplete(fullJsAst)
+
+  const shadowedAst = new V4FormulaCodeConverter({
+    str: '(() => { const $serverSys = {f__sysTime:() => "local"}; return $serverSys.f__sysTime() })()',
+    getCtx,
+    scope: 'server'
+  }).exec()
+  const shadowedJsfn = findAst(shadowedAst, item => item.op === 'jsfn')
+
+  assert.match(shadowedJsfn.val[0], /const \$serverSys =/)
+  assert.match(shadowedJsfn.val[0], /return \$serverSys\.f__sysTime\(\)/)
+  assert.doesNotMatch(shadowedJsfn.val[0], /\$sobj_serverSys/)
+})
+
 test('nested callback locals stay in the owning jsfn scope', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({

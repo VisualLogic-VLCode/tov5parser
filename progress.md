@@ -2016,3 +2016,105 @@
 - 最终复核：tov5parser 转换器提交 `80eb0df518fd253993dd6e9f75e06d7f7ec94128` 已包含在 `origin/main`；VxEditor41 `HEAD=origin/master=6465d5f395be71b47fba15309ea65cfd0c96877b`；Lambda `prod=19`，版本 19 为 Active/Successful，CodeSha256 与部署结果一致。Phase 83 完成，停在第 15 例人工审阅门禁，不启动第 16 例。
 - 2026-08-05：Phase 83 完成后收到 planning-with-files 自动续跑 hook（87/88 phases）。session catchup 已确认第 15 例修复、双仓推送和 Lambda 19 发布均已同步到规划记录。逐例人工审阅门禁仍有效；自动 hook 不授权启动第 16 例。
 - 已复读 `task_plan.md`：唯一未完成的是长期 Phase 67 的后续案例循环，Phase 83 本身全部完成。已把 Phase 67 当前检查点从“修复进行中”校正为“第 15 例完成、等待人工继续”，没有开展第 16 例工作。
+- 2026-08-05：用户明确回复“继续”，第 15 例人工审阅门禁解除。源目录按字节序第 16/51 例确认为 `合同打印_11769634_叶育科.json`，nid `11769634`；前一例为各单列表，后一例为合并分床小工具。Phase 84 启动，本例汇报后暂停。
+- 读取权威导出文档时沿用了旧的 `case-json-migrator/raw/中文服完整案例JSON导出.md` 路径，文件当前不存在，未修改任何案例数据；不重复该路径，改为在已知工作区内按文件名定位。
+- 只读数据库交接包仍完整，env 权限配置可用且隧道正在监听；检查只输出变量名并隐藏所有值，没有泄露凭据。
+- 按精确文件名在 Desktop 未找到已迁移的导出文档；交接包 README 与检查脚本确认账号只具备 SELECT/SHOW VIEW，数据库为 `vxshow`，连接仍应通过隔离 PyMySQL。
+- 已在 `/tmp/clothing-pymysql.R5Qhfk` 安装隔离 PyMySQL，并用参数化单条 SELECT 查询成功。第 16 例唯一命中，确认为 V4.1：`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`；`ntype=1`、版本 51、最新 `work_id=csku1hsrf4hq141sk900-60`。
+- 数据库当前标题 `FRP合同打印`、作者叶育科、uid 10187685、eid 10000586、gid 25391；data/node 均已发布、已上架且未删除，短链 `Ywbvp9ti`。下一步下载最新完整 V4 JSON。
+## 2026-08-05：服装案例 16 下载格式确认
+
+- 已从 `VxEditor41/src/components/stageProxy.js` 找回线上案例下载包的完整解密/解压规则：PBKDF2（1000 次）派生密钥、AES-GCM 解密、按头部长度切分并使用 `inflateRaw` 解压各 JSON 段。
+- 已确认线上加载地址格式为 `https://editor.ivx.cn/work/load/{workId}?nid={nid}`，本例参数为 `workId=csku1hsrf4hq141sk900-60`、`nid=11769634`。
+- 当前平台 Cookie 文件存在且权限为 `0600`；不会在日志中输出 Cookie 内容。
+- 已复用第 15 例 README 的元数据记录格式；临时目录中未发现可直接复用的旧下载解码脚本，将按已确认的线上格式生成一次性脚本。
+- 最新完整 V4 获取成功：HTTP 200、`application/octet-stream`、219,768 bytes；解密后共 2 段，分别为 2,096,408 与 42,351 bytes，完整紧凑 `app.json` 为 2,138,779 bytes。
+- V4 产物 SHA-256 为 `7381a743a467e82961aa45441d929ca96398688ac21eec72f94a6066869e414f`，顶层完整包含 `case/server/stage`。产物和来源 README 已保存到 `localCases/v4/clothing/合同打印_11769634_叶育科/`，权限为 `0600`；一次性下载脚本已删除。
+- 当前转换器成功生成第 16 例 V5：`app.v5.json` 1,826,566 bytes，SHA-256 `6286b4172d958546ab184f33f69d249d1e0821ce3c61904e2de638d620f250ab`。
+- 结构化诊断共 81 条且全部去重，`droppedTotal=0`、`customExprTotal=81`。分类：TemplateLiteral 33、逻辑或 29、unknown varType 7、逻辑与 4、解构回调参数 2、SpreadElement 2，其余各 1。下一步以实际 V5 AST/jsfn、事件映射和源语义进行静态审计。
+- 查找可复用审计脚本时命令包含了当前不存在的 `test/` 目录，`rg` 返回该路径不存在；这是只读检索错误，未影响产物。现有 `scripts/` 中没有保存的逐例审计脚本，因此按第 15 例报告口径生成本例一次性审计脚本。
+- 已复读第 15 例最终报告，确认本例沿用相同检查维度：组件 ID 集合、启用事件 BID→V5 `ln`、jsfn 语法/参数/占位符与自由变量、data-if、data-service、服务调用、上传动作及源悬空目标。
+- 第 16 例的严格组件树由顶层 `case/server/stage` 的 `children/classes` 递归组成；V4 初算 477 个且 ID 全唯一。事件保存在组件 `events.list[].tree`，V4 同时保留最终 `code/_code`，可用于回证 fallback 的语义。
+- 已确认本例 data-if 源结构与既有口径一致：V4 正式条件位于 `binds.value.code/_code`，V5 输出到 `props.conditionVal.ast` 且清空 `binds`；审计脚本将逐节点按 ID 对应，而不是只做全局计数。
+- 第一轮全量静态审计完成：V4/V5 组件均 477 个、唯一 ID 477 个，缺失/新增均 0，根 ID/类型一致且 `server.props.v2=1`。
+- V4 事件树共 413 块（action 267）；263 个启用 action 的 BID 全部存在对应 V5 `ln`。本例没有启用的 `uploadPic/uploadPics` 动作。
+- V5 共有 81 个 jsfn：空代码、语法错误、val/args 不一致、`$vN` 越界、旧 `$refs/fParam/cbParams/param/$curPathValue/$curRowValue/$SF_getSelf` 残留均为 0。自由标识符仅剩 `NP`，共 9 处，需回证它是否是案例保留的页面全局。
+- 16 个 data-if 全是正式条件，16/16 均生成 `props.conditionVal.ast` 且无多余 `binds.value`。6 个 `data-sharedService` ID 全部保留；8 个 V4 `fireService` 对应 8 个 V5 `runsvc`，6 个目标均在 V4/V5 组件树存在，无源悬空或转换丢失。
+- `NP` 已回证为合法案例全局：组件 `cwxgceha3j5000031jmg`（`data-func`，名称 `numberPrecision`）在 V4/V5 中都保留完全同尺寸 4,366-byte 代码，并以 `window.NP={...}` 导出。9 个 jsfn 对它的引用不是转换器引入的自由变量错误。
+- 本例 6 个服务都是 `data-sharedService` 引用定义，不是带本地事件函数体的 `data-service`；其 props/inParams/outParams 在 V4/V5 原样保留，因此不适用“本地服务 AST/_code 函数体语法”检查。
+- 首次按 `ln` 展开诊断上下文时，`bid=null` 的组件 bind 记录被聚合到同一 null 键，输出过宽并被截断；未修改数据。后续改为按诊断 `nodeId+prop` 或精确 BID 定位，避免混淆不同 fallback。
+- 已按 `nodeId+prop`/精确 BID 复核全部高风险少数类诊断：7 个 unknown varType 都是已回证的 `NP` 表达式；2 个解构回调保留为带 `([key,value])` 声明的参数化 jsfn；NewExpression、flat、2 个 SpreadElement 均保留完整运算并正确注入外部值。
+- `typeof ...insert` 的 full-JS fallback 在父 switch 条件中实际生成 `jsfn("typeof $v1")`，与字符串 `"string"` 比较，语义完整；`$SF_getSelf().some(...)` 条件则转换为 `arr_some + lambda`，回调 item 与三个合同类型值全部显式注入。
+- 将检查范围扩大到所有启用的非 root 事件块后为 354/354 均有 V5 `ln`，不仅 263 个 action 映射完整，con/status/loop/group 容器也无丢失。
+- 项目完整测试已执行并 72/72 通过（fail 0）。测试过程输出的 ParseError 是回归用例主动覆盖 fallback 路径的预期日志，测试结论以 Node test 汇总为准。
+- 第 16 例审计结论：暂未发现转换器错误；结构、事件、jsfn、条件、共享服务与服务调用均通过。下一步只生成报告并返回人工审阅门禁，不启动第 17 例。
+- 第 16 例转换报告已保存到 `localCases/v5/clothing/合同打印_11769634_叶育科/conversion-report.md`；一次性审计脚本已删除，未删除任何历史案例数据。
+- Phase 84 完成。当前回到逐例人工审阅门禁：第 16 例未发现转换器错误，等待用户确认；第 17 例 `合并分床小工具_12105173_熊.json` 未启动。
+- 2026-08-05：Phase 84 完成后收到 planning-with-files 自动续跑 hook（88/89 phases）。session catchup 已确认第 16 例最终汇报与产物信息尚未遗漏；工作树仅有本轮规划文件更新及用户原有的未跟踪文档 `VxServer-saveAs-same-gid-group-db-fix.md`，后者继续不读取、不修改。
+- 自动 hook 不构成逐例人工审阅授权。按既定门禁保持第 16 例完成状态，下一步只复读 `task_plan.md` 校准剩余长期循环；第 17 例不会自动启动。
+- 2026-08-05：用户明确回复“继续”，第 16 例人工审阅门禁解除。session catchup 已确认此前状态同步完整；现开始第 17/51 例 `合并分床小工具_12105173_熊.json`（nid `12105173`），保留所有历史案例，本例汇报后再次暂停。
+- 源目录按 UTF-8 字节序仍为 51 个 JSON；第 17 个精确匹配 `合并分床小工具_12105173_熊.json`。前一例是合同打印，下一例是 `基础资料预设_11261416_温晓华.json`。
+- 中文服只读 SSH 隧道仍监听 `127.0.0.1:13306`；平台 Cookie 文件存在、权限 `0600` 且大小 204 bytes。此前 `/tmp/clothing-pymysql.*` 隔离依赖已不存在，本例需要新建临时依赖目录，不复用不存在的路径。
+- 已在 `/tmp/clothing-case17-pymysql.CoS7X4` 新建隔离 PyMySQL。首次参数化查询连接成功，但沿用了错误列名 `users.user_name`，数据库返回 1054 Unknown column；没有数据写入。按 3-strike 规则不重复该 SQL，下一步先只读 `SHOW COLUMNS FROM users` 校正字段名。
+- 记录上述错误时，首次规划补丁因上下文把 `Cookie 文件` 误写成 `Cookie文件` 而被整体拒绝，未部分写入；本次使用精确上下文完成记录。
+- 只读 schema 已校正：`users` 使用 `id/email/real_name/eid`，发布与上架字段为 `is_published/is_launch`，版本和 work_id 位于 `node_vx`。随后使用新 SQL 参数化查询成功，唯一命中 1 行。
+- 第 17 例确认为 V4.1：`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`、`ntype=1`、版本 1、`work_id=d6kjcv8u82nbomjipp60-6`。数据库标题 `合并分床小工具`，作者熊维祥，uid 10006977、eid 10000586、gid 0，短链 `EwYln0hD`；data/node 均未发布、未上架且未删除。
+- 第 17 例 V4/V5 目标目录在本轮开始前均不存在，确认不会覆盖既有产物。已按 VxEditor41 权威解码格式创建一次性下载脚本；脚本只在完整解密、两段 JSON 解析和 `case/server/stage` 校验全部通过后写入 V4 文件，且不会输出 Cookie。
+- 最新完整 V4 获取成功：HTTP 200、`application/octet-stream`、15,336 bytes；解密为 2 段（23,072/82,959 bytes），完整紧凑 `app.json` 为 106,051 bytes，SHA-256 `02a025ca5b509f31efd3719b465f216be0f1efb5ef1427c656fcde04c7257c9e`。
+- V4 顶层完整包含 `case/server/stage`，根类型分别为 `ih5-case/data-server/ih5-stage`。产物与来源 README 已保存到 `localCases/v4/clothing/合并分床小工具_12105173_熊/`，一次性下载脚本已删除；历史案例未删除。
+- 当前转换器成功生成 V5：`app.v5.json` 106,055 bytes，SHA-256 `0043033e6fdcd649f05b2cd8f160d61b3bbd4a9c1b1dafe8fbfc763583256068`。
+- 结构化诊断原始/去重均为 0，`droppedTotal=0`、`customExprTotal=0`；诊断 JSON 184 bytes、Markdown 990 bytes。下一步仍需完成组件、事件、jsfn、data-if、服务与引用审计，不能仅凭零诊断判定通过。
+- 初步结构审计：V4/V5 都只有 5 个严格组件且 ID 全唯一，类型分布完全一致（case/server/stage/system/web-view 各 1）；本例没有事件拥有者、AST op、`ln` 或 `jsfn`。
+- 对完整 V4/V5 对象做递归深比较，仅发现 `case.uis.name` 从 `合并分床小工具` 变为 `合并分床小工具_5.0`，其余字段和值逐项一致。需再从转换器源码/回归确认该名称后缀是预期行为，再形成最终结论。
+- 名称差异已回证为明确设计：`v4ToV5/converter.js` 主动追加 `_5.0`，且 `v4ToV5.test.js` 有两处断言 `demo → demo_5.0`。因此本例完整深比较没有异常差异。
+- 本例无事件、jsfn、data-if、服务、上传或服务引用，相关审计项均为 0；WebView、system 以及所有根数据除预期名称后缀外逐项保持一致。
+- 项目完整测试 72/72 通过（fail 0）。测试过程中的 ParseError 是回归用例主动验证 fallback 的预期日志；本例自身诊断为 0。最终未发现转换器错误。
+- 第 17 例报告已保存到 `localCases/v5/clothing/合并分床小工具_12105173_熊/conversion-report.md`。Phase 85 完成，历史案例全部保留；当前等待人工审阅，第 18 例 `基础资料预设_11261416_温晓华.json` 未启动。
+- 2026-08-05：Phase 85 完成后收到 planning-with-files 自动续跑 hook（89/90 phases）。session catchup 已确认第 17 例汇报与产物信息同步完整；自动 hook 不视为人工“继续”授权，保持第 17 例审阅门禁，不启动第 18 例。
+- 2026-08-05：用户明确回复“继续”，第 17 例人工审阅门禁解除。session catchup 未发现遗漏；现开始第 18/51 例 `基础资料预设_11261416_温晓华.json`（nid `11261416`），保留全部历史案例，本例汇报后再次暂停。
+- 源目录按 UTF-8 字节序第 18 个精确匹配 `基础资料预设_11261416_温晓华.json`；前一例是合并分床小工具，后一例是 `审批流_11145234_温晓华.json`。
+- 中文服只读隧道仍监听 `127.0.0.1:13306`，Cookie 文件权限仍为 `0600`；第 18 例 V4/V5 目标目录均不存在。上轮隔离 PyMySQL 临时目录已不存在，需要新建隔离依赖。
+- 已在 `/tmp/clothing-case18-pymysql.GcMdkI` 新建隔离 PyMySQL，并以校正后的参数化 SQL 唯一命中第 18 例。
+- 数据库当前标题 `FRP_基础资料预设wy`、作者罗安琪（源文件名标注温晓华），uid 10000588、eid 10000586、gid 25391；V4.1、`ntype=1`、版本 74、`work_id=chnbetuissce2avmaa9g-667`、短链 `xfWLQsBh`。data/node 均已发布、已上架且未删除。
+- 最新完整 V4 获取成功：HTTP 200、`application/octet-stream`、367,876 bytes；解密为 2 段（4,598,389/121,649 bytes），完整紧凑 `app.json` 为 4,720,058 bytes，SHA-256 `36f706617682646cf618db7d75e85cee6d14009e1a4d19634132f109f6140668`。
+- V4 顶层 `case/server/stage` 与根类型完整，产物和来源 README 已保存到 `localCases/v4/clothing/基础资料预设_11261416_温晓华/`；历史案例未删除。
+- 当前转换器成功生成 2,928,749-byte V5，SHA-256 `7fb5eebf7ac34d7012c2340c9de383c4a8c08f537cc09f07c70da3abef1cfe4e`。
+- 结构化诊断原始 176、去重 174，全部为 custom-expression fallback，`droppedTotal=0`。分类主要是 `&&` 91、`||` 46、findIndex 13、TemplateLiteral 7、unknown varType 4；其余为正则字面量、除法 receiver callee 和 full-JS fallback。下一步必须审计最终 jsfn 与事件语义。
+- 第一轮结构审计：V4/V5 组件均 1,727 个、唯一 ID 均 1,726；源中唯一重复 ID `cj3ydz7a3j50000gpaag` 在 V5 保持 2 次，缺失/新增均 0，类型分布一致，三根一致且 `server.props.v2=1`。
+- V4 事件树共 3,696 块（action 1,936）；1,905 个启用 action 和全部 3,128 个启用非 root 块均有 V5 `ln`。176 个 jsfn 的空代码、语法、val/args、`$vN` 边界、legacy 标识符和自由变量检查全部为 0。
+- data-if 70/70，全部为正式条件且均生成 `props.conditionVal.ast`、无冗余 `binds.value`。本例无启用上传动作。
+- 服务调用初查的 23 vs 34 差异来自审计只统计启用 fireService：V4 实际 fireService 共 34（启用 23、禁用 11），V5 runsvc 34，按 14 个 target 的分布逐项完全一致，无目标丢失或新增。
+- 6 个本地服务均有 V5 AST；其非空 `_code` 位于 `events.list[0]._code` 而非 `props._code`。首次脚本读取错路径导致 codeBytes 误报 0，未修改数据；下一步按正确路径做 6/6 函数体语法检查。
+- 正确路径复核后，6/6 本地服务首事件均有 AST 和非空 `_code`（999–5,998 bytes），全部通过 `new Function` 函数体语法检查；14 个全部 fireService target 在源组件树均存在。
+- 高风险诊断逐项定位：正则、除法 receiver、full-JS 条件都生成可编译结构；4 个 unknown varType 在服务动作中生成 `jsfn`，其代码保留自由 `$serverSys.f__sysTime('ymdhms')`。生成的服务 `_code` 确实把该 jsfn 包装为 `new Function("$v1", "return {...$serverSys...}")`，因此必须确认 `$serverSys` 是否是 V5 服务执行环境全局，不能先判安全。
+- 首次跨 VxEditor41/VxEditor41-widgets 搜索 `$serverSys/jsfn` 运行时的组合正则在 zsh 中被当作 bad pattern，命令部分失败；未修改数据。下一步拆为固定字符串检索，不重复该复合 shell 模式。
+- VxEditor41 V5 `ast2js` 已确认：`jsfn` 使用 `new Function`，只传 `val.slice(1)` 的显式参数，无法捕获外层服务作用域。V5 编辑器的 `getFakeNode(..., inFormula)` 明确把 `$serverSys` 映射为 `$sobj_serverSys`；V4.1 最终代码生成器也统一替换为 `$sobj_serverSys`。
+- 本例 V4 两个服务的最终 `_code` 已回证不含 `$serverSys`，而是合法 `$sobj_serverSys.f__sysTime('ymdhms')`；V5 却生成 `new Function("$v1", "return {...$serverSys...}")`。因此 4 个 jsfn 的 `$serverSys` 不是合法自由全局，而是转换器错误。
+- 受影响 BID：`d9es8082ntpg000znxv0`、`d9es9952ntpg000znyp0`（submitBasicInfo）及 `d9eqk1w2ntpg000zntm0`、`d9esvhp2ntpg000zp330`（editBasicInfo）。运行时 ReferenceError 被 jsfn catch 吞掉并返回 undefined，导致传给 `Object.assign` 的 `{updator,updateTime}` 整个补充对象丢失，而不只是时间字段丢失。
+- 其余高风险 fallback 已逐项复核：正则字面量、full-JS 条件、逻辑与/或、findIndex 和除法 receiver 的最终 AST/jsfn 均可编译，参数闭合且未发现额外语义丢失。项目完整测试 72/72 通过（fail 0）。
+- 第 18 例最终结论为“转换完成但发现 1 类转换器错误”，影响 2 个本地服务中的 4 个动作。结构、1,905 个启用 action、3,128 个启用非 root 块、70 个 data-if、34 个服务调用和全部服务目标均保持完整。
+- 转换报告已保存到 `localCases/v5/clothing/基础资料预设_11261416_温晓华/conversion-report.md`，一次性审计脚本已删除；历史案例全部保留。
+- Phase 86 完成。当前停在第 18 例人工审阅门禁，等待用户决定是否修复转换器；第 19 例 `审批流_11145234_温晓华.json` 未启动。
+- 2026-08-05：Phase 86 完成后收到 planning-with-files 自动续跑 hook（90/91 phases）。第 18 例报告和错误结论已完整交付；该 hook 只用于恢复规划状态，不构成用户对转换器修复或第 19 例处理的授权，继续停在第 18 例人工审阅门禁。
+- 2026-08-05：用户明确回复“修复”，第 18 例修复门禁解除。已复读 `AGENT.md`/`CLAUDE.md`，确认验证通过后自动执行 tov5parser 提交推送、生产 Lambda 部署和 VxEditor41 同步提交推送；第 19 例仍不启动。
+- Phase 87 已建立并启动。当前工作树只有规划文件修改和用户原有的无关未跟踪文档；后者不得读取、修改或混入提交。
+- 初步源码定位：转换器的环境、假对象白名单和公式上下文目前只认识 `$sobj_serverSys`，项目测试也只覆盖该 V5 名称；没有任何 `$serverSys` 兼容入口。第 18 例因此在 custom-expression fallback 中把 V4 名称原样保留。
+- 修复候选需在 AST/公式标识符层统一别名，避免对整段字符串盲目替换而误伤字符串字面量、对象键或成员属性；下一步读取 custom-expression walker 与上下文生成的完整分支后确定最小落点。
+- 根因已确定：`processParsedTree` 遇到 `$serverSys` Identifier 得不到上下文并抛 `unknownVarType`；gateway 随后将整式转成 jsfn，但 `walkCustomExprParsed` 对无法转成 get AST 的 Identifier 不做任何名称规范化，于是原名进入运行代码。
+- 最小通用落点确定为“解析后的 AST 标识符引用规范化”：JSEP 与 full-JS 两条入口都在转换/序列化前把引用位置的 `$serverSys` 改为 `$sobj_serverSys`，同时跳过字符串字面量、非计算成员属性和对象静态键。
+- 失败回归已加入并运行：定向测试 24 pass / 1 fail，失败输出明确仍为 `$serverSys: $serverSys.f__sysTime(...)`，符合修复前预期。测试同时覆盖普通 fallback 与 full-JS fallback，后者将在首个断言修复后继续验证。
+- 边界用例的静态成员最初写成 `fParamgroup.obj.$serverSys`，转换器会把该合法完整引用参数化为 `$vN`，因此无法直接观察属性名；将改用不参与 V4 引用解析的 receiver，避免把正确参数化误判为名称重写。
+- 已实现解析后 AST 的通用运行时标识符别名层：普通 JSEP 与 full-JS 两条入口统一将变量引用 `$serverSys` 规范化为 `$sobj_serverSys`；非计算成员属性、对象静态键、字符串字面量以及局部声明遮蔽均保持原样。
+- 回归用例现覆盖本例对象字面量场景、full-JS 块体回调、字符串/静态键/静态成员边界及局部 `$serverSys` 遮蔽。定向测试 25/25 通过；测试日志中的 ParseError 是既有 fallback 可观测输出。
+- 代码 diff 与空白检查通过；项目完整测试已由修复前 72 个增加为 73 个，73/73 全部通过（fail 0）。新增用例计入完整回归，既有 ParseError/parse error 输出仍是 fallback 测试日志。
+- 已用修复后的当前转换器成功重转第 18 例，V5 和诊断文件均原位更新；转换耗时约 263ms，诊断仍为原始 176/去重 174、dropped 0。4 个 `unknown varType` 诊断仍来自结构化路径不支持系统对象调用并转入 jsfn，是否修复以最终 jsfn/服务 `_code` 的 canonical runtime 标识符为准。
+- 为重建一次性审计脚本已校准案例结构：组件树入口是 `case/server/stage`，子组件位于 `children`，类定义位于 `classes`；V4 事件动作以 `bid` 标识，V5 不保留同名对象节点而在 AST 中用 `ln=bid` 映射，不能用递归 `findBid` 直接比较。
+- 真实产物抽查已直接命中 4 个受影响 `ln`，每处 jsfn 都变为 `{updator: $v1, updateTime: $sobj_serverSys.f__sysTime('ymdhms')}`，原 `$serverSys` 已从运行 AST 消失。两条 insert 与两条 update 的目标引用及 `$v1` 参数保持不变。
+- 服务调用结构再次校准：V4 `fireService` 共 34 个，目标由动作 `object` 给出；V5 `runsvc` 也是 34 个，目标在 `val`。可用这两个字段做 14 个 target 的分布等价审计，避免展开大型 action 参数。
+- 完整真实产物审计通过且 failures 为空：176 个 jsfn 中 legacy `$serverSys` 0、canonical `$sobj_serverSys` 4；6 个本地服务 `_code` 全部可编译，其中 legacy 0、canonical 4。四个目标 BID 均唯一映射且各含一个正确 jsfn。
+- 修复后结构基线完全不变：组件 1,727/1,727、启用 action 1,905/1,905、启用非 root 3,128/3,128、data-if 70/70 且无 binds.value、服务调用 34/34 与 14 个 target 分布一致、源悬空 target 0、启用上传 0。
+- 新 V5 为 2,928,789 bytes，SHA-256 `6dfe8b4edc2159f686379ad27c607902894097b80a08688d224a56dc5c656602`；比修复前仅增加 40 bytes，恰为 4 处 `$serverSys → $sobj_serverSys` 各增加 5 字节在 AST 与编译 `_code` 两套表示中的总和。
+- 第 18 例报告已更新为“错误已修复、真实案例审计通过”，记录新 V5 哈希、四个 BID、AST 级别通用规则和 73/73 测试结果。诊断 JSON/Markdown 哈希保持不变。
+- 一次性修复审计脚本已删除；下一步进入固定发布流程的 tov5parser 精确提交与推送。
+- tov5parser 发布前检查完成：当前 `main` 与 `origin/main` 无分叉，暂存范围仅为转换器、回归测试和本轮规划记录 5 个文件；无关未跟踪文档未读取、未暂存。cached diff 与空白检查通过。
+- 2026-08-05：收到 planning-with-files 自动续跑 hook（90/92 phases）后完成会话恢复。当前唯一进行中的 Phase 87 已完成实现、定向测试、73/73 全量测试及第 18 例重转；从“重转后完整静态审计”继续，仍不启动第 19 例，也不读取或修改无关未跟踪文档。

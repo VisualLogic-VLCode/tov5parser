@@ -1601,3 +1601,88 @@
 - Phase 83 Lambda 发布闭环已通过：生产版本 19 与 `prod` 一致，CodeSha256 `AAiYLrkbsL/8LyE/sjF+GC6fJUZWlnWAah3QUDuOb/E=`，版本接口冒烟成功。
 - VxEditor41 同步只需两个实现文件；该仓库没有对应自动测试文件。两文件定向 ESLint 0 问题且生产构建完成，用户已有界面/store 工作树改动未被覆盖。
 - Phase 83 发布闭环完成：tov5parser `80eb0df518fd253993dd6e9f75e06d7f7ec94128`、VxEditor41 `6465d5f395be71b47fba15309ea65cfd0c96877b` 均与远端分支对齐；Lambda `prod` 指向 Active/Successful 的版本 19。
+
+## 2026-08-05：clothing 第 16 例 `合同打印_11769634_叶育科`
+
+- 源目录按字节序共 51 个 JSON；第 16 个是 `合同打印_11769634_叶育科.json`，nid `11769634`。第 15 例审阅门禁已由用户明确解除；第 17 例仍受门禁约束。
+- 中文服只读隧道仍监听 `127.0.0.1:13306`；交接 env 位于 `/Users/lianghuang/Desktop/case-json-migrator/raw/lianghuang-cn-db-20260630/lianghuang_ro.mysql.env`，只读连接前置具备。
+- 交接 README 明确该账号只读（SELECT、SHOW VIEW）且中文服目标库包含 `vxshow`；本轮可安全通过参数化单条 SELECT 恢复既有元数据查询。
+- 参数化查询 `d.nid=11769634` 唯一命中：标题 `FRP合同打印`、当前作者叶育科，V4.1、`ntype=1`、版本 51、`work_id=csku1hsrf4hq141sk900-60`、gid 25391；data/node 均发布并上架，正式/预览链接码 `Ywbvp9ti`。
+## 2026-08-05：V4 完整案例下载包格式（案例 16）
+
+- 权威实现位于 `VxEditor41/src/components/stageProxy.js`。
+- 加密包布局：前 8 字节为 salt，随后 12 字节为 IV，从第 20 字节起为 AES-GCM 密文及 128-bit tag。
+- 密钥由固定密码 `Iyoh3ci0Keuchei6`、salt 和 1000 次 PBKDF2 派生。
+- 解密后的前 10 个 32-bit word 是段信息：最低位表示该槽存在，其余位右移一位后为对应段字节长度；压缩正文从 `4 * 段数` 字节处开始。
+- 每段以 raw deflate 解压并按 UTF-8 解析；第一段为 stage，第二段为 server。若 `server.case` 存在，应提升为顶层 `case` 并从 server 删除。
+- 该格式允许直接获取完整的 `case/server/stage`，比原始清单 JSON 更适合转换与完整性审计。
+- 本例线上完整包已按该权威实现成功解码：HTTP 200、219,768-byte 二进制，2 个解压段（2,096,408/42,351 bytes），最终 `app.json` 2,138,779 bytes，SHA-256 `7381a743a467e82961aa45441d929ca96398688ac21eec72f94a6066869e414f`。
+- 解码结果顶层完整包含 `case/server/stage`，已连同数据库元数据保存于 V4 clothing 案例目录；未删除此前任何案例数据。
+- 当前转换器已成功输出 1,826,566-byte V5，SHA-256 `6286b4172d958546ab184f33f69d249d1e0821ce3c61904e2de638d620f250ab`。
+- 诊断原始/去重均为 81，dropped 0，全部进入 custom-expression fallback；控制台 ParseError 是结构化解析回退记录，不能直接判为运行错误，必须审计最终 jsfn 语法、参数闭合与源事件语义。
+- 第 15 例报告提供了已校准的审计口径，可复用于本例；特别是 data-if 必须区分正式 `conditionVal.ast` 与源空条件的 `binds.value={op:'val'}`，事件容器也不能因没有独立 `ln` 就直接判为丢失。
+- 本例严格组件树 V4 初算为 477 个且 ID 全唯一；组件事件仍含 V4 最终 `code/_code`，因此可用最终代码判断 callback/参数在 V4.1 中的真实替换结果。
+- 第一轮审计未发现结构或事件映射丢失：477/477 组件、263/263 启用 action BID、16/16 正式 data-if、6/6 共享服务、8/8 服务调用全部对应。
+- 81 个 jsfn 的语法、参数、占位符和 legacy 标识符检查全部通过。唯一自由变量候选为页面表达式中的 `NP`（9 处）；在判定结论前必须确认源案例是否定义/加载该全局。
+- 本例不存在启用的图片上传动作，也不存在源悬空服务 target。
+- `NP` 不是未声明变量：源案例的 `numberPrecision` 数据函数明确执行 `window.NP={strip,plus,minus,times,...}`，这段 4,366-byte 代码在 V5 原样保留，故 9 处 NP 引用均可访问页面全局。
+- 6 个服务组件均为共享服务引用，V4/V5 props 契约一致；本例没有本地 `data-service` 事件函数体可做 `_code` 编译检查。
+- 诊断中的少数高风险语法已逐项定位最终 AST：解构回调、spread、new Array、flat、typeof 与 some/lambda 均保持源语义和局部参数作用域，未发现 silent fallback 丢失。
+- 所有启用非 root 事件块 354/354 均映射到 V5 `ln`；事件映射结论从“启用 action 完整”扩展为“启用容器与动作全部完整”。
+- 项目完整回归测试 72/72 通过。结合产物静态审计，本例没有发现需要修改转换器的错误。
+- 第 16 例报告已落盘，最终口径为“转换通过、无转换器错误”。历史案例全部保留；流程停在人工审阅门禁，未开始第 17 例。
+
+## 2026-08-05：clothing 第 17 例 `合并分床小工具_12105173_熊`
+
+- 源目录按 UTF-8 字节序共 51 个 JSON；第 17 个是 `合并分床小工具_12105173_熊.json`，nid `12105173`。用户已解除第 16 例人工审阅门禁，第 18 例仍受门禁约束。
+- 中文服只读隧道与权限为 `0600` 的平台 Cookie 均可用；历史案例必须全部保留。
+- 第 17 例数据库连接已验证可用；首次元数据 SQL 仅因 `users.user_name` 列名假设错误而失败，后续需以只读 schema 为准，不复用该字段名。
+- 只读 schema 表明当前中文服表字段为 `users.id/email/real_name/eid`、`node_vx_data.is_published/is_launch`，版本和 work_id 位于 `node_vx`；校正后的参数化查询唯一命中。
+- 数据库记录：标题 `合并分床小工具`、作者熊维祥、uid 10006977、eid 10000586、gid 0；V4.1、`ntype=1`、版本 1、`work_id=d6kjcv8u82nbomjipp60-6`、短链 `EwYln0hD`。data/node 均未发布、未上架且未删除。
+- `/work/load` 获取成功：HTTP 200、15,336-byte 二进制，2 个解压段（23,072/82,959 bytes），最终紧凑 V4 为 106,051 bytes，SHA-256 `02a025ca5b509f31efd3719b465f216be0f1efb5ef1427c656fcde04c7257c9e`。
+- 解码结果顶层 `case/server/stage` 与根类型完整，已保存本例 V4 产物和来源元数据；历史案例全部保留。
+- 当前转换器输出 106,055-byte V5，SHA-256 `0043033e6fdcd649f05b2cd8f160d61b3bbd4a9c1b1dafe8fbfc763583256068`；诊断 total/unique/dropped/customExpr 全为 0。
+- 本例是极小的 WebView 壳案例：严格组件仅 5 个（case/server/stage/system/web-view），无事件、无 AST、无 jsfn、无 data-if、无服务或上传动作。
+- 完整对象递归深比较只有一处差异：`case.uis.name` 增加 `_5.0` 后缀；其余 106KB 数据逐项一致。该差异需回证为转换器设计行为。
+- `_5.0` 后缀由 `converter.js` 显式追加，并有两处项目回归断言，属于预期转换行为。故完整对象深比较未发现异常差异。
+- 项目测试 72/72 通过；本例没有事件、公式、data-if、服务或上传等可转换结构，最终未发现转换器错误。
+- 第 17 例报告已落盘，最终口径为“转换通过、无转换器错误”。流程回到人工审阅门禁，未开始第 18 例。
+
+## 2026-08-05：clothing 第 18 例 `基础资料预设_11261416_温晓华`
+
+- 源目录按 UTF-8 字节序共 51 个 JSON；第 18 个是 `基础资料预设_11261416_温晓华.json`，nid `11261416`。用户已解除第 17 例门禁，第 19 例仍受门禁约束。
+- 中文服只读隧道和平台 Cookie 可用；目标目录在本轮开始前不存在，历史案例需全部保留。
+- 参数化数据库查询唯一命中：标题 `FRP_基础资料预设wy`、当前作者罗安琪，V4.1、`ntype=1`、版本 74、`work_id=chnbetuissce2avmaa9g-667`、gid 25391，短链 `xfWLQsBh`；data/node 均已发布并上架。源文件名作者温晓华与数据库当前作者不同，README 需同时记录。
+- `/work/load` 获取成功：HTTP 200、367,876-byte 二进制，2 个解压段（4,598,389/121,649 bytes），最终紧凑 V4 4,720,058 bytes，SHA-256 `36f706617682646cf618db7d75e85cee6d14009e1a4d19634132f109f6140668`；三根完整。
+- 当前转换器输出 2,928,749-byte V5，SHA-256 `7fb5eebf7ac34d7012c2340c9de383c4a8c08f537cc09f07c70da3abef1cfe4e`。诊断原始 176、去重 174、dropped 0，全部进入 custom-expression fallback；高频为逻辑与/或和 findIndex。
+- 结构与事件完整：1,727/1,727 组件、源重复 ID 原样保留、1,905/1,905 启用 action、3,128/3,128 启用非 root 事件块均对应；176 个 jsfn 的语法、参数、占位符、legacy 与自由变量检查全部通过。
+- data-if 70/70 正确；V4 34 个 fireService 与 V5 34 个 runsvc 在 14 个 target 上分布完全一致。6 个本地服务均有 AST，`_code` 位于首个 event 条目，需按该路径完成编译检查。
+- 6 个本地服务 `_code` 均非空且函数体语法通过；全部 14 个服务 target 在 V4 源组件树存在。
+- 唯一尚未定性的风险是 4 个服务 jsfn 保留自由 `$serverSys`。V5 `_code` 用 `new Function` 执行 jsfn，普通词法闭包无法传入 `$serverSys`；只有运行时把它暴露为全局时才安全，需查 V5 实际执行环境。
+- 风险已定性为转换器错误：V5 `ast2js` 的 jsfn 只显式注入 `$vN`，编辑器公式假对象又明确要求 `$serverSys → $sobj_serverSys`。V4 最终 `_code` 正确使用 `$sobj_serverSys`，V5 4 个 jsfn 却保留 `$serverSys`。
+- 4 个受影响动作分属 `submitBasicInfo`、`editBasicInfo` 两个本地服务；由于 `new Function` 的 ReferenceError 被 catch 吞掉，Object.assign 的补充对象整体变为 undefined，`updator` 与 `updateTime` 均无法写入。
+- 受影响 BID 为 `d9es8082ntpg000znxv0`、`d9es9952ntpg000znyp0`（submitBasicInfo）以及 `d9eqk1w2ntpg000zntm0`、`d9esvhp2ntpg000zp330`（editBasicInfo）。这是同一类公式运行时对象规范化缺陷，不应针对具体 BID 修补。
+- 其余 fallback 已逐项审计，未发现第二类转换错误；项目完整测试 72/72 通过。诊断中的 176 条 custom-expression fallback 只有上述 4 条被定性为运行错误，dropped 仍为 0。
+- 第 18 例报告已落盘，最终口径为“转换完成但发现 1 类转换器错误，影响 4 个服务动作”；历史案例全部保留，未启动第 19 例。
+
+## 2026-08-05：第 18 例 `$serverSys` 修复依据
+
+- 用户已授权修复；目标是通用规范化 V4 公式中的服务系统假对象，不能针对两个服务名或四个 BID 特判。
+- 发布边界由项目 `AGENT.md`/`CLAUDE.md` 固定：真实案例验证通过后自动提交推送 tov5parser、部署生产 Lambda、等价同步并提交推送 VxEditor41。
+- 修复前基线是 4 个 `unknown varType: undefined` 诊断对应的 jsfn 保留 `$serverSys`；V4 最终 `_code` 的正式语义为 `$sobj_serverSys`。回归应直接覆盖 custom-expression fallback 内对象字面量调用服务系统方法的场景。
+- 源码现状：`env.js`、`utils/const.js`、`utils/formula.js` 与测试都只声明 `$sobj_serverSys`；`V4FormulaCodeConverter` 没有 `$serverSys` 别名。普通结构化解析无法识别该 V4 标识符，转入 jsfn 后仍以原名输出。
+- 统一修复优先考虑“标识符引用别名化”，不能简单对源字符串做全局替换，否则可能改变 `"$serverSys"` 字符串、对象非计算属性键或成员属性名等非引用位置。
+- `processParsedTree` 的实际失败链：未知 `$serverSys` → `unknownVarType` → gateway `processCustomExpr`；custom walker 会递归该 MemberExpression，但 Identifier 默认分支为空，因此原标识符被 `ExprAstToString`/`astring` 原样写入 jsfn。
+- 应在 JSEP AST 和 ESTree AST 的共同前置层做引用级规范化。排除规则：非计算 `MemberExpression.property` 与非计算 `Property.key` 不属于变量引用；字符串/正则本来是 Literal，也不会被改写。对象 shorthand 的 value 仍需规范化并由生成器展开为静态键 + 规范化 value。
+- 修复前回归输出为 `$v1 && {label: "$serverSys", $serverSys: $serverSys.f__sysTime("ymdhms"), property: $v2}`：字符串和对象静态键已可作为不应变化的对照，服务对象引用仍错误；合法 `fParamgroup.obj.$serverSys` 被整体参数化为 `$v2`，不能用它观察静态成员名边界。
+- 实现采用 `LEGACY_RUNTIME_IDENTIFIER_ALIASES` + AST walker，而非源码字符串替换。walker 在 alias 前收集局部声明，存在同名局部时保守跳过；静态成员名/对象键/label 也跳过。对象 shorthand 的 value 若被别名化会取消 shorthand，保留旧键名和新 value 的正确语义。
+- JSEP 与 Acorn ESTree 均先深拷贝再规范化，避免 shorthand 的 key/value 共享节点时修改 value 连带污染静态 key；RegExp 由现有 `cloneParsedTree` 保真复制。
+- 定向测试 25/25、项目完整测试 73/73 通过。下一阶段必须以第 18 例真实 V4 重转验证 4 个 runtime jsfn 和服务 `_code` 中的自由 `$serverSys` 均清零，同时确认诊断、结构与服务分布基线未漂移。
+- 真实重转成功且诊断计数保持 176/174/dropped 0。`unknown varType` 仍会被记录，因为 `$sobj_serverSys.f__sysTime` 本身没有结构化 V5 AST 表达，预期继续走 jsfn；正确性判据是 jsfn 中保留可运行的 `$sobj_serverSys`，而不是强求该诊断类别清零。
+- 审计结构校准：严格组件递归只沿三根的 `children/classes`；V4 事件以组件事件树中的 `bid` 标识，V5 映射落在 AST 节点 `ln`，因此受影响动作应按 V5 `ln` 定位并检查其子树 jsfn，服务最终代码则从本地服务首事件 `_code` 独立扫描。
+- 修复后四个精确落点均为 `$sobj_serverSys.f__sysTime('ymdhms')`，且 jsfn 仍只有正确的 `$v1` 用户值参数；这证明别名化只改运行时系统对象，没有改变业务实参或 Object.assign 结构。
+- V4 `fireService.object` 与 V5 `runsvc.val` 是服务 target 的同义字段，可按频次 Map 直接比较；本例两边仍各 34 个调用。
+- 完整审计确认运行态修复闭合：jsfn 和 6 个本地服务 `_code` 中 `$serverSys` 都为 0，`$sobj_serverSys` 都为 4；四个受影响 BID 每个只有一个映射和一个 canonical jsfn。
+- V5 文件由 2,928,749 增至 2,928,789 bytes，净增 40 bytes。旧/新标识符长度差 5 字节，四处在 AST `jsfn.val[0]` 与服务编译 `_code` 各存一份，4×2×5=40，文件变化与预期精确吻合。
+- 其他所有基线计数、ID/类型分布、事件 ln、data-if、服务 target 与诊断文件哈希均保持一致，未发现修复外漂移。
+- 案例报告已切换为修复后口径。诊断文件没有变化是预期结果：结构化转换仍会记录 fallback 原因，但运行 jsfn 已 canonicalize；报告必须区分“使用 fallback”与“fallback 生成不可运行代码”。
