@@ -2008,3 +2008,9 @@
 - 3 个源悬空服务调用仍对齐为相同 2 个目标，未因本次修复新增结构或引用差异。
 - 去掉实现中不必要的 row 参数名别名枚举后，再次运行 72/72 测试并真实重转成功；结果仍为 1,128 个 jsfn、目标错误 0、诊断 1,164/1,140、dropped 0。
 - 最终 V5 为 33,268,756 bytes，SHA-256 `3024f019b2d095f1af9f9eb97ae3e1fd058429aefdbcbafdf2e0c73e2474e1c5`；诊断 JSON/Markdown 哈希分别为 `3813414813faaa897a4f5ebe3dfe00822b3595eaedf7622a6a4bfe3b4f9240ed` / `059e4b059852309e3bab54d331783bdf4cb7c003de42d180fe810e9a83f35237`。
+- 2026-08-05：tov5parser 修复提交 `80eb0df` 已推送 `origin/main`。首次生产部署被仓库中用户无关未跟踪文件 `VxServer-saveAs-same-gid-group-db-fix.md` 的 clean-tree 门禁拒绝；该文件未触碰、未暂存，下一步使用部署脚本明确支持的 `--allow-dirty`，并继续由提交版本构建。
+- 2026-08-05：从提交 `80eb0df` 完成生产 Lambda 部署：部署内置 72/72 测试通过，CodeSha256 `AAiYLrkbsL/8LyE/sjF+GC6fJUZWlnWAah3QUDuOb/E=`，发布版本 `19`，`prod` 已切换到 19。冒烟 StatusCode 200、ExecutedVersion 19、FunctionError null、业务 code 0。
+- 2026-08-05：VxEditor41 已等价同步 `utils/formula.js` 与 `formulaCode/V4FormulaCodeConverter.js`。首次 ESLint 仅提示目标节点三元表达式的 Prettier 换行 warning，调整后两文件 ESLint 0 问题；生产 webpack 构建完成。
+- VxEditor41 中用户原有 `.gitignore`、`src/stores/event.js` 和多个新增界面目录保持未暂存，下一步只提交上述两个转换器文件。
+- 2026-08-05：VxEditor41 仅提交两个转换器实现文件，提交 `6465d5f395be71b47fba15309ea65cfd0c96877b` 已推送 `origin/master`；用户已有 `.gitignore`、`src/stores/event.js`、`.claude/` 与新增界面目录均未进入提交。
+- 最终复核：tov5parser `HEAD=origin/main=80eb0df518fd253993dd6e9f75e06d7f7ec94128`；VxEditor41 `HEAD=origin/master=6465d5f395be71b47fba15309ea65cfd0c96877b`；Lambda `prod=19`，版本 19 为 Active/Successful，CodeSha256 与部署结果一致。Phase 83 完成，停在第 15 例人工审阅门禁，不启动第 16 例。
