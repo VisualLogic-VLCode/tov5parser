@@ -93,6 +93,63 @@ function convertEditorValue({
   }
 }
 
+function getFuncGroupParamTokenNames(formulaValue) {
+  const names = new Set()
+  const tokens = Array.isArray(formulaValue?.str) ? formulaValue.str : []
+  for (const token of tokens) {
+    if (
+      token?.type === 'param' &&
+      token?.extra?.type === 'funcGroupParam' &&
+      typeof token.obj === 'string'
+    ) {
+      names.add(token.obj)
+    }
+  }
+  return names
+}
+
+function canRecoverStaleFuncGroupParam({ str, nodeId, formulaValue }) {
+  const currentNode = getNodeById(nodeId)
+  if (!['data-funcGroup', 'obj-funcGroup'].includes(currentNode?.type)) {
+    return false
+  }
+
+  const inParams = Array.isArray(currentNode.props?.inParams)
+    ? currentNode.props.inParams
+    : []
+  const declaredNames = new Set(
+    inParams
+      .map(param =>
+        Object.prototype.toString.call(param) === '[object Object]'
+          ? param.name
+          : param
+      )
+      .filter(name => typeof name === 'string')
+  )
+  const tokenNames = getFuncGroupParamTokenNames(formulaValue)
+  if (declaredNames.size === 0 || tokenNames.size === 0) return false
+
+  const code = formulaValue?.code
+  if (typeof code !== 'string') return false
+  const escapedIdentifier = str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const memberPattern = new RegExp(
+    `\\b${escapedIdentifier}\\s*\\.\\s*([A-Za-z_$][\\w$]*)`,
+    'g'
+  )
+  const referencedNames = [...code.matchAll(memberPattern)].map(match => match[1])
+  if (
+    referencedNames.length === 0 ||
+    referencedNames.some(
+      name => !declaredNames.has(name) || !tokenNames.has(name)
+    )
+  ) {
+    return false
+  }
+
+  const remainingCode = code.replace(memberPattern, '')
+  return !new RegExp(`\\b${escapedIdentifier}\\b`).test(remainingCode)
+}
+
 // 事件数块类型
 const EVENT_BLOCK_TYPE = {
   ROOT: 'root',
@@ -381,6 +438,14 @@ function getCtx(str, extra) {
     let funcGroupId = str.slice('fParam'.length)
     let node = getNodeById(funcGroupId)
     if (['data-funcGroup', 'obj-funcGroup'].includes(node?.type)) {
+      return {
+        varType: 'param'
+      }
+    }
+    // 复制过的旧动作偶尔仍带已删除函数组的 fParam<id> 前缀。
+    // 仅当 token 明确标记为函数组参数、成员名命中当前函数组入参，且该
+    // 标识符没有其他用法时，才按当前函数组参数恢复，避免猜测未知变量。
+    if (canRecoverStaleFuncGroupParam({ str, nodeId, formulaValue })) {
       return {
         varType: 'param'
       }

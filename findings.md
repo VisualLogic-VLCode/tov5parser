@@ -1514,3 +1514,34 @@
 - tov5parser 统一分类实现已以提交 `4177d62` 推送；完整测试 70/70 通过。生产 Lambda 已发布版本 17，`prod` 冒烟成功。
 - VxEditor41 已同步同一规则并以提交 `1c5b35ebd` 推送；完整生产构建 0 error，既有 warning 不属于本轮转换器改动。
 - 本轮把分散的 session、提示语、条件文本、URL 等识别收敛为 V4.1 官方 `formulaStr(code)` 同源规则；只保留 `.style` 路径与数据库成功状态布尔迁移这类真正的 API 语义适配。
+
+## 2026-08-05：clothing 第 14 例 `包装等级预设_11370983_温晓华`
+
+- 源目录按字节序共 51 个 JSON；`包装等级预设_11370983_温晓华.json` 确为第 14 个，前一例是 `加工方案_11391428_温晓华.json`，下一例是 `各单列表_11277016_叶育科.json`。
+- nid 从文件名提取为 `11370983`。本项目 `localCases/v4/clothing` 与 `localCases/v5/clothing` 当前均没有该案例目录或文件，不存在旧缓存需要覆盖。
+- 已重新定位中文服只读数据库交接包与现成导出脚本；本例仍沿用已验证的参数化只读查询和编辑器 `/work/load` 完整二进制解码口径，不使用源目录中的旧 JSON 作为转换输入。
+- 中文服只读隧道 `127.0.0.1:13306` 正在监听；隔离 PyMySQL 可正常连接 `vxshow`。参数化查询固定 `d.nid=11370983`，唯一命中 1 行。
+- 数据库确认本例为 V4.1：`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`；`ntype=1`、版本 33、最新 `work_id=ckp2sj0sd9i7dpjiuerg-86`、gid 25391、eid 10000586。
+- 当前标题 `FRP_包装等级预设`，数据库作者罗安琪（账号 `staff96@ih5.cn`，uid 10000588），源文件名标注作者温晓华；两者需分别记录。作品未删除，data/node 均已发布且已上架，链接码 `RG0JIklr`。
+- 最新完整 V4 下载当前受鉴权阻塞：本地中文服 Cookie 返回 HTTP 203；应用内浏览器无法完成同源导航；Chrome 扩展可枚举现有 `dev.ivx.cn` 标签，但两次均无法在 30 秒内认领。不得改用源目录旧 JSON 冒充最新版本；必须等待用户刷新 Cookie 或建立可接管的 `editor.ivx.cn` 登录页。
+- 下载失败发生在创建案例目录之前；第 14 例本地没有 V4/V5 产物或半成品，前 13 例数据均未删除或改动。
+- 用户更新的有效 Cookie 位于 `/Users/lianghuang/Documents/docs/auth/.platform_cookie`，204 bytes、权限 `0600`、修改时间 2026-08-05 10:41:36 +0800；旧 `SecretRoot.local.env` 变量未同步。下载器只在内存读取该文件且没有输出内容。
+- 最新 `/work/load` 请求成功：HTTP 200、`application/octet-stream`、505,936 bytes；解码为 2 个压缩分段和 6,148,595-byte 紧凑 JSON，SHA-256 `92ad0bc3ffc3055804f30c10fae4814f2429e0bd4b91e08d60dfbb76309ac651`。
+- 解码结果顶层完整包含 `case/server/stage`，根类型分别为 `ih5-case/data-server/ih5-stage`；`app.json` 权限 `0600`，可以进入 `ntype=1` 转换。
+- 当前转换器对第 14 例转换成功：V5 `app.v5.json` 4,276,540 bytes、SHA-256 `05962c14922b697a3ae8818a3c316fa0151a167d4f5858d1c20f2cca77b93789`。
+- 结构化诊断共 55 条且去重仍为 55：全部是 `custom-expr-fallback`，`dropped=0`。主要类别为 `&&` 21、`||` 14、unknown varType 6、正则 Literal 6、hasOwnProperty 3，其余 full-js 2、findIndex/callee 各 1。
+- 55 条 fallback 是否真正安全仍需以最终 V5 `jsfn` 的静态语法、args/占位符和 legacy 符号审计为准；不能仅凭 dropped=0 判定通过。
+- 第 14/51 例 `包装等级预设_11370983_温晓华`（nid `11370983`）为数据库当前 V4.1、ntype 1、作品版本 33；最新完整 V4 已从中文服 `/work/load` 成功下载，解码后 6,148,595 bytes，SHA-256 `92ad0bc3ffc3055804f30c10fae4814f2429e0bd4b91e08d60dfbb76309ac651`。
+- 第 14 例转换成功生成 4,276,540-byte 紧凑 V5，诊断 55 条且 `dropped=0`；但 `dropped=0` 不能替代最终 AST 审计。
+- 第 14 例 V4/V5 组件均为 2,311 个（唯一 ID 2,302），缺失/新增均为 0；9 个重复 ID 来自 V4 且 V5 原样保留。2,805 个 V4 动作块的启用 BID 全部存在对应 V5 `ln`；595 个未映射 BID 全是事件 root 容器。
+- 第 14 例 55 个 `jsfn` 均可解析，参数数组和 `$vN` 占位均闭合；其中 4 个仍含自由变量 `fParamcf4zq1ca3j50000cmes0`，分别位于启用动作 `cf4zqsqa3j50000cmg4g`、`cf4zq1ca3j50000cmf2g` 的两项 `arrUpdate.updates`。
+- `cf4zq1ca3j50000cmes0` 在完整 V4 中不是组件 ID、事件 BID 或引用目标。受影响 Formula 的 `str` token 明确为 `{type:'param', obj:'value|name', extra:{type:'funcGroupParam'}}`，所在当前函数组 `cf4zjzva3j50000cmang` 也声明 `inParams=['value','name']`；因此可按 token 类型 + 当前函数组契约恢复，不需要把任意未知标识符猜成参数。
+- 第 14 例 224 个 data-if 中，223 个源正式条件全部转成 `props.conditionVal.ast` 且无 `binds.value`；唯一 `cmqsrcha3j50000f3mx0` 是 V4 源空条件和空 bind 占位，V5 `{op:'val'}` 符合已确认兼容兜底，不是条件丢失。
+- 第 14 例 22/22 个 data-service 均有可解析 `_code`；V4/V5 服务调用均为 103 次且目标完整。32 位 session `54aae5de50ba316f9b1e4e59322bb81e` 正确转成字符串值；1 个 uploadPic 及其 status/3 个子动作均保留。
+- 第 14 例项目全量测试 70/70 通过；案例报告已生成，当前结论为“转换产物有 4 处同类运行错误，等待用户确认修复”，第 15 例未启动。
+- Phase 82 最小复现确认：同一当前函数组 `group1` 内，`fParamgroup1.value` 正确生成 `ref:['param','value']`；把 code 前缀改成不存在的 `fParamstale.value`，即使 Formula token 明确是 `funcGroupParam/value`，当前仍报 `unknown varType` 并回退为无参 `jsfn("fParamstale.value")`。修复应只扩展 `getCtx` 的旧前缀解析兜底，不改正常参数 AST 结构。
+- Phase 82 修复规则已实现于 `utils/formula.js`：原后缀 ID 能解析为函数组时保持旧逻辑；只有后缀 ID 无效、当前事件所有者是函数组、Formula token 明确给出 `funcGroupParam`、引用成员同时命中 token 名与当前 `inParams`，且该旧标识符没有成员访问以外用途时才恢复为 `varType:'param'`。
+- Phase 82 回归同时覆盖反例：正常 `fParam<当前ID>` 不依赖 token 仍保持原 AST；缺少 funcGroupParam token，或 token 参数名不在当前 `inParams` 中时，未知旧前缀仍保留 fallback，不被猜成当前参数。定向测试 1/1 通过。
+- Phase 82 完整项目测试已从 70 增至 71，结果 71/71 通过。真实重转第 14 例后诊断 55→51，减少的正好是 4 条旧 fParam `unknown varType`；`dropped` 仍为 0。
+- 两个目标 BID 重转后各包含 1 个 `ref:['param','value']` 和 1 个 `ref:['param','name']`，旧 `fParamcf4zq1ca3j50000cmes0` jsfn 残留均为 0。全案例 `jsfn` 55→51，51/51 的语法、参数、占位符、自由变量和 legacy 可执行标识符审计全部通过。
+- 最终代码再次重转后 V5 为 4,276,816 bytes、SHA-256 `19ec125d195cc70c85b1966c5d2c6846635d087ab4481c1521793ec3a0ff6c43`；诊断 JSON 33,352 bytes / `08f0b662b42039783f06071642410176d026a50813d72ded9393567022d4ce75`，诊断 Markdown 13,709 bytes / `0ee4af260e2552701230caa7b63a0af42e01782d99f0da09fafd3195c0905f3f`。两次成功重转 V5 的哈希差异来自既有随机 ln/XID，体积与语义审计一致。

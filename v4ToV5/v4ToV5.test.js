@@ -1023,6 +1023,92 @@ test('formula conversion follows the V4.1 event-code literal semantics', () => {
   }
 });
 
+test('stale function-group parameter prefixes recover from the current token contract', () => {
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push({
+    id: 'currentfuncgroup',
+    type: 'data-funcGroup',
+    rootId: 'stage1',
+    uis: {},
+    props: { inParams: ['value', 'name'] },
+    binds: {},
+    children: [],
+  });
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  const convertParam = name =>
+    convertEditorValue({
+      value: {
+        code: `fParamdeletedfuncgroup.${name}`,
+        str: [
+          {
+            type: 'param',
+            obj: name,
+            extra: { type: 'funcGroupParam' },
+          },
+        ],
+      },
+      nodeId: 'currentfuncgroup',
+      blockId: 'stale-func-group-param',
+    });
+
+  const expectedParamAst = name => ({
+    op: 'var',
+    args: [
+      {
+        op: 'get',
+        args: [{ op: 'ref', val: ['param', name] }],
+        _blockType: '$cbParams',
+      },
+    ],
+  });
+
+  try {
+    for (const name of ['value', 'name']) {
+      assert.deepEqual(convertParam(name), expectedParamAst(name));
+    }
+
+    assert.deepEqual(
+      convertEditorValue({
+        value: { code: 'fParamcurrentfuncgroup.value' },
+        nodeId: 'currentfuncgroup',
+      }),
+      expectedParamAst('value'),
+    );
+
+    const originalConsoleLog = console.log;
+    console.log = () => {};
+    try {
+      for (const value of [
+        {
+          code: 'fParamdeletedfuncgroup.value',
+          str: [{ type: 'str', obj: 'fParamdeletedfuncgroup.value' }],
+        },
+        {
+          code: 'fParamdeletedfuncgroup.secret',
+          str: [
+            {
+              type: 'param',
+              obj: 'secret',
+              extra: { type: 'funcGroupParam' },
+            },
+          ],
+        },
+      ]) {
+        const unresolved = convertEditorValue({
+          value,
+          nodeId: 'currentfuncgroup',
+        });
+        assert.match(JSON.stringify(unresolved), /fParamdeletedfuncgroup/);
+      }
+    } finally {
+      console.log = originalConsoleLog;
+    }
+  } finally {
+    clearActiveEnv();
+  }
+});
+
 test('legacy action API path text stays literal', () => {
   const formulaParam = (name, code) => ({
     name,
