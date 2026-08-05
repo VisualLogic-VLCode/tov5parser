@@ -714,7 +714,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 第 14/51 例 `包装等级预设_11370983_温晓华.json`（nid `11370983`）已完成转换器修复、真实重转、完整审计和发布闭环。原 4 个旧 `fParam...` 自由变量已恢复为当前函数组 `value/name` 参数 AST，诊断 55→51、dropped 0，51/51 jsfn 与组件、事件、data-if、服务、后台代码和上传审计全部通过；项目测试 71/71。tov5parser、Lambda 18 和 VxEditor41 均已更新。当前返回第 14 例人工审阅门禁，不启动第 15 例。
+**当前检查点：** 用户已明确要求修复第 15/51 例 `各单列表_11277016_叶育科.json`（nid `11277016`）发现的两类错误。Phase 83 已启动：为 `$curRowValue` 动作上下文转换与 custom-expression fallback 嵌套回调参数作用域建立失败回归并实施通用修复；真实重转/审计通过后按 `AGENT.md`/`CLAUDE.md` 自动提交推送、部署 Lambda 并同步 VxEditor41。第 16 例仍不启动。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -940,3 +940,20 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 - [x] 复核两个远程分支、Lambda 状态并记录结果
 
 **Status:** complete
+
+### Phase 83：修复 clothing 第 15 例当前行值与嵌套回调作用域并自动发布（2026-08-05）
+
+- [x] 为 `$curRowValue` 在 `setRowColsValue.colValue` 的动作上下文语义建立失败回归
+- [x] 为 custom-expression fallback 中嵌套 `every(key => ... item[key])` 建立失败回归
+- [x] 实施通用最小修复，避免针对具体 BID、字段名或参数名枚举
+- [x] 运行定向测试和项目完整测试
+- [x] 真实重转第 15 例，确认 10 个无参错误 jsfn 清零并重跑完整静态审计
+- [x] 更新案例报告、规划记录
+- [ ] 精确提交推送 tov5parser
+- [ ] 从已提交版本部署生产 Lambda，验证新版本、`prod` 别名和冒烟
+- [ ] 等价同步 VxEditor41 转换器，定向检查/生产构建后精确提交推送
+- [ ] 复核双仓远端与 Lambda 状态，返回第 15 例人工审阅门禁
+
+**Status:** in progress
+
+**授权与范围：** 用户明确要求“修复”；`AGENT.md`/`CLAUDE.md` 固定发布流程生效，验证通过后无需再次询问提交或部署。仅处理报告确认的两类转换器错误；源案例已有的 3 个悬空服务调用不由转换器伪造服务定义。第 16 例不启动。

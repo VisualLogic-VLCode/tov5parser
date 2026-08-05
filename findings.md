@@ -1547,3 +1547,53 @@
 - 最终代码再次重转后 V5 为 4,276,816 bytes、SHA-256 `19ec125d195cc70c85b1966c5d2c6846635d087ab4481c1521793ec3a0ff6c43`；诊断 JSON 33,352 bytes / `08f0b662b42039783f06071642410176d026a50813d72ded9393567022d4ce75`，诊断 Markdown 13,709 bytes / `0ee4af260e2552701230caa7b63a0af42e01782d99f0da09fafd3195c0905f3f`。两次成功重转 V5 的哈希差异来自既有随机 ln/XID，体积与语义审计一致。
 - Phase 82 发布闭环完成：tov5parser `4aa0a26a9e4071fb35e56d34f770c7cd10dd1e40` 已推送；Lambda `prod` 指向版本 18，CodeSha256 `En3ggJjZJ/58UDKAka/yHawbWEEiswS6K/ZERfDB4jU=`，状态 Active/Successful 且冒烟业务 code 0；VxEditor41 `e32b73c71f5a8c936fb7773a5e46bcb1cafc7081` 已推送，生产构建成功。
 - VxEditor41 只同步 `src/utils/convertV4ToV5/utils/formula.js`。其 `.gitignore`、`src/stores/event.js` 和多个新增界面目录仍保持用户原状态，未暂存、未提交；tov5parser 的无关未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 同样未触碰。
+
+## 2026-08-05：clothing 第 15 例 `各单列表_11277016_叶育科`
+
+- 源目录按字节序共 51 个 JSON；第 15 个确为 `各单列表_11277016_叶育科.json`，nid `11277016`。前一例是 `包装等级预设_11370983_温晓华.json`，下一例是 `合同打印_11769634_叶育科.json`。
+- 用户已解除第 14 例人工审阅门禁。第 15 例仍按“数据库版本 → 最新完整 V4 → 转换 → 静态审计 → 单例汇报”的顺序执行；此前案例全部保留，第 16 例不会提前启动。
+- 中文服只读数据库参数化查询 `d.nid=11277016` 唯一命中 1 行：标题 `APS产单列表`、当前作者叶育科、uid 10187685、eid 10000586、gid 25391；V4.1、`ntype=1`、版本 368、`work_id=ci4j83h9b9knrnsao23g-408`，正式/预览链接码 `PQTOENfs`，data/node 均已发布并上架。
+- 最新 `/work/load` 获取成功：HTTP 200、`application/octet-stream`、3,277,528 bytes；解码为 2 个分段和 40,393,710-byte 紧凑 JSON，SHA-256 `d4ff197e57593b66e7beffd2385e1afa078da8fe81270e00ba3aa5edfb638140`。顶层完整包含 `case/server/stage`，根类型分别为 `ih5-case/data-server/ih5-stage`。
+- 当前转换器已成功输出 33,435,343-byte V5，SHA-256 `fd3be0aff1d297ab23366f6eaaca19e4ee6e1e85ed27f584972037a96e23f5b1`。诊断原始 1,285、去重 1,161、dropped 0；控制台 ParseError 是自定义表达式转 jsfn 的预期候选日志，最终结论以产物静态审计为准。
+- 诊断高频原因是逻辑或 400、模板字符串 261、逻辑与 256、findIndex 93；其次为 SpreadElement 40、完整 JavaScript 37、flat 32、unknown varType 31。诊断仅说明结构化解析转入 fallback，不等同于 1,161 个运行错误；需检查 V5 最终 jsfn 的 code/args 和自由变量。
+- 初步结构核对：V4/V5 组件 8,980/8,980，唯一 ID 8,959/8,959；根类型一致且 V5 `server.props.v2=1`。V4 事件树规模很大（action 9,846、con 2,820、root 2,195、status 1,199、loop 571 等），V5 共有 1,198 个实际 jsfn，需以专用脚本做计数而非展开对象。
+- 第一轮实际产物审计已确认：9,485 个启用 action 的 BID 全有 V5 `ln`；1,198 个 jsfn 均可解析，形参/实参数与 `$vN` 边界全部闭合，未发现 `$refs/fParam/cbParams/param/$curPathValue/$SF_getSelf` 残留。56 个自由变量候选需进一步区分运行时提供的 `$curRowValue`/`numberPrecision` 与潜在真正自由变量。
+- data-if 校准后：609 个节点中 604 个源正式条件全部生成 `props.conditionVal.ast`，5 个源空条件对应 5 个 V5 `binds.value` 兼容占位。服务调用 229/229；两个被调用目标 `cd6g7t7a3j50000aa3tg`、`cdeaf4wa3j50000jexv0` 在 V4/V5 严格组件树均不存在，共 3 次，倾向于源案例悬空引用，仍需定位源 action 回证。
+- 最值得关注的 jsfn 候选是函数组“加工方案_初始化”、BID `d7b1aasa3j50000znc6g` 下的无参 `jsfn("key")`；其 V4 原式位于嵌套 `every(key => ... item[key])`。若 V5 回调作用域没有显式注入 key，这会是转换器错误。`$curRowValue` 9 处与 `numberPrecision` 8 处需先从实际 V5 运行时判定是否为合法上下文全局。
+- V5 `ast2js` 的 jsfn 使用 `new Function` 且只注入 `val.slice(1)` 对应实参，无法闭包捕获任何外层局部变量。故 `jsfn("key")/args=[]` 与 9 个 `jsfn("$curRowValue.buttonText")/args=[]` 会读取未声明变量；numberPrecision 是否可用则取决于页面全局，可用 V4 最终事件代码及案例资源继续回证。
+- 源案例组件 `stage.classes[0]...props.code` 明确定义 `window.numberPrecision`，V4 最终事件代码也有 4 个事件直接调用它；V5 jsfn 的 `new Function` 可以访问页面全局，因此 numberPrecision 不是转换错误。
+- V4 最终事件 code 对 `$curRowValue` 的计数为 0，三组按钮动作均已替换为目标二维/对象数组的 `p_value[i].buttonText`；V5 中 9 个 `$curRowValue.buttonText` 无参 jsfn 与 V4 正式语义不一致，涉及 BID `cpn4rxka3j50000qp500`、`cppwajja3j50000bqc50`、`cpn4wpta3j50000qp6vg`。
+- 五个空 data-if 节点源值都是 `{_code:'',code:''}`，V5 兼容输出 `{op:'val'}`；604 个正式条件则全部使用 `props.conditionVal.ast` 且无 binds.value，data-if 转换正确。
+- 3 个服务调用的 2 个目标在 V4 源组件树已经悬空（`cd6g7t7a3j50000aa3tg`、`cdeaf4wa3j50000jexv0`），V5 保留同一目标，不属于转换器造成的丢失。
+- 自由变量扫描中的其他名字均有案例自定义全局定义并在 V5 保留：`processPackageMaterials_1/2/_item`、`sortAndUniqueData`、`isToShow`、`formatData`、`checkMember`、`getElementHeight`。因此最终转换器错误仅为 `$curRowValue` 9 处和嵌套回调参数 `key` 1 处，共 10 个无参 jsfn、4 个启用 action。
+- 唯一未映射的非 root 事件块是 uploadPics 的 `beforeUpload` status 包装；父动作与唯一子动作 BID 均有 V5 AST，子动作位于父动作回调中，属于容器不单独分配 ln，不是上传回调丢失。
+- 第 15 例报告已落盘。转换器错误最终口径：当前行占位符未按动作上下文替换（3 个 BID、9 个 jsfn）+ custom-expression fallback 未保留嵌套回调 `key` 作用域（1 个 BID、1 个 jsfn）；其余诊断均已审计或回证为安全 fallback/源问题。
+- 用户已授权修复上述两类错误。实现必须是通用规则：当前行值应复刻 V4.1 事件生成器按动作参数/目标数组/row 的语义；回调参数应在任意嵌套 custom-expression fallback 中保持自身词法作用域，不能针对 `key` 名字打补丁。
+- 当前路径修复已有可复用架构：`convertEditorValue` 接受动作/参数上下文，`formula.js` 根据 action 与 param 构造目标值 AST。`$curRowValue` 应在同一层新增“当前行”语义，而不是进入普通 parser 后再针对输出字符串清理。
+- custom-expression 普通 fallback 的 context 只有 `num/vList/jsFnArgs`；full-JS fallback 额外带 `fullJsMode/localNames`，并通过 `shouldWalkFullJsSubtree` 避免把含局部参数的回调子树拆散。普通 fallback 未复用这套局部名保护，是 `key` 被拆成独立 jsfn 的结构性差异。
+- `$curPathValue` 的当前实现已具备准确的 Formula 位置解析：`setRowColsValue.colValue[*].value` 能拿到动作 row 和当前 col。当前行值的 V4 正式语义只需要目标值 AST + row AST；当前路径则是目标值 AST + row + col，二者可以共享定位/路径拼装基础设施。
+- 对普通 custom fallback 增加 `fullJsMode/localNames` 比针对 `key` 加 getCtx 更通用：它同时保护 item/index/key 等任意层回调局部名，并沿用已有 full-JS walker 对外部 refs 的 `$vN` 参数化。
+- `$curRowValue` 不能简单等同 `$curPathValue`：对 `setRowColsValue`，前者读取目标值的 row，后者读取 row+col；对 `setMultiValue` 亦是 row 与 row+col 的差异。回归必须明确断言 current-row 不带当前 col。
+- current-row resolver 可以完全留在 `formula.js`：识别 token → 取 event action/target → 用现有 `findFormulaLocation` 确认参数位置 → 生成目标 value+row AST。actionParamConvert 不需要了解占位符。
+## 2026-08-05 第 15 例：修复依据补充
+
+- 受影响的三个动作目标节点 `cp544q22ntpg000yxjrg`、`cppwajja3j50000bqbp0`、`cp5af7c2ntpg000yygy0` 的类型均为 `data-obj-arr`。
+- 因此 `$curRowValue.buttonText` 的 V5 AST 应以动作目标 `p_value` 为根，只拼接当前行索引和 `buttonText`，而不是保留 `$curRowValue`，也不是拼接 `setRowColsValue` 的目标列。
+- VxEditor41 的 V4 生成逻辑已提供 `nodeIsArr2d` / `nodeIsObjArr` 类型判断，可作为转换器兼容 V4 语义的正式依据。
+- `genCodeExtract.js` 中这两个判断不是硬编码节点名，而是读取 V4 `widgetMap[nodeType].map.isArr2d/isObjArr` 元数据；转换器侧需要用案例环境中可获得的节点类型/映射表达同一语义。
+- 现有“legacy current-path”测试已经覆盖 `data-obj-arr + setRowColsValue + $curPathValue`，适合在同一动作中增加 `$curRowValue` 回归，并明确校验它只取当前行、不误拼目标列。
+- 现有表达式测试已有 `assertJsfnArgumentsComplete`，可直接加入本例 `filter(...every(key => ... item[key]))` 的精确回归。
+- VxEditor41 的节点判断最终均来自 widget 元数据：`map.isArr2d` 与 `map.isObjArr`，不是靠内容字面量枚举。
+- 转换器已有的 `genLegacyCurrentValueCtx` 可以复用目标值 AST 和参数位置定位；新增 `row` 模式只需选择“当前行”路径，成员 `.buttonText` 仍交给通用公式 AST 转换。
+- 普通 `processCustomExpr` 当前 context 只有 `num/vList/jsFnArgs`，而 full-JS context 还带 `fullJsMode/localNames`；这正是内层 `key` 被拆成无参 jsfn 的实现差异。
+- 修改前定向回归结果：
+  - 当前行用例断言目标 `obj-arr-var` 时失败，实际仍为 `{"op":"jsfn","val":["$curRowValue.buttonText"],"args":[]}`；
+  - 嵌套回调用例明确发现 `jsfn.val[0] === "key"` 且 `args=[]`。
+- 修复后当前行测试确认 AST 指向目标 `obj-arr-var.value[2].buttonText`，且没有误带动作目标列 `enabled`。
+- 修复后嵌套回调 AST 可执行并正确筛出同时满足两个 department 字段的记录，不再产生独立无参 `jsfn("key")`。
+- 完整测试 72/72 通过，说明为普通 custom expression 启用局部作用域保护未破坏现有结构化公式、full-JS、data-if、服务或动作转换回归。
+- 真实重转后的 3 个目标 `setRowColsValue` BID 均生成 `目标.value[row].buttonText` AST；9 个 `$curRowValue` jsfn 清零。
+- `d7b1aasa3j50000znc6g` 现在生成单个参数化 jsfn：内层 `every((key) => ... item[key])` 保持在同一代码作用域，外部 service/item 值分别作为 `$v1/$v2` 注入。
+- 完整自由变量扫描仅剩 `numberPrecision`、`processPackageMaterials_1/2/_item`、`sortAndUniqueData`、`isToShow`、`formatData`、`checkMember`、`getElementHeight`，与修复前已回证的案例页面全局集合完全一致。
+- 结构审计与修复前基线完全对齐：组件/唯一 ID、事件块、启用动作落点、data-if、服务定义和服务调用均无丢失或新增。
+- current-row 的行定位最终直接复刻 V4 `genFormulaInfoPath` 使用动作参数位置的规则，不枚举 `row/rowNum/rowIdx` 名称；动作名、节点类型和 Formula 所在形状仍严格限定合法上下文。

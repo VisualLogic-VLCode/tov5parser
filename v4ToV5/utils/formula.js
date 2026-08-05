@@ -292,7 +292,8 @@ function genLegacyCurrentValueCtx({
   const action = block?.action
   if (!block || block.type !== EVENT_BLOCK_TYPE.ACTION || !action) return
   const targetId = block.object === 'curObj' ? nodeId : block.object
-  if (!targetId || !getNodeById(targetId)) return
+  const targetNode = targetId ? getNodeById(targetId) : undefined
+  if (!targetNode) return
   const baseAst = genTargetValueAst(targetId)
   const params = action.params || []
 
@@ -324,7 +325,33 @@ function genLegacyCurrentValueCtx({
   const location = findFormulaLocation({ params, formulaValue })
   if (!location) return
   const pathValues = []
-  if (
+  if (kind === 'row') {
+    const isArr2d = targetNode.type === 'data-arr-2d'
+    const isObjArr = targetNode.type === 'data-obj-arr'
+    const precedingValue = params
+      .slice(0, location.paramIndex)
+      .find(param => param?.value)?.value
+    if (
+      ((action.name === 'setItemValue' && isArr2d) ||
+        (action.name === 'setOneValue' && isObjArr)) &&
+      !location.item
+    ) {
+      if (precedingValue) pathValues.push(precedingValue)
+    } else if (
+      action.name === 'setRowColsValue' &&
+      (isArr2d || isObjArr) &&
+      location.item
+    ) {
+      if (precedingValue) pathValues.push(precedingValue)
+    } else if (
+      action.name === 'setMultiValue' &&
+      (isArr2d || isObjArr) &&
+      location.item?.row
+    ) {
+      pathValues.push(location.item.row)
+    }
+    if (pathValues.length === 0) return
+  } else if (
     ['setOneValue', 'setItemValue'].includes(action.name) &&
     !location.item
   ) {
@@ -373,6 +400,7 @@ function getCtx(str, extra) {
   const CUR_OBJ = /^\$curObj$/
   const CUR_JSON_PATH_VALUE = /^\$curJsonPathValue$/
   const CUR_PATH_VALUE = /^\$curPathValue$/
+  const CUR_ROW_VALUE = /^\$curRowValue$/
   const THREE_IDS = /^ids$/
 
   str = str.trim()
@@ -486,6 +514,13 @@ function getCtx(str, extra) {
   } else if (CUR_PATH_VALUE.test(str)) {
     return genLegacyCurrentValueCtx({
       kind: 'path',
+      nodeId,
+      blockId,
+      formulaValue
+    })
+  } else if (CUR_ROW_VALUE.test(str)) {
+    return genLegacyCurrentValueCtx({
+      kind: 'row',
       nodeId,
       blockId,
       formulaValue

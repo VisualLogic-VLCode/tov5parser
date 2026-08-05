@@ -335,6 +335,54 @@ test('nested callback custom expressions keep their own jsfn arguments', () => {
   }
 })
 
+test('nested callback locals stay in the owning jsfn scope', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: "fParamgroup.items.filter(item => ['departmentOneId','departmentTwoId'].every(key => fParamgroup.allowed.includes(item[key])))",
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfns = collectAst(ast, item => item.op === 'jsfn')
+  assert.equal(
+    jsfns.some(
+      jsfn =>
+        jsfn.val?.[0]?.trim() === 'key' &&
+        (jsfn.args?.length || 0) === 0
+    ),
+    false
+  )
+  assertJsfnArgumentsComplete(ast)
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'test-node',
+    getNodeByIdFunc() {}
+  })
+  const result = new Function('$sys', 'param', `return ${code}`)(
+    {
+      util: {
+        objArr_filter: (value, fn) => value.filter(fn),
+        arr_every: (value, fn) => value.every(fn),
+        arr_includes: (value, item) => value.includes(item),
+        obj_item: (value, key) => value[key]
+      }
+    },
+    {
+      items: [
+        { departmentOneId: 1, departmentTwoId: 2 },
+        { departmentOneId: 1, departmentTwoId: 3 }
+      ],
+      allowed: [1, 2]
+    }
+  )
+  assert.deepEqual(result, [
+    { departmentOneId: 1, departmentTwoId: 2 }
+  ])
+})
+
 test('full JavaScript callbacks keep nested custom-expression arguments', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({

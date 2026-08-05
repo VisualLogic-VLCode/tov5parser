@@ -1888,7 +1888,9 @@ export default class V4FormulaCodeConverter {
     let context = {
       num: 0,
       vList: [],
-      jsFnArgs: []
+      jsFnArgs: [],
+      fullJsMode: true,
+      localNames: collectLocalIdentifierNames(parsed)
     }
     this.walkCustomExprParsed({ parsed, context })
     let { jsFnArgs, vList } = context

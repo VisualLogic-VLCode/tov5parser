@@ -1366,6 +1366,7 @@ test('legacy current-path placeholders resolve to the target value AST', () => {
   const customJsonFormula = { code: '$curJsonPathValue+1' };
   const arrFormula = { code: '$curPathValue+1' };
   const rowColFormula = { code: '$curPathValue*2' };
+  const rowValueFormula = { code: '$curRowValue.buttonText' };
   const v4CaseJson = buildV4CaseJson();
   v4CaseJson.stage.children.push(
     {
@@ -1484,6 +1485,10 @@ test('legacy current-path placeholders resolve to the target value AST', () => {
                             col: { code: '"score"' },
                             value: rowColFormula,
                           },
+                          {
+                            col: { code: '"enabled"' },
+                            value: rowValueFormula,
+                          },
                         ],
                       },
                     ],
@@ -1528,6 +1533,16 @@ test('legacy current-path placeholders resolve to the target value AST', () => {
         targetId: 'obj-arr-var',
         pathValues: [2, 'score'],
       },
+      {
+        ast: convertEditorValue({
+          value: rowValueFormula,
+          nodeId: 'path-trigger',
+          blockId: 'row-col-path-action',
+        }),
+        targetId: 'obj-arr-var',
+        pathValues: [2, 'buttonText'],
+        absentPathValues: ['enabled'],
+      },
     ];
 
     for (const item of cases) {
@@ -1537,6 +1552,12 @@ test('legacy current-path placeholders resolve to the target value AST', () => {
       assert.match(serialized, /"field","val":"value"/);
       for (const pathValue of item.pathValues) {
         assert.match(serialized, new RegExp(`"val":${JSON.stringify(pathValue)}`));
+      }
+      for (const pathValue of item.absentPathValues || []) {
+        assert.doesNotMatch(
+          serialized,
+          new RegExp(`"val":${JSON.stringify(pathValue)}`),
+        );
       }
     }
 
