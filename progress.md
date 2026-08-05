@@ -2179,3 +2179,10 @@
 - 当前 V5 为 2,930,098 bytes，SHA-256 `7775554bb251f583c1cf332cb37926859f76da0584c030731813d4a3d7f17206`；诊断两份文件字节数与哈希均保持 Phase 89 不变。首次事件统计用了祖先有效启用口径得到 1786/2940，与报告按块自身 enable 的 1905/3128 口径不同；需按旧报告口径复核后再回填，不将口径差当成结构变化。
 - 旧报告口径已复核：事件块 3696、按自身 enable 统计动作 1905/非 root 3128，服务 fireService 34（启用 23），上传动作自身启用 2 但祖先有效启用 0，均与 Phase 89 一致。
 - 第 18 例 `conversion-report.md` 已更新为 Phase 90 事实：补入通用 cType 规则/边界、49 个净增分布、两个 `_code` 预期变化、75/75 测试及新产物哈希；发布状态暂标本轮待完成。
+- tov5parser 已精确提交并推送 Phase 90 修复：`b6c142e7408df204acdfdc613d2bbe59b3b4f703`（`fix: preserve backend formula cType`）。提交只含转换器、回归测试和三份规划记录；`main` 与 `origin/main` 分叉 0/0，无关未跟踪文档未进入提交。
+- 首次直接部署被 clean-tree 门禁因该未跟踪文档拒绝，测试/打包/AWS 更新均未开始。确认运行时白名单不含该文档后，使用正式 `--allow-dirty --run-tests --smoke --keep-history` 参数从提交 `b6c142e` 完成部署。
+- 生产 Lambda 版本 `22` 发布成功，部署阶段再次通过 75/75 测试；归档为 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-b6c142e-20260805T094912Z.zip`，CodeSha256 `RDQG6QXgzxLvtwwi6T3O/Ss3akNKF9Kz4P5wNni5zLg=`。`prod` 冒烟实际执行版本 22、StatusCode 200、FunctionError null、业务 code 0。
+- 独立 AWS 复核通过：`prod.FunctionVersion=22`、RoutingConfig null；版本 22 State Active、LastUpdateStatus Successful、Runtime nodejs20.x，描述指向 `tov5parser b6c142e`。
+- VxEditor41 已只同步 `src/utils/convertV4ToV5/utils/action.js`。目标 ESLint 0 error/0 warning，生产 webpack 构建成功（0 error、33 个仓库既有 warning）。
+- VxEditor41 同步提交 `e26fec397e9e24ae3c34465d5d960692ed3bc137` 已推送 `origin/master`，提交仅含目标转换器文件；用户已有 `.gitignore`、store 和 UI 目录修改均保留未暂存。
+- 最终复核完成：tov5parser `HEAD=origin/main=b6c142e`，VxEditor41 `HEAD=origin/master=e26fec397`，Lambda `prod=22` 且 Active/Successful。Phase 90 complete，当前返回第 18 例人工审阅门禁，不启动第 19 例。

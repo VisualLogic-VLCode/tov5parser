@@ -1728,3 +1728,5 @@
 - 扩展规范化到 `item_<xid>`、`index_<xid>`、`<xid>Rtn` 等嵌入式生成 ID 后，再去除 `cType` 与由 AST 派生的 `_code`，修复前/后 JSON 完全结构全等；两边新生成 ID token 数均为 1091。
 - 114 个 `_code` 节点仅有 2 个发生变化，均为 cType 驱动的预期代码生成：后台更新服务去掉 2 个目标/实际都为 JsonArr 时的冗余 `toArray`，后台 API 路径字符串去掉 1 个冗余 `toString`；其他转换包装计数不变。
 - 当前真实案例 114/114 个 `_code` 均可由 `new Function` 完成语法编译。对规范化代码做语法检查时 `<GEN:n>` 占位符曾造成 1 个假阳性，已改为对原始当前 `_code` 检查并全部通过。
+- Phase 90 发布闭环完成：tov5parser `b6c142e7408df204acdfdc613d2bbe59b3b4f703`、生产 Lambda 版本 22（CodeSha256 `RDQG6QXgzxLvtwwi6T3O/Ss3akNKF9Kz4P5wNni5zLg=`）、VxEditor41 `e26fec397e9e24ae3c34465d5d960692ed3bc137`。双仓远端无分叉，Lambda `prod` 无加权路由且版本 Active/Successful。
+- VxEditor41 同步仍只需动作参数转换入口；编辑器自身 `TypeChecker` 无需修改。目标文件定向 ESLint 通过，生产构建的 33 个 warning 均为仓库既有问题，不来自本轮转换器同步。
