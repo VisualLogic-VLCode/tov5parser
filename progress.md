@@ -1941,3 +1941,6 @@
 - 2026-08-05：一次健壮性补丁因把两个文件的上下文写在同一 `Update File` 段而被 `apply_patch` 整体拒绝，没有部分修改；已改为分别声明目标文件，并同时为非数组 `str/inParams` 增加安全守卫、改用实际的 `console.log` 抑制反例预期日志。
 - 2026-08-05：健壮性守卫加入后的完整项目测试再次 71/71 通过；本轮新增反例不再向测试输出额外预期 ParseError。下一步用最终代码再次重转并快速复审哈希/目标落点。
 - 2026-08-05：最终代码再次重转并复审通过，诊断与审计指标保持 51 条 fallback、0 dropped、51/51 jsfn 无问题。最终 V5 SHA-256 为 `19ec125d195cc70c85b1966c5d2c6846635d087ab4481c1521793ec3a0ff6c43`；案例报告已更新为修复通过结论。
+- 2026-08-05：tov5parser 修复提交 `4aa0a26a9e4071fb35e56d34f770c7cd10dd1e40` 已推送 `origin/main`。生产部署再次运行 71/71 测试，Lambda 发布版本 `18`、CodeSha256 `En3ggJjZJ/58UDKAka/yHawbWEEiswS6K/ZERfDB4jU=`；`prod` 已切换到 18，冒烟 StatusCode 200、ExecutedVersion 18、业务 code 0。
+- 2026-08-05：VxEditor41 已等价同步公式恢复逻辑。首次定向 ESLint 仅有 1 条 Prettier 换行 warning，按仓库格式调整后语法检查与 ESLint 均 0 问题；生产构建成功。
+- 2026-08-05：VxEditor41 仅提交转换器文件，提交 `e32b73c71f5a8c936fb7773a5e46bcb1cafc7081` 已推送 `origin/master`；用户既有 `.gitignore`、`src/stores/event.js` 与新增界面目录均未进入提交。最终远端 HEAD 对齐，Lambda `prod=18`、Active/Successful。Phase 82 完成，返回第 14 例人工审阅门禁。

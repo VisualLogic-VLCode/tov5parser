@@ -714,7 +714,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 第 14/51 例 `包装等级预设_11370983_温晓华.json`（nid `11370983`）已确认是 V4.1，最新完整 V4、V5 和诊断文件均已保存，静态审计与项目 70/70 测试完成。发现两个启用 `arrUpdate` 动作中的 4 个 `jsfn` 保留不存在的旧 `fParam...` 自由变量；Formula token 与当前函数组入参可无歧义恢复，属于待用户审阅后修复的转换器缺口。其余组件、动作、服务、条件、后台代码和上传审计通过。当前停在第 14 例人工审阅门禁，不启动第 15 例。
+**当前检查点：** 第 14/51 例 `包装等级预设_11370983_温晓华.json`（nid `11370983`）已完成转换器修复、真实重转、完整审计和发布闭环。原 4 个旧 `fParam...` 自由变量已恢复为当前函数组 `value/name` 参数 AST，诊断 55→51、dropped 0，51/51 jsfn 与组件、事件、data-if、服务、后台代码和上传审计全部通过；项目测试 71/71。tov5parser、Lambda 18 和 VxEditor41 均已更新。当前返回第 14 例人工审阅门禁，不启动第 15 例。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -808,13 +808,15 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 - [x] 实施三重证据约束的最小恢复规则，保留无证据未知变量的既有 fallback
 - [x] 运行定向/完整测试并重转第 14 例，确认 4 个自由变量清零
 - [x] 重跑组件、事件、公式、data-if、服务和上传静态审计并更新案例报告
-- [ ] 精确提交并推送 tov5parser，部署生产 Lambda 并完成冒烟验证
-- [ ] 同步 VxEditor41 转换器，隔离用户既有修改后验证、提交并推送
-- [ ] 记录双仓提交和 Lambda 版本，返回第 14 例人工审阅门禁
+- [x] 精确提交并推送 tov5parser，部署生产 Lambda 并完成冒烟验证
+- [x] 同步 VxEditor41 转换器，隔离用户既有修改后验证、提交并推送
+- [x] 记录双仓提交和 Lambda 版本，返回第 14 例人工审阅门禁
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户已明确回复“修复”。根据 `AGENT.md`/`CLAUDE.md` 持续授权，验证通过后自动完成双仓提交推送和生产 Lambda 部署。只修复本例旧函数组参数的安全恢复，不把任意未知 `fParam` 猜成当前参数，不启动第 15 例。
+
+**发布结果：** tov5parser 修复提交 `4aa0a26a9e4071fb35e56d34f770c7cd10dd1e40` 已推送 `origin/main`；生产 Lambda 版本 `18`、CodeSha256 `En3ggJjZJ/58UDKAka/yHawbWEEiswS6K/ZERfDB4jU=`，`prod` 冒烟通过且最终状态 Active/Successful；VxEditor41 同步提交 `e32b73c71f5a8c936fb7773a5e46bcb1cafc7081` 已推送 `origin/master`，定向 ESLint 0 warning、生产构建成功。两个仓库的用户无关改动均未混入提交。
 
 ### Phase 76：修复中文文本 Formula 并自动发布、同步（2026-08-04）
 

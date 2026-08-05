@@ -1545,3 +1545,5 @@
 - Phase 82 完整项目测试已从 70 增至 71，结果 71/71 通过。真实重转第 14 例后诊断 55→51，减少的正好是 4 条旧 fParam `unknown varType`；`dropped` 仍为 0。
 - 两个目标 BID 重转后各包含 1 个 `ref:['param','value']` 和 1 个 `ref:['param','name']`，旧 `fParamcf4zq1ca3j50000cmes0` jsfn 残留均为 0。全案例 `jsfn` 55→51，51/51 的语法、参数、占位符、自由变量和 legacy 可执行标识符审计全部通过。
 - 最终代码再次重转后 V5 为 4,276,816 bytes、SHA-256 `19ec125d195cc70c85b1966c5d2c6846635d087ab4481c1521793ec3a0ff6c43`；诊断 JSON 33,352 bytes / `08f0b662b42039783f06071642410176d026a50813d72ded9393567022d4ce75`，诊断 Markdown 13,709 bytes / `0ee4af260e2552701230caa7b63a0af42e01782d99f0da09fafd3195c0905f3f`。两次成功重转 V5 的哈希差异来自既有随机 ln/XID，体积与语义审计一致。
+- Phase 82 发布闭环完成：tov5parser `4aa0a26a9e4071fb35e56d34f770c7cd10dd1e40` 已推送；Lambda `prod` 指向版本 18，CodeSha256 `En3ggJjZJ/58UDKAka/yHawbWEEiswS6K/ZERfDB4jU=`，状态 Active/Successful 且冒烟业务 code 0；VxEditor41 `e32b73c71f5a8c936fb7773a5e46bcb1cafc7081` 已推送，生产构建成功。
+- VxEditor41 只同步 `src/utils/convertV4ToV5/utils/formula.js`。其 `.gitignore`、`src/stores/event.js` 和多个新增界面目录仍保持用户原状态，未暂存、未提交；tov5parser 的无关未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 同样未触碰。
