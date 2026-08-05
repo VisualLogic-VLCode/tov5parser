@@ -1714,3 +1714,6 @@
 - 真实案例重转提供了数量级闭环：原 4 条 unknown-varType 正是四个后台时间对象；结构化修复后诊断 176→172、去重 174→170，四个目标均不再含 jsfn，其他 jsfn 与结构基线不变。
 - 最终服务代码不依赖 V4 外层 `$sobj_serverSys` 名称：两个服务各生成两次 `$sys.func('server-sys-serverSys',$self,'','_sysTime',"ymdhms")`，对应服务代码中 free serverSys 和 new Function 都为 0。
 - 诊断中的 unknown varType 已随四个系统时间公式一起清零；剩余 172 条全部是其他既有 fallback 类别（`&&` 91、`||` 44、findIndex 13、模板字符串 7、正则及除法 receiver/full-JS 等）。
+- 生产 Lambda 21 已从正确结构化实现提交 `6b0ce5d` 发布并由 `prod` 无权重指向；这替换了 Phase 87 的错误版本 20，摘要为 `jx2d/R7C8RHqzxZXda0Av6xJcRles4OLijjrCFooWiY=`。
+- VxEditor41 与独立转换器在本次三个落点保持同构，编辑器侧只保留原有 jsep/MapCreator/genXid 依赖差异；生产构建和目标 lint 均通过，不需要修改其他编辑器文件。
+- Phase 89 最终闭环证明正确判据必须同时覆盖 schema 与执行作用域：AST 中出现规范名字并不足够；只有 `sobj` receiver 经 ast2js 生成 `$sys.func`，或作为显式 jsfn 参数注入，才能保证后台系统方法在 V5 运行时可用。

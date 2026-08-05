@@ -2153,3 +2153,12 @@
 - 两条 `uploadFile` 动作自身 `enable=true`，但各自所属事件 root 均为 `enable=false`，因此有效启用上传仍为 0；旧报告口径正确，宽松审计已按祖先启用状态校准。
 - 新产物为 2,929,297 bytes，SHA-256 `e2df8b7831ca94e6c5423b29ddd822da0ed8abfec50b83c8d9a15d1af8495b44`；诊断 JSON/Markdown 分别为 101,727/41,730 bytes，SHA-256 `80d4b077a607bc2b72e4f929fc1479b3f46001c41e48c0fa0a4e52a319422471` / `7d1e4e605ac22e3456972974448de24db83207daa30766f08a10c881a770ff37`。
 - 第 18 例 `conversion-report.md` 已按最终事实重写：明确撤销“自由 `$sobj_serverSys` 可运行”的错误结论，记录正式 sobj AST、4 次 `$sys.func`、172/170 诊断、74/74 测试和新产物哈希；发布状态待本轮实际完成后回填。
+- tov5parser 已精确提交并推送修复：`6b0ce5dee02e5977a2214704e776e5965344ef1c`（`fix: convert server system calls to structured ast`）。提交仅含转换器、回归测试和三份规划记录；`main` 与 `origin/main` 分叉 0/0，无关未跟踪文档未读取、未暂存。
+- 生产 Lambda 已从提交 `6b0ce5d` 发布：部署阶段再次通过 74/74 测试，留档包 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-6b0ce5d-20260805T090223Z.zip`，版本 `21`，CodeSha256 `jx2d/R7C8RHqzxZXda0Av6xJcRles4OLijjrCFooWiY=`；`prod` 冒烟实际执行 21 且业务 code 0。
+- 独立 AWS 复核通过：`prod.FunctionVersion=21`、RoutingConfig null；版本 21 State Active、LastUpdateStatus Successful、Runtime nodejs20.x，描述明确指向 `tov5parser 6b0ce5d`。
+- VxEditor41 同步前 `master` 与 `origin/master` 分叉 0/0，目标转换器文件干净；用户已有 `.gitignore`、`src/stores/event.js` 和多组 UI 目录改动均保持隔离。
+- 已向 VxEditor41 单一目标文件等价移植 `serverSys` 上下文、成员方法结构化分支和 `genServerSysAST`。目标文件定向 ESLint 0 error/0 warning，`git diff --check` 通过。
+- VxEditor41 生产 webpack 构建成功（compiled with 33 warnings，约 68.7s）；warning 来自仓库既有格式、导出和 Sass deprecation，目标转换器定向检查无 warning。
+- VxEditor41 已精确提交并推送同步：`06c726746682a0b70a3e34b9a469c41ddda8a179`（`fix: structure legacy server system formulas`）。提交严格只含一个转换器文件，`master` 与 `origin/master` 分叉 0/0；用户原有 `.gitignore`、store 和 UI 目录改动仍保持未暂存。
+- 最终复核完成：tov5parser `HEAD=origin/main=6b0ce5d`，VxEditor41 `HEAD=origin/master=06c726746`；Lambda `prod=21`、RoutingConfig null，版本 21 Active/Successful 且摘要/描述对应提交。用户无关工作区内容在两个仓库中均保持原状。
+- Phase 89 complete。第 18 例转换报告已回填真实发布状态，当前回到人工审阅门禁，不启动第 19 例。

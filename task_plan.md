@@ -714,7 +714,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 用户已授权按 Phase 88 的纠正结论重新修复第 18/51 例。当前进入 Phase 89：生成正式 `sobj/serverSys → _sysTime` 结构化 AST，完成验证和固定发布流程；不启动第 19 例。
+**当前检查点：** 第 18/51 例的正确结构化修复已完成并发布（Phase 89 complete），当前返回本例人工审阅门禁；不启动第 19 例。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -1041,16 +1041,18 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 - [x] 运行定向测试和项目完整测试
 - [x] 重转第 18 例并核验四个 BID、最终服务代码和完整结构基线
 - [x] 更新第 18 例报告及规划记录，纠正 Phase 87 的错误结论
-- [ ] 精确提交并推送 tov5parser 本轮修复
-- [ ] 从已提交版本部署生产 Lambda并验证 `prod` 冒烟与最终状态
-- [ ] 等价同步 VxEditor41，完成定向检查和可行生产构建
-- [ ] 精确提交并推送 VxEditor41 本轮同步
-- [ ] 最终复核双仓远端、Lambda版本及用户无关工作区内容
+- [x] 精确提交并推送 tov5parser 本轮修复
+- [x] 从已提交版本部署生产 Lambda并验证 `prod` 冒烟与最终状态
+- [x] 等价同步 VxEditor41，完成定向检查和可行生产构建
+- [x] 精确提交并推送 VxEditor41 本轮同步
+- [x] 最终复核双仓远端、Lambda版本及用户无关工作区内容
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确回复“修复”。项目 `AGENT.md`/`CLAUDE.md` 固定发布流程生效：修复与真实案例验证通过后自动完成双仓提交推送、生产 Lambda 部署和 VxEditor41 同步。不得启动第 19 例，不得读取、修改或提交无关未跟踪文档。
 
 **错误记录：** 新增结构化后台时间回归首次运行按预期 25 pass / 1 fail；实际仍找到 `jsfn`，内容为 `{updator: $v1, updateTime: $sobj_serverSys.f__sysTime("ymdhms")}`，准确复现当前错误。测试输出中的其他 ParseError 是既有 fallback 可观测日志，不是新增失败。
 
 **实现校准：** 首次加入结构化实现后，新回归已经通过，但 Phase 87 的旧测试仍断言自由 `$sobj_serverSys.f__sysTime` 应保留，导致定向测试仍为 25 pass / 1 fail。实际新输出已将该调用替换为显式 `$v2`；这是旧错误断言，需改为验证 `$v2` 对应的 args 是正式 sobj AST，同时继续检查字符串、静态对象键和静态成员名不被误改。
+
+**发布结果：** tov5parser `6b0ce5dee02e5977a2214704e776e5965344ef1c` 已推送；生产 Lambda 版本 `21`、CodeSha256 `jx2d/R7C8RHqzxZXda0Av6xJcRles4OLijjrCFooWiY=`，`prod` 冒烟和最终状态复核通过；VxEditor41 `06c726746682a0b70a3e34b9a469c41ddda8a179` 已推送。四个目标 BID 均生成结构化 sobj `_sysTime` AST，相关 jsfn/new Function/free serverSys 均清零；第 19 例未启动。
