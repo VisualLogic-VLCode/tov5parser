@@ -1686,3 +1686,12 @@
 - V5 文件由 2,928,749 增至 2,928,789 bytes，净增 40 bytes。旧/新标识符长度差 5 字节，四处在 AST `jsfn.val[0]` 与服务编译 `_code` 各存一份，4×2×5=40，文件变化与预期精确吻合。
 - 其他所有基线计数、ID/类型分布、事件 ln、data-if、服务 target 与诊断文件哈希均保持一致，未发现修复外漂移。
 - 案例报告已切换为修复后口径。诊断文件没有变化是预期结果：结构化转换仍会记录 fallback 原因，但运行 jsfn 已 canonicalize；报告必须区分“使用 fallback”与“fallback 生成不可运行代码”。
+- tov5parser 修复已在 `main` 形成提交 `6b49b0c221654cc0dadcc427708ca6182ac1773d` 并推送；后续 Lambda 必须从该已提交版本构建，不能从额外未提交代码打包。
+- 部署脚本的 `--allow-dirty` 只关闭 Git 状态门禁，不改变 `shortHead`、运行时白名单或 AWS 身份校验。当前未提交内容只有规划文档和不相关未跟踪文档，均不在 Lambda 运行时包白名单；可安全从 HEAD `6b49b0c` 发布。
+- Lambda 版本 20 已由提交 `6b49b0c` 发布，CodeSha256 `S5quTBb6SJjGhoX9D5eiV9tDBHNeCvmtfxYB05RU5VY=`；`prod` 冒烟实际执行版本 20 并返回业务 code 0。仍需独立读取 alias/version 状态，确认 Active/Successful 与无加权路由后再勾选部署阶段。
+- 独立复核已闭合 Lambda 阶段：prod=20、RoutingConfig null、State Active、LastUpdateStatus Successful、摘要和提交描述一致。下一步只同步 VxEditor41 的等价转换器实现，不修改编辑器侧其他文件。
+- VxEditor41 的目标文件未被用户修改，核心 AST helper/parseStr/processFullJsExpression 与 tov5parser 同源；安全同步范围只有 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`。该仓其他 dirty UI/store 内容必须留在工作树且不进入提交。
+- VxEditor41 同步实现通过目标 ESLint（0/0）及生产 webpack 构建。构建仍有 33 个既有 warning，与此前同步基线一致；本次目标文件没有新增 lint warning。
+- VxEditor41 暂存范围已确认只有 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`；其他工作树内容不会进入同步提交。
+- VxEditor41 同步提交为 `ca0caa89200dc59843ed17af0a8c03c61553ad70`，已推送 `origin/master` 且无分叉；需在最终复核中再次确认提交存在远端、用户工作树改动仍在。
+- Phase 87 发布闭环完成：tov5parser `6b49b0c221654cc0dadcc427708ca6182ac1773d`、Lambda 版本 20、VxEditor41 `ca0caa89200dc59843ed17af0a8c03c61553ad70`。两个远端均无分叉，Lambda Active/Successful，用户无关工作树内容均保留。

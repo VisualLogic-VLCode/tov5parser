@@ -714,7 +714,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 用户已授权修复第 18/51 例确认的 `$serverSys` 运行时对象规范化错误；正在执行 Phase 87 的通用修复、真实案例重转和固定发布流程。第 19 例不启动。
+**当前检查点：** 第 18/51 例 `$serverSys` 运行时对象错误已完成通用修复、真实案例重转、tov5parser 推送、生产 Lambda 20 部署和 VxEditor41 同步推送。当前回到本例人工审阅门禁；第 19 例不启动。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -1007,14 +1007,16 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 - [x] 运行定向测试和项目完整测试
 - [x] 重转第 18 例，确认 4 个错误 jsfn 清零并重跑完整静态审计
 - [x] 更新案例报告与规划记录
-- [ ] 精确提交并推送 tov5parser 当前修复
-- [ ] 从已提交版本部署生产 Lambda，验证新版本、`prod` 别名和冒烟
-- [ ] 等价同步 VxEditor41 转换器并完成定向检查/生产构建
-- [ ] 精确提交并推送 VxEditor41 当前同步
-- [ ] 复核双仓远端和 Lambda 最终状态，返回第 18 例人工审阅门禁
+- [x] 精确提交并推送 tov5parser 当前修复
+- [x] 从已提交版本部署生产 Lambda，验证新版本、`prod` 别名和冒烟
+- [x] 等价同步 VxEditor41 转换器并完成定向检查/生产构建
+- [x] 精确提交并推送 VxEditor41 当前同步
+- [x] 复核双仓远端和 Lambda 最终状态，返回第 18 例人工审阅门禁
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确回复“修复”。`AGENT.md`/`CLAUDE.md` 固定发布流程生效：修复验证后无需再次询问，自动完成 tov5parser 提交推送、生产 Lambda 部署和 VxEditor41 同步提交推送。只处理本例确认的统一公式对象规范化缺陷，不启动第 19 例；不得读取、修改或提交无关未跟踪文档。
 
 **错误记录：** 新增回归首次运行按预期失败，实际 jsfn 仍含 `$serverSys.f__sysTime(...)`，证明用例命中真实缺陷。用例中原先用 `fParamgroup.obj.$serverSys` 检查静态成员名，但该完整 V4 引用会被正确参数化成单个 `$vN`，无法观察属性名；测试需改用未知 receiver 的静态成员，仅校验规范化器边界，不重复错误断言。
+
+**发布结果：** tov5parser 修复提交 `6b49b0c221654cc0dadcc427708ca6182ac1773d` 已推送；生产 Lambda 版本 `20`、CodeSha256 `S5quTBb6SJjGhoX9D5eiV9tDBHNeCvmtfxYB05RU5VY=`，`prod` 冒烟和最终状态复核通过；VxEditor41 同步提交 `ca0caa89200dc59843ed17af0a8c03c61553ad70` 已推送。两个仓库均无远端分叉，用户已有无关改动未混入提交；第 19 例未启动。

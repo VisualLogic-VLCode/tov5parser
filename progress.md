@@ -2117,4 +2117,17 @@
 - 第 18 例报告已更新为“错误已修复、真实案例审计通过”，记录新 V5 哈希、四个 BID、AST 级别通用规则和 73/73 测试结果。诊断 JSON/Markdown 哈希保持不变。
 - 一次性修复审计脚本已删除；下一步进入固定发布流程的 tov5parser 精确提交与推送。
 - tov5parser 发布前检查完成：当前 `main` 与 `origin/main` 无分叉，暂存范围仅为转换器、回归测试和本轮规划记录 5 个文件；无关未跟踪文档未读取、未暂存。cached diff 与空白检查通过。
+- tov5parser 修复提交 `6b49b0c221654cc0dadcc427708ca6182ac1773d` 已创建并推送 `origin/main`；远端与本地分叉为 0/0。提交只含转换器、测试和规划记录 5 个文件，无关未跟踪文档仍未暂存。
+- 部署脚本与历史发布记录已复核：当前工作树仅有提交后的规划更新和既有无关未跟踪文档，需使用脚本正式支持的 `--allow-dirty`；打包器是运行时白名单，部署描述/HEAD 仍取已提交的 `6b49b0c`。本轮直接使用 `--run-tests --smoke --keep-history --allow-dirty`，不重复已知会被 clean-tree 门禁拒绝的默认调用。
+- 生产 Lambda 发布成功：部署阶段再次通过 73/73 测试，运行包 1.9 MB，已留档到 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-6b49b0c-20260805T082928Z.zip`。
+- 新 Lambda 版本为 `20`，CodeSha256 `S5quTBb6SJjGhoX9D5eiV9tDBHNeCvmtfxYB05RU5VY=`；`prod` 已无权重地切换到 20。版本接口冒烟 StatusCode 200、ExecutedVersion 20、FunctionError null、业务 code 0。
+- 独立 AWS 复核通过：`prod.FunctionVersion=20`、RoutingConfig null；版本 20 为 Active/Successful，CodeSha256 和描述 `tov5parser 6b49b0c normalize legacy server system formulas` 均与本轮发布一致，运行时 nodejs20.x。
+- VxEditor41 当前 `master` 与 `origin/master` 无分叉；仓库已有 `.gitignore`、`src/stores/event.js` 和多组新 UI 目录改动，均属于用户现场，必须保留且不得暂存。目标转换器文件当前干净，可独立同步。
+- 编辑器侧 `V4FormulaCodeConverter.js` 与独立转换器保持同一核心结构，差异仅为 jsep/MapCreator/genXid 依赖和诊断上报；本次 AST alias helper 与两个解析入口可等价移植到单一目标文件。
+- VxEditor41 已等价同步单一转换器文件。首次定向 ESLint 仅报 2 个 Prettier warning，已用局部格式调整消除；未使用自动 fix，未触碰其他文件。
+- 格式调整后目标文件定向 ESLint 0 error/0 warning；生产构建成功（webpack compiled with 33 warnings，约 67.8s）。33 个 warning 均来自仓库既有文件/导出和 Sass deprecation，目标转换器无 warning。
+- VxEditor41 提交前复核通过：`master` 与远端无分叉，目标文件 cached diff/空白检查通过，暂存区严格只有该 1 个转换器文件；用户已有 `.gitignore`、store 和 UI 目录改动全部留在未暂存区。
+- VxEditor41 同步提交 `ca0caa89200dc59843ed17af0a8c03c61553ad70` 已创建并推送 `origin/master`，本地/远端分叉 0/0。提交仅含目标转换器文件；用户已有 UI/store/.gitignore 改动仍保持未暂存。
+- 最终复核通过：tov5parser 修复提交 `6b49b0c221654cc0dadcc427708ca6182ac1773d` 与 `origin/main` 一致；VxEditor41 `HEAD=origin/master=ca0caa89200dc59843ed17af0a8c03c61553ad70`；Lambda `prod=20`、RoutingConfig null，版本 20 Active/Successful 且摘要/描述一致。
+- 案例报告存在、一次性审计脚本已删除；tov5parser 当前未提交内容只剩本轮最终规划记录，无关未跟踪文档继续保持原状。Phase 87 完成，回到第 18 例人工审阅门禁，不启动第 19 例。
 - 2026-08-05：收到 planning-with-files 自动续跑 hook（90/92 phases）后完成会话恢复。当前唯一进行中的 Phase 87 已完成实现、定向测试、73/73 全量测试及第 18 例重转；从“重转后完整静态审计”继续，仍不启动第 19 例，也不读取或修改无关未跟踪文档。
