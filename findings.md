@@ -1717,3 +1717,14 @@
 - 生产 Lambda 21 已从正确结构化实现提交 `6b0ce5d` 发布并由 `prod` 无权重指向；这替换了 Phase 87 的错误版本 20，摘要为 `jx2d/R7C8RHqzxZXda0Av6xJcRles4OLijjrCFooWiY=`。
 - VxEditor41 与独立转换器在本次三个落点保持同构，编辑器侧只保留原有 jsep/MapCreator/genXid 依赖差异；生产构建和目标 lint 均通过，不需要修改其他编辑器文件。
 - Phase 89 最终闭环证明正确判据必须同时覆盖 schema 与执行作用域：AST 中出现规范名字并不足够；只有 `sobj` receiver 经 ast2js 生成 `$sys.func`，或作为显式 jsfn 参数注入，才能保证后台系统方法在 V5 运行时可用。
+- 后台动作参数的 `type` 与 `cType` 语义不同：`type` 来自目标方法参数契约，`cType` 是编辑器 `TypeChecker` 从当前表达式推导的实际类型；后台代码生成会比较两者决定是否执行 `toStr`/`toLong`/`toVal` 等转换。
+- VxEditor41 的 `BaseFormulaEditor` 会把后台类型推导结果作为 `cType` 传给动作参数组件，后者仅在结果非空时写入 `ast.cType`；因此 `cType` 不是每个节点或每个后台参数的必填字段，无法推导或走特殊编辑器路径时可以缺失。
+- tov5parser 的通用动作参数入口目前只根据方法映射写 `result.type = paramType`，没有运行与编辑器等价的统一实际类型推导；`cType` 仅由服务入参、请求信息、字符串拼接等部分公式生成器附带，导致转换产物覆盖不一致。
+- 原生 V5 样本中的后台系统时间参数保存为 `{op:'val',val:'ymd',cType:'String'}`，而第 18 例当前 `_sysTime` 参数为 `{op:'val',val:'ymdhms'}`。由于该嵌套参数没有 `type`，当前 JS 生成器不会依据 `cType` 转型，运行代码仍正确；若追求编辑器原生 AST 保真，应以后实现通用实际类型推导，不能简单令 `cType = type`。
+- Phase 90 对原生 V5 后台 DB AST 的进一步抽样显示：DbCons/DbOrders/DbCols 等专用编辑器生成的 list/dict 参数通常只有目标 `type`，容器元素也普遍没有 `cType`；这与 `BaseFormulaEditor` 的行为不同。因此修复必须限定在 V4 Formula/FormulaColor/FormulaJson 参数，不可对所有后台参数递归补类型。
+- 编辑器 `BlocksToAST` 在后台只对整个公式根节点运行一次 `TypeChecker`；另在解析 method/sysutil 参数时分别推导各实参类型。对象值、列表项和 jsfn 显式参数不是自动标注边界。转换器应采用同样两类边界：动作公式根节点 + 嵌套 method/sysutil 实参。
+- Phase 90 用修复前 HEAD 与当前代码分别重转第 18 例后，`cType` 数从 210 增至 259：净增 49、删除 0、改值 0；新增全部在 server，分布 String 23、JsonObj 12、long 10、JsonArr 4，stage/case 均为 0。
+- 两次转换的修复前产物字节数同为 Phase 89 的 2,929,297，但 SHA 不同，说明转换器的新生成 xid 本身非确定；因此“去掉 cType 后 JSON 直接全等”仍会被随机行 ID 干扰。结构等价审计需要把 V4 不存在的新生成 ID 按出现顺序规范化后再比较。
+- 扩展规范化到 `item_<xid>`、`index_<xid>`、`<xid>Rtn` 等嵌入式生成 ID 后，再去除 `cType` 与由 AST 派生的 `_code`，修复前/后 JSON 完全结构全等；两边新生成 ID token 数均为 1091。
+- 114 个 `_code` 节点仅有 2 个发生变化，均为 cType 驱动的预期代码生成：后台更新服务去掉 2 个目标/实际都为 JsonArr 时的冗余 `toArray`，后台 API 路径字符串去掉 1 个冗余 `toString`；其他转换包装计数不变。
+- 当前真实案例 114/114 个 `_code` 均可由 `new Function` 完成语法编译。对规范化代码做语法检查时 `<GEN:n>` 占位符曾造成 1 个假阳性，已改为对原始当前 `_code` 检查并全部通过。

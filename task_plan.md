@@ -714,7 +714,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 第 18/51 例的正确结构化修复已完成并发布（Phase 89 complete），当前返回本例人工审阅门禁；不启动第 19 例。
+**当前检查点：** 用户已授权修复第 18 例复核发现的后台 `cType` 保真缺陷，Phase 90 in progress；本阶段完成通用修复、真实案例验证及固定发布闭环后返回本例人工审阅门禁，不启动第 19 例。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -1056,3 +1056,29 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 **实现校准：** 首次加入结构化实现后，新回归已经通过，但 Phase 87 的旧测试仍断言自由 `$sobj_serverSys.f__sysTime` 应保留，导致定向测试仍为 25 pass / 1 fail。实际新输出已将该调用替换为显式 `$v2`；这是旧错误断言，需改为验证 `$v2` 对应的 args 是正式 sobj AST，同时继续检查字符串、静态对象键和静态成员名不被误改。
 
 **发布结果：** tov5parser `6b0ce5dee02e5977a2214704e776e5965344ef1c` 已推送；生产 Lambda 版本 `21`、CodeSha256 `jx2d/R7C8RHqzxZXda0Av6xJcRles4OLijjrCFooWiY=`，`prod` 冒烟和最终状态复核通过；VxEditor41 `06c726746682a0b70a3e34b9a469c41ddda8a179` 已推送。四个目标 BID 均生成结构化 sobj `_sysTime` AST，相关 jsfn/new Function/free serverSys 均清零；第 19 例未启动。
+
+### Phase 90：补全后台公式 AST 的实际类型 `cType` 并自动发布（2026-08-05）
+
+- [x] 对照 VxEditor41 `TypeChecker` 建立后台 AST 实际类型推导规则和边界
+- [x] 新增失败回归，覆盖后台动作参数及嵌套 `_sysTime` 字符串实参
+- [x] 实施通用最小修复，未知类型不写 `cType`，不得简单复制目标 `type`
+- [x] 运行定向测试和项目完整测试
+- [x] 重转第 18 例并审计目标 AST、服务代码及完整结构基线
+- [x] 更新第 18 例报告与规划记录
+- [ ] 精确提交并推送 tov5parser 本轮修复
+- [ ] 从已提交版本部署生产 Lambda 并验证 `prod` 冒烟与最终状态
+- [ ] 等价同步 VxEditor41，完成定向检查和可行生产构建
+- [ ] 精确提交并推送 VxEditor41 本轮同步
+- [ ] 最终复核双仓远端、Lambda 版本及用户无关工作区内容
+
+**Status:** in progress
+
+**授权与范围：** 用户明确回复“修复”。项目 `AGENT.md`/`CLAUDE.md` 固定发布流程生效：修复和真实案例验证通过后自动完成双仓提交推送、生产 Lambda 部署和 VxEditor41 同步。只处理后台公式 AST 实际类型保真，不启动第 19 例；不得读取、修改或提交无关未跟踪文档。
+
+**错误记录：** 新增动作级回归首次运行按预期 0 pass / 1 fail；字符串公式实际为 `{op:'val',val:'hello',type:'String'}`，缺少期望的 `cType:'String'`，证明用例命中通用后台动作参数入口，而非只检查 `_sysTime` 样本。实现后首次复跑进入 `_sysTime` 子断言时，测试夹具未加载运行时公式 map，导致 `genSysutilMap()` 为空；已在用例入口复用既有 `ensureIvxMapNodeEnv()`，不改生产逻辑。
+
+**测试校准：** 动作测试文件首轮全跑 29 pass / 1 fail；唯一失败是既有“后台服务返回 reason 文本”用例仍期待无 `cType`。新实际值只增加 `cType:'String'`，空返回值仍无类型，符合本轮编辑器语义；已更新旧期望，不回退实现。
+
+**审计错误记录：** 首次封装“HEAD 基线临时重转 + 当前产物对比”命令时，工具调用末尾模板字符串被错误转义，JavaScript 在工具执行前即报 `SyntaxError: Invalid or unexpected token`；没有创建临时目录或修改数据。后续改用普通字符串输出，不重复该封装。
+
+**安全校准：** 第二次基线调用因末尾包含递归删除临时目录，被执行安全层整体拒绝，仍未创建目录或执行转换。下一次移除清理动作，只在受限 `/tmp/tov5parser-ctype-baseline.*` 中工作并保留目录，不尝试绕过安全限制。

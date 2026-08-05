@@ -2162,3 +2162,20 @@
 - VxEditor41 已精确提交并推送同步：`06c726746682a0b70a3e34b9a469c41ddda8a179`（`fix: structure legacy server system formulas`）。提交严格只含一个转换器文件，`master` 与 `origin/master` 分叉 0/0；用户原有 `.gitignore`、store 和 UI 目录改动仍保持未暂存。
 - 最终复核完成：tov5parser `HEAD=origin/main=6b0ce5d`，VxEditor41 `HEAD=origin/master=06c726746`；Lambda `prod=21`、RoutingConfig null，版本 21 Active/Successful 且摘要/描述对应提交。用户无关工作区内容在两个仓库中均保持原状。
 - Phase 89 complete。第 18 例转换报告已回填真实发布状态，当前回到人工审阅门禁，不启动第 19 例。
+- planning-with-files 自动续跑 hook 报告 93/94 阶段完成。Phase 89 的正确结构化修复、双仓推送和 Lambda 21 部署已全部闭环；唯一未完成主阶段仍为 Phase 67 的逐例人工审阅流程。当前停在第 18 例审阅门禁，hook 不构成启动第 19 例的授权；本次只同步进度并复读计划，不执行转换、代码修改或发布。
+- 2026-08-05：完成后台动作参数 `cType` 只读诊断。确认 `type` 是动作参数契约类型，`cType` 是编辑器对当前表达式推导出的实际类型；编辑器仅在可推导时写入，因此原生 V5 也不是所有后台参数都有 `cType`。当前转换器会统一补 `type`，但 `cType` 只由部分公式分支零散生成，覆盖不完整。第 18 例 `_sysTime("ymdhms")` 的参数当前缺少原生编辑器常见的 `cType: "String"`：不影响现有代码生成，但 AST 保真度不完整。用户尚未要求修复，本次不修改转换器、不发布、不启动第 19 例。
+- 用户明确回复“修复”，Phase 90 启动。目标是复用编辑器语义建立保守的通用 `cType` 推导并补全后台公式 AST，而非只枚举 `_sysTime`；验证通过后按固定流程自动提交推送、部署 Lambda 和同步 VxEditor41，第 19 例不启动。
+- Phase 90 失败回归已建立：覆盖字符串/小数后台参数、已有 `JsonVal` 实际类型保留、未知 get 不复制目标 `type`，以及嵌套 `_sysTime` 字符串实参。首次定向运行 0/1，首个差异正是字符串参数缺 `cType: 'String'`。
+- 已实现编辑器同语义的保守 `cType` 推导子集并接入后台动作参数：支持 val、var、list、dict、concat 和算术结果，递归标注方法/sysutil/jsfn 实参及容器值，未知 get/ref 保持缺省。首次复跑暴露测试夹具未加载运行时 map，已仅修正测试初始化。
+- 原生 V5 DB 参数抽样揭示首版接入范围过宽：专用列表/对象编辑器并不统一写 `cType`。实现将收窄为 Formula 类参数根节点和 method/sysutil 实参；不标注普通容器元素或 jsfn 参数，已有显式 `cType` 仍保留。
+- 定向新增回归通过。完整动作测试首轮 29/30，唯一旧断言是后台服务返回文本现在新增正确的 `cType:'String'`；空返回值未增加类型。已按编辑器行为更新该期望。
+- 收窄实现后动作测试 30/30 通过。新增用例确认：字符串→String、小数→double、对象公式根→JsonObj、服务入参保留 JsonVal；未知 get 不复制目标类型；非 Formula 的 Boolean 参数不被额外标注；`_sysTime` 的 `ymdhms` 实参得到 `cType:'String'`。
+- 项目完整测试由 74 增至 75，75/75 通过（fail 0）。输出中的 ParseError/parse error 均为既有 fallback 回归的预期日志；没有新增失败。第 18 例 V4 元数据确认 ntype=1，V4/V5/诊断/报告路径均存在且受 localCases 忽略规则保护。
+- 第 18 例用最新代码原位重转成功：V5 约 2861.4 KB，诊断仍为 172 total / 170 unique / dropped 0。首次临时 HEAD 基线对比调用因工具封装字符串转义错误在执行前被拒绝，未落盘；已改正调用方式待重跑。
+- 第二次临时基线调用被安全层因递归清理命令整体拒绝，仍未执行。后续保留受限 `/tmp` 目录并只做对比，不再附带删除。
+- 修复前 HEAD 基线已在 `/tmp/tov5parser-ctype-baseline.hkA0dO` 成功重转并保留。当前比基线净增 49 个 `cType`，全部在 server（String 23、JsonObj 12、long 10、JsonArr 4），removed/changed 均为 0。直接剥离 cType 后仍受每次随机生成 xid 干扰，下一步规范化新 ID 后复核结构全等。
+- 随机 ID 规范化完成：去除 cType 和派生 `_code` 后修复前/后 AST 完全全等，新生成 ID token 均为 1091。114 个 `_code` 仅 2 个预期变化（toArray -2、toString -1），当前原始 `_code` 114/114 语法通过；规范化占位符导致的 1 个语法假阳性已用原始代码复核排除。
+- 第 18 例完整审计核心项通过：组件 1727/1727、类型分布一致；全部原基线事件 ln 无缺失；jsfn 172 且编译/参数/越界/旧引用均 0；data-if 70/70、binds.value 0；本地服务 6/6 代码通过；上传有效启用 0；诊断 172/170/dropped 0。四个目标 BID 均为 1 个 sobj time、0 jsfn，`ymdhms` 均带 `cType:'String'`；两个目标服务各 2 次系统时间调用且无自由变量/new Function。
+- 当前 V5 为 2,930,098 bytes，SHA-256 `7775554bb251f583c1cf332cb37926859f76da0584c030731813d4a3d7f17206`；诊断两份文件字节数与哈希均保持 Phase 89 不变。首次事件统计用了祖先有效启用口径得到 1786/2940，与报告按块自身 enable 的 1905/3128 口径不同；需按旧报告口径复核后再回填，不将口径差当成结构变化。
+- 旧报告口径已复核：事件块 3696、按自身 enable 统计动作 1905/非 root 3128，服务 fireService 34（启用 23），上传动作自身启用 2 但祖先有效启用 0，均与 Phase 89 一致。
+- 第 18 例 `conversion-report.md` 已更新为 Phase 90 事实：补入通用 cType 规则/边界、49 个净增分布、两个 `_code` 预期变化、75/75 测试及新产物哈希；发布状态暂标本轮待完成。

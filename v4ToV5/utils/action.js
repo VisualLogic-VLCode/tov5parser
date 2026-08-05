@@ -247,10 +247,111 @@ function getLegacyFormulaTextValue({ param, paramName }) {
   return undefined
 }
 
+const INTEGER_CTYPES = new Set(['long', 'int', 'boolean'])
+const NUMBER_CTYPES = new Set([...INTEGER_CTYPES, 'double'])
+
+// 对齐 VxEditor41 后台公式 TypeChecker 的可静态推导子集。
+// `type` 是动作方法要求的目标类型；`cType` 是当前表达式的实际类型，
+// 二者不能互相复制。无法可靠推导 get/ref 等运行时值时保持缺省。
+function inferBackendAstCType(ast) {
+  if (!ast || typeof ast !== 'object' || Array.isArray(ast)) return
+  if (typeof ast.cType === 'string' && ast.cType) return ast.cType
+
+  const { op, val, args } = ast
+  switch (op) {
+    case 'val':
+      if (val === undefined) return
+      if (Number.isInteger(val)) return 'long'
+      if (Number.isFinite(val)) return 'double'
+      if (typeof val === 'string') return 'String'
+      if (typeof val === 'boolean') return 'boolean'
+      return
+    case 'var':
+      return inferBackendAstCType(args?.[0])
+    case 'list':
+      return 'JsonArr'
+    case 'dict':
+      return 'JsonObj'
+    case 'concat':
+      return 'String'
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+    case '//':
+    case '%': {
+      if (!Array.isArray(args) || args.length !== 2) return
+      const leftType = inferBackendAstCType(args[0])
+      const rightType = inferBackendAstCType(args[1])
+      if (
+        INTEGER_CTYPES.has(leftType) &&
+        INTEGER_CTYPES.has(rightType)
+      ) {
+        return 'long'
+      }
+      if (
+        (leftType && !NUMBER_CTYPES.has(leftType)) ||
+        (rightType && !NUMBER_CTYPES.has(rightType)) ||
+        op === '/'
+      ) {
+        return 'double'
+      }
+      return 'double'
+    }
+    default:
+      return
+  }
+}
+
+// 编辑器会为动作公式根节点及其中的方法实参分别推导 cType；专用的
+// DB 条件/列表/对象编辑器并不会给每个容器元素统一补类型。因此这里只
+// 递归识别 method/sysutil 实参，其他结构仅继续遍历，不标注自身。
+function applyBackendAstCTypes(ast) {
+  const visit = (node, annotateSelf = false) => {
+    if (Array.isArray(node)) {
+      node.forEach(item => visit(item, false))
+      return
+    }
+    if (!node || typeof node !== 'object') return
+
+    const args = Array.isArray(node.args) ? node.args : []
+    switch (node.op) {
+      case 'method':
+      case 'sysutil':
+        args.forEach(arg => visit(arg, true))
+        break
+      default:
+        args.forEach(arg => visit(arg, false))
+        break
+    }
+
+    if (
+      annotateSelf &&
+      !(typeof node.cType === 'string' && node.cType)
+    ) {
+      const cType = inferBackendAstCType(node)
+      if (cType) node.cType = cType
+    }
+  }
+
+  visit(ast, true)
+  return ast
+}
+
+function shouldInferBackendFormulaCType({ param, scope }) {
+  return (
+    scope === 'server' &&
+    [propType.Formula, propType.FormulaColor, propType.FormulaJson].includes(
+      param?.type
+    )
+  )
+}
+
 function convertActionParamValue({
   param,
   paramsAsObj = false,
   paramType,
+  scope,
   nodeId,
   blockId,
   paramName,
@@ -266,6 +367,9 @@ function convertActionParamValue({
       result = { op: 'val', val: legacyTextValue }
       if (paramsAsObj) {
         result.key = param.name
+      }
+      if (shouldInferBackendFormulaCType({ param, scope })) {
+        applyBackendAstCTypes(result)
       }
       clearDiagExtra()
       return result
@@ -380,6 +484,9 @@ function convertActionParamValue({
   }
   if (paramsAsObj) {
     result.key = param.name
+  }
+  if (shouldInferBackendFormulaCType({ param, scope })) {
+    applyBackendAstCTypes(result)
   }
 
   clearDiagExtra()
@@ -502,6 +609,7 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
             { op: 'val', val: param.name },
             convertActionParamValue({
               param,
+              scope,
               nodeId,
               blockId
             })
@@ -522,6 +630,7 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
               { op: 'val', val: param.name },
               convertActionParamValue({
                 param,
+                scope,
                 nodeId,
                 blockId,
                 paramName: param.name,
@@ -539,6 +648,7 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
                       { op: 'val', val: cParam.id + '.' + cProp.name },
                       convertActionParamValue({
                         param: cProp,
+                        scope,
                         nodeId,
                         blockId,
                         paramName: cProp.name,
@@ -554,6 +664,7 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
           args.push(
             convertActionParamValue({
               param,
+              scope,
               paramsAsObj: action.paramsAsObj,
               nodeId,
               blockId
@@ -620,6 +731,7 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
         }
         return convertActionParamValue({
           param,
+          scope,
           paramsAsObj: action.paramsAsObj,
           paramType,
           nodeId,

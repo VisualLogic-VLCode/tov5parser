@@ -8,7 +8,10 @@ import {
 } from './env.js';
 import { convertV4CaseJsonToV5CaseJson } from './index.js';
 import { loadRuntimeMaps } from '../index.js';
-import { getLegacyFormulaTextValue } from './utils/action.js';
+import {
+  convertActionParamValue,
+  getLegacyFormulaTextValue,
+} from './utils/action.js';
 import {
   convertDbCons,
   convertObjJsonMultiPaths,
@@ -325,7 +328,7 @@ test('service return keeps legacy reason text literal and empty values empty', (
 
   assert.equal(returnAst.op, 'return');
   assert.deepEqual(returnAst.args, [
-    { op: 'val', val: 'db error', key: 'reason' },
+    { op: 'val', val: 'db error', key: 'reason', cType: 'String' },
     { op: 'val', key: 'data' },
   ]);
 });
@@ -1130,6 +1133,103 @@ test('legacy action API path text stays literal', () => {
     }),
     undefined,
   );
+});
+
+test('server action parameters retain inferred cType without copying target type', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  const convertFormula = ({ code, paramType = 'String', blockId }) =>
+    convertActionParamValue({
+      param: {
+        name: 'value',
+        type: 'Formula',
+        value: { code },
+      },
+      paramType,
+      nodeId: 'svc1',
+      blockId,
+      scope: 'server',
+    });
+
+  try {
+    assert.deepEqual(
+      convertFormula({ code: '"hello"', blockId: 'ctype-string' }),
+      {
+        op: 'val',
+        val: 'hello',
+        type: 'String',
+        cType: 'String',
+      },
+    );
+
+    assert.deepEqual(
+      convertFormula({ code: '1.5', blockId: 'ctype-double' }),
+      {
+        op: 'val',
+        val: 1.5,
+        type: 'String',
+        cType: 'double',
+      },
+    );
+
+    const objectAst = convertFormula({
+      code: '({label:"hello",count:1})',
+      paramType: 'JsonObj',
+      blockId: 'ctype-object',
+    });
+    assert.equal(objectAst.op, 'var');
+    assert.equal(objectAst.cType, 'JsonObj');
+    const objectValueAsts = objectAst.args[0].args.filter(
+      (_, index) => index % 2 === 1,
+    );
+    assert.equal(
+      objectValueAsts.some(valueAst =>
+        Object.prototype.hasOwnProperty.call(valueAst, 'cType'),
+      ),
+      false,
+      'object members are not independent formula editor roots',
+    );
+
+    assert.deepEqual(
+      convertActionParamValue({
+        param: { name: 'enabled', type: 'Boolean', value: true },
+        paramType: 'boolean',
+        nodeId: 'svc1',
+        blockId: 'ctype-specialized-boolean',
+        scope: 'server',
+      }),
+      { op: 'val', val: true, type: 'boolean' },
+      'specialized non-formula editors must not gain inferred cType',
+    );
+
+    const serviceParamAst = convertFormula({
+      code: 'param.p1',
+      paramType: 'JsonObj',
+      blockId: 'ctype-service-param',
+    });
+    assert.equal(serviceParamAst.type, 'JsonObj');
+    assert.equal(serviceParamAst.cType, 'JsonVal');
+
+    const serverTimeAst = convertFormula({
+      code: '$serverSys.f__sysTime("ymdhms")',
+      paramType: 'JsonObj',
+      blockId: 'ctype-server-time',
+    });
+    assert.equal(serverTimeAst.type, 'JsonObj');
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(serverTimeAst, 'cType'),
+      false,
+      'unknown outer get result must not copy the target parameter type',
+    );
+    const methodAst = serverTimeAst.args[0].args[1];
+    assert.deepEqual(methodAst.args, [
+      { op: 'val', val: 'ymdhms', cType: 'String' },
+    ]);
+  } finally {
+    clearActiveEnv();
+  }
 });
 
 test('object-json multi-path values preserve tokenized absolute URL text', () => {
