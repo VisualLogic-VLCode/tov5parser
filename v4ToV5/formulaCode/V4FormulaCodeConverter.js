@@ -357,6 +357,14 @@ export default class V4FormulaCodeConverter {
           varType: 'constSys' // 应用系统
         }
       }
+      case '$sobj_serverSys': {
+        if (this.scope === 'server') {
+          return {
+            varType: 'serverSys' // 后台系统
+          }
+        }
+        break
+      }
       case '$curValue': {
         return {
           varType: 'curValue' // 当前值
@@ -520,6 +528,9 @@ export default class V4FormulaCodeConverter {
       case 'comp': // 组件
         ast = this.genCompAST({ ctx })
         break
+      case 'serverSys': // 后台系统
+        ast = this.genServerSysAST()
+        break
       case 'reqUser':
         ast = this.genReqUserAst({ parsed })
         break
@@ -578,6 +589,13 @@ export default class V4FormulaCodeConverter {
         break
       case 'constSys': // 应用系统
         ast = this.genConstSysPropertyAST({ property })
+        break
+      case 'serverSys': // 后台系统
+        ast = this.genServerSysAST()
+        propertyAST = this.genRefsCompPropertyAST({
+          property,
+          compAst: ast
+        })
         break
       case 'requestInfo':
         ast = this.genRequestInfoAst({ property })
@@ -1234,6 +1252,25 @@ export default class V4FormulaCodeConverter {
     }
     this.genRefsCompPropertyAST({ property, compAst })
     return compAst
+  }
+  // 生成后台系统伪对象 AST。V5 通过 sobj scope 识别系统对象，不能把
+  // `$sobj_serverSys` 作为 jsfn/new Function 内的自由变量保留。
+  genServerSysAST = () => {
+    return {
+      op: 'var',
+      args: [
+        {
+          op: 'get',
+          args: [
+            {
+              op: 'ref',
+              val: ['sobj', 'serverSys']
+            }
+          ],
+          _blockType: '$refs'
+        }
+      ]
+    }
   }
   // 生成当前数据的 AST
   genCurValueAST = ({ ctx }) => {

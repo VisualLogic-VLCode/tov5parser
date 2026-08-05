@@ -1695,3 +1695,22 @@
 - VxEditor41 暂存范围已确认只有 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`；其他工作树内容不会进入同步提交。
 - VxEditor41 同步提交为 `ca0caa89200dc59843ed17af0a8c03c61553ad70`，已推送 `origin/master` 且无分叉；需在最终复核中再次确认提交存在远端、用户工作树改动仍在。
 - Phase 87 发布闭环完成：tov5parser `6b49b0c221654cc0dadcc427708ca6182ac1773d`、Lambda 版本 20、VxEditor41 `ca0caa89200dc59843ed17af0a8c03c61553ad70`。两个远端均无分叉，Lambda Active/Successful，用户无关工作树内容均保留。
+
+## 2026-08-05：重新核对 `$sobj_serverSys` V5 AST
+
+- 用户指出修复后仍不正确。该质疑成立：V4 最终代码出现 `$sobj_serverSys` 只能证明外层服务函数使用该变量名，不能自动证明 V5 jsfn 的 `new Function` 可以访问外层局部变量。
+- Phase 87 的审计只检查了 jsfn 语法、名称替换和服务 `_code` 可编译；`new Function` 编译成功不会检测执行时自由变量是否存在，因此“审计通过”并未覆盖真正的运行时 ReferenceError。
+- 当前诊断需要回答两个独立问题：`$sobj_serverSys` 在服务外层是什么绑定；V5 jsfn 是否应把系统时间表达为结构化 AST，或作为显式 `$vN` 参数传入，而不是保留自由标识符。
+- 当前四个落点的 AST 形如 `jsfn.val=["{updator: $v1, updateTime: $sobj_serverSys.f__sysTime('ymdhms')}", "$v1"]`，args 只有当前用户表达式。V5 `ast2js` 据此构造独立的 `new Function("$v1", ...)`，没有传入后台系统对象。
+- 在与产物相同的调用方式下直接执行，确定抛出 `ReferenceError: $sobj_serverSys is not defined`。这不是潜在风险，而是当前产物的实际运行错误；此前仅做语法编译的审计无法发现它。
+- V5 正式后台系统引用不是 `ref ['var','$sobj_serverSys']`，更不是 jsfn 内的自由文本，而是 `ref.val=['sobj','serverSys']`。`ast2js.checkIsSobj` 只认 `ref` scope 为 `sobj`，随后把方法调用编译为 `$sys.func('server-sys-serverSys',$self,'',method,...)`。
+- `serverSys.map.json` 的正式方法名是 `_sysTime`；V4 的属性名 `f__sysTime` 经既有 `genRefsCompPropertyAST` 规则去掉两字符 `f_` 前缀，正好得到 `_sysTime`。参数 `ymdhms` 是 map 中的合法时间格式选项。
+- 正确的时间 AST 为 `{op:'var',args:[{op:'get',args:[{op:'ref',val:['sobj','serverSys']},{op:'method',val:'_sysTime',args:[{op:'val',val:'ymdhms'}]}],_blockType:'$refs'}]}`。用项目 `ast2js` 实测生成 `$sys.func('server-sys-serverSys',$self,'','_sysTime',"ymdhms")`。
+- 由于外层源表达式是 `Object.assign(param.formData,{updator:...,updateTime:...})`，规范转换不应把整个对象降级为 jsfn；应生成交替 key/value 的结构化 `dict`，其中 `updator` 保留组件 value AST，`updateTime` 使用上述 sobj 方法 AST。
+- 当前案例已有三个后台系统 `setLog` AST 使用 `ref ['sobj','serverSys']`，而全部本地 V5 产物都没有把 `_sysTime` 作为后台 sobj 的样本；schema 与代码生成器仍已足以确定正式形态。Phase 87 的转换结果及“已修复”报告结论需要在后续获授权修复时纠正。
+- 修复应落在公式上下文与成员方法结构化路径，而不是 alias 字符串层：把规范化后的 `$sobj_serverSys` 识别为专用 `serverSys` varType，生成 `ref ['sobj','serverSys']` receiver，再复用 `genRefsCompPropertyAST` 将 `f__sysTime` 转为 `_sysTime` 并附加实参。这样 Object.assign 的对象参数可完整转换为 dict。
+- full-JS/custom-expression 路径无需保留后台对象自由变量：其 `walkOrReplaceCustomExpr` 会尝试把独立的系统时间 CallExpression 整体结构化并替换成显式 `$vN` 参数；因此同一 receiver 规则也能覆盖必须保留 jsfn 的外围 JavaScript。
+- 实现验证确认上述两条路径都成立：真实 Object.assign 形态完全不再生成 jsfn；逻辑表达式或块体回调等外围 fallback 中，时间调用单独成为 jsfn args 的结构化 AST。局部声明同名 `$serverSys` 会被既有 scope guard 排除，不会被误识别为系统对象。
+- 真实案例重转提供了数量级闭环：原 4 条 unknown-varType 正是四个后台时间对象；结构化修复后诊断 176→172、去重 174→170，四个目标均不再含 jsfn，其他 jsfn 与结构基线不变。
+- 最终服务代码不依赖 V4 外层 `$sobj_serverSys` 名称：两个服务各生成两次 `$sys.func('server-sys-serverSys',$self,'','_sysTime',"ymdhms")`，对应服务代码中 free serverSys 和 new Function 都为 0。
+- 诊断中的 unknown varType 已随四个系统时间公式一起清零；剩余 172 条全部是其他既有 fallback 类别（`&&` 91、`||` 44、findIndex 13、模板字符串 7、正则及除法 receiver/full-JS 等）。

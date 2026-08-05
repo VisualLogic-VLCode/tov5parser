@@ -335,7 +335,51 @@ test('nested callback custom expressions keep their own jsfn arguments', () => {
   }
 })
 
-test('legacy server system references are canonicalized without rewriting static names', () => {
+test('legacy server system time is converted to a structured sobj method AST', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'Object.assign(param.formData,{updator:$refs.userId.p_value,updateTime:$serverSys.f__sysTime("ymdhms")})',
+    getCtx(name) {
+      if (name === 'param') return { varType: 'serviceParam' }
+    },
+    scope: 'server'
+  }).exec()
+
+  assert.equal(findAst(ast, item => item.op === 'jsfn'), undefined)
+  const serverTimeAst = findAst(
+    ast,
+    item =>
+      item.op === 'get' &&
+      item.args?.[0]?.op === 'ref' &&
+      item.args[0].val?.[0] === 'sobj' &&
+      item.args[0].val?.[1] === 'serverSys'
+  )
+  assert.deepEqual(serverTimeAst, {
+    op: 'get',
+    args: [
+      { op: 'ref', val: ['sobj', 'serverSys'] },
+      {
+        op: 'method',
+        val: '_sysTime',
+        args: [{ op: 'val', val: 'ymdhms' }]
+      }
+    ],
+    _blockType: '$refs'
+  })
+
+  const code = ast2js({
+    ast,
+    getNodeByIdFunc() {},
+    eventNodeId: 'service'
+  })
+  assert.match(
+    code,
+    /\$sys\.func\('server-sys-serverSys',\$self,'','_sysTime',"ymdhms"\)/
+  )
+  assert.doesNotMatch(code, /new Function|\$sobj_serverSys|\$serverSys/)
+})
+
+test('legacy server system references are structured without rewriting static names', () => {
   const getCtx = name => {
     if (name === 'fParamgroup') return { varType: 'param' }
   }
@@ -346,12 +390,23 @@ test('legacy server system references are canonicalized without rewriting static
   }).exec()
   const ordinaryJsfn = findAst(ordinaryAst, item => item.op === 'jsfn')
 
-  assert.match(
-    ordinaryJsfn.val[0],
-    /\$serverSys: \$sobj_serverSys\.f__sysTime\("ymdhms"\)/
-  )
+  assert.match(ordinaryJsfn.val[0], /\$serverSys: \$v2/)
   assert.match(ordinaryJsfn.val[0], /label: "\$serverSys"/)
   assert.match(ordinaryJsfn.val[0], /property: plain\.\$serverSys/)
+  assert.doesNotMatch(
+    ordinaryJsfn.val[0],
+    /\$(?:sobj_)?serverSys\.f__sysTime/
+  )
+  assert.equal(
+    collectAst(
+      ordinaryAst,
+      item =>
+        item.op === 'ref' &&
+        item.val?.[0] === 'sobj' &&
+        item.val?.[1] === 'serverSys'
+    ).length,
+    1
+  )
   assertJsfnArgumentsComplete(ordinaryAst)
 
   const fullJsAst = new V4FormulaCodeConverter({
@@ -361,11 +416,18 @@ test('legacy server system references are canonicalized without rewriting static
   }).exec()
   const fullJsfn = findAst(fullJsAst, item => item.op === 'jsfn')
 
-  assert.match(
-    fullJsfn.val[0],
-    /return \$sobj_serverSys\.f__sysTime\("ymdhms"\)/
+  assert.match(fullJsfn.val[0], /return \$v2/)
+  assert.doesNotMatch(fullJsfn.val[0], /\$(?:sobj_)?serverSys\.f__sysTime/)
+  assert.equal(
+    collectAst(
+      fullJsAst,
+      item =>
+        item.op === 'ref' &&
+        item.val?.[0] === 'sobj' &&
+        item.val?.[1] === 'serverSys'
+    ).length,
+    1
   )
-  assert.doesNotMatch(fullJsfn.val[0], /return \$serverSys\./)
   assertJsfnArgumentsComplete(fullJsAst)
 
   const shadowedAst = new V4FormulaCodeConverter({

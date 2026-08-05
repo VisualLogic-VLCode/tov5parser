@@ -714,7 +714,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。
 
-**当前检查点：** 第 18/51 例 `$serverSys` 运行时对象错误已完成通用修复、真实案例重转、tov5parser 推送、生产 Lambda 20 部署和 VxEditor41 同步推送。当前回到本例人工审阅门禁；第 19 例不启动。
+**当前检查点：** 用户已授权按 Phase 88 的纠正结论重新修复第 18/51 例。当前进入 Phase 89：生成正式 `sobj/serverSys → _sysTime` 结构化 AST，完成验证和固定发布流程；不启动第 19 例。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -1020,3 +1020,37 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 **错误记录：** 新增回归首次运行按预期失败，实际 jsfn 仍含 `$serverSys.f__sysTime(...)`，证明用例命中真实缺陷。用例中原先用 `fParamgroup.obj.$serverSys` 检查静态成员名，但该完整 V4 引用会被正确参数化成单个 `$vN`，无法观察属性名；测试需改用未知 receiver 的静态成员，仅校验规范化器边界，不重复错误断言。
 
 **发布结果：** tov5parser 修复提交 `6b49b0c221654cc0dadcc427708ca6182ac1773d` 已推送；生产 Lambda 版本 `20`、CodeSha256 `S5quTBb6SJjGhoX9D5eiV9tDBHNeCvmtfxYB05RU5VY=`，`prod` 冒烟和最终状态复核通过；VxEditor41 同步提交 `ca0caa89200dc59843ed17af0a8c03c61553ad70` 已推送。两个仓库均无远端分叉，用户已有无关改动未混入提交；第 19 例未启动。
+
+### Phase 88：复核第 18 例服务系统对象的正确 V5 AST（2026-08-05）
+
+- [x] 复现当前 `$sobj_serverSys` jsfn 在真实 V5 代码生成作用域中的可见性
+- [x] 从 VxEditor41/V5 AST 代码生成链路找到服务系统对象的正式 AST 表达
+- [x] 对比当前案例 4 个落点与正确 AST/最终 `_code`
+- [x] 形成纠正结论并向用户解释此前判断依据与错误点
+
+**Status:** complete
+
+**授权与范围：** 用户当前要求解释并核对 AST，属于诊断请求；不修改已发布代码、不创建提交、不部署。若确认 Phase 87 修复错误，明确记录并等待用户另行授权修复。
+
+**结论：** Phase 87 判断错误。`$sobj_serverSys` 是 V4 外层生成代码中的规范变量名，却不是 V5 `jsfn/new Function` 可捕获的变量；当前四个 AST 运行时均抛 `ReferenceError`。V5 正式表达应使用 `get(ref ['sobj','serverSys'], method '_sysTime')`，并让对象字面量保持结构化 `dict`；该 AST 会生成 `$sys.func('server-sys-serverSys',$self,'','_sysTime',"ymdhms")`。本阶段仅完成诊断，尚未修复已发布转换器。
+
+### Phase 89：正确修复第 18 例后台系统时间 AST 并自动发布（2026-08-05）
+
+- [x] 新增失败回归，证明当前转换仍生成带自由变量的 jsfn
+- [x] 实施 V4 `$serverSys`/`f__sysTime` 到 V5 `sobj/serverSys`/`_sysTime` 的结构化转换
+- [x] 运行定向测试和项目完整测试
+- [x] 重转第 18 例并核验四个 BID、最终服务代码和完整结构基线
+- [x] 更新第 18 例报告及规划记录，纠正 Phase 87 的错误结论
+- [ ] 精确提交并推送 tov5parser 本轮修复
+- [ ] 从已提交版本部署生产 Lambda并验证 `prod` 冒烟与最终状态
+- [ ] 等价同步 VxEditor41，完成定向检查和可行生产构建
+- [ ] 精确提交并推送 VxEditor41 本轮同步
+- [ ] 最终复核双仓远端、Lambda版本及用户无关工作区内容
+
+**Status:** in progress
+
+**授权与范围：** 用户明确回复“修复”。项目 `AGENT.md`/`CLAUDE.md` 固定发布流程生效：修复与真实案例验证通过后自动完成双仓提交推送、生产 Lambda 部署和 VxEditor41 同步。不得启动第 19 例，不得读取、修改或提交无关未跟踪文档。
+
+**错误记录：** 新增结构化后台时间回归首次运行按预期 25 pass / 1 fail；实际仍找到 `jsfn`，内容为 `{updator: $v1, updateTime: $sobj_serverSys.f__sysTime("ymdhms")}`，准确复现当前错误。测试输出中的其他 ParseError 是既有 fallback 可观测日志，不是新增失败。
+
+**实现校准：** 首次加入结构化实现后，新回归已经通过，但 Phase 87 的旧测试仍断言自由 `$sobj_serverSys.f__sysTime` 应保留，导致定向测试仍为 25 pass / 1 fail。实际新输出已将该调用替换为显式 `$v2`；这是旧错误断言，需改为验证 `$v2` 对应的 args 是正式 sobj AST，同时继续检查字符串、静态对象键和静态成员名不被误改。

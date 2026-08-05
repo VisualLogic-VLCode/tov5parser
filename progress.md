@@ -2130,4 +2130,26 @@
 - VxEditor41 同步提交 `ca0caa89200dc59843ed17af0a8c03c61553ad70` 已创建并推送 `origin/master`，本地/远端分叉 0/0。提交仅含目标转换器文件；用户已有 UI/store/.gitignore 改动仍保持未暂存。
 - 最终复核通过：tov5parser 修复提交 `6b49b0c221654cc0dadcc427708ca6182ac1773d` 与 `origin/main` 一致；VxEditor41 `HEAD=origin/master=ca0caa89200dc59843ed17af0a8c03c61553ad70`；Lambda `prod=20`、RoutingConfig null，版本 20 Active/Successful 且摘要/描述一致。
 - 案例报告存在、一次性审计脚本已删除；tov5parser 当前未提交内容只剩本轮最终规划记录，无关未跟踪文档继续保持原状。Phase 87 完成，回到第 18 例人工审阅门禁，不启动第 19 例。
-- 2026-08-05：收到 planning-with-files 自动续跑 hook（90/92 phases）后完成会话恢复。当前唯一进行中的 Phase 87 已完成实现、定向测试、73/73 全量测试及第 18 例重转；从“重转后完整静态审计”继续，仍不启动第 19 例，也不读取或修改无关未跟踪文档。
+- tov5parser 最终规划记录提交 `bb710f6abe6db90abc58f0e2c8df2f7b9e3480aa` 已推送，`main` 与 `origin/main` 无分叉。随后收到 planning-with-files 自动续跑 hook（91/92 phases）；唯一未完成项仍是必须逐例人工确认推进的 Phase 67，该 hook 不授权启动第 19 例。
+- 2026-08-05：延迟写入的早期 hook 恢复记录原本停在“重转后完整静态审计”，现已由 Phase 87 complete、双仓推送和 Lambda 20 最终复核覆盖；当前不再续跑该旧检查点，继续等待用户确认第 19 例。
+- 2026-08-05：用户指出修复后仍不正确，并质疑 `$sobj_serverSys.f__sysTime` 是否为正确 V5 AST。已重新打开第 18 例诊断门禁：先核对 V5 jsfn/服务运行作用域和正式 AST，不修改或发布。
+- 初步纠正：Phase 87 只证明 `$sobj_serverSys` 与 V4 最终 `_code` 名称一致，却没有证明它能穿透 V5 `new Function` 的独立全局作用域；此前把“名称 canonical”直接等同于“运行可见”证据不足。
+- 已从第 18 例当前 V5 产物精确提取四个受影响动作：每个 `jsfn.val` 仅声明 `$v1`，表达式却直接引用未注入的 `$sobj_serverSys`；对应服务 `_code` 生成 `new Function("$v1", "return {...$sobj_serverSys...}")($v1)`。
+- 直接执行该 `jsfn` 得到 `ReferenceError: $sobj_serverSys is not defined`。因此 Phase 87 的结果只是把一个未定义自由变量换成另一个未定义自由变量，当前 AST 已确认不正确；下一步以 V5 编辑器正式的后台系统假对象 AST 为准确定正确结构。
+- VxEditor41 `ast2js`、`fakeNode.js`、后台系统组件 map 和 VLang 反向构建逻辑形成一致证据：V5 后台系统 receiver 是 `{op:'ref',val:['sobj','serverSys']}`，V4 方法 `f__sysTime` 去掉 `f_` 前缀后对应 V5 方法 `_sysTime`。
+- 正确的 `updateTime` 子树是结构化 `var → get(ref sobj/serverSys, method _sysTime(val ymdhms))`；整个 `{updator, updateTime}` 也应保持 `var → dict`，无需进入 jsfn。用独立 `ast2js` 编译该候选 AST，得到 `$sys.util.fnJsonObj([..."updateTime",$sys.func('server-sys-serverSys',$self,'','_sysTime',"ymdhms")])`。
+- 本地已保存 V5 案例中的后台系统 `setLog` 也实际使用同一 `ref ['sobj','serverSys'] → method` 形态，进一步证明自由 `$sobj_serverSys` 字符串不是 V5 AST schema。Phase 88 诊断完成；未修改转换器、案例产物或发布状态。
+- planning-with-files 自动续跑 hook 报告 92/93 阶段完成。当前唯一剩余主阶段仍是 Phase 67 的逐例人工审阅门禁；用户尚未授权按新结论再次修复转换器，也未确认启动第 19 例，因此本次恢复只同步记录并复读计划，不执行代码修改、提交、部署或下一案例转换。
+- 用户随后明确回复“修复”，Phase 89 已建立并启动。修复目标是把后台系统时间调用保留为正式结构化 AST，而不是继续给 jsfn 内自由变量改名；验证通过后按项目固定规则自动完成双仓提交推送和 Lambda 部署。
+- 已新增真实公式形态 `Object.assign(param.formData,{updator:...,updateTime:$serverSys.f__sysTime("ymdhms")})` 的失败回归。修复前定向测试为 25/26，通过以外唯一失败明确显示对象仍降级为包含自由 `$sobj_serverSys` 的 jsfn，测试命中目标缺陷。
+- 第一版结构化实现已使新增真实公式回归通过：对象不再生成 jsfn，后台时间 get AST 与 `$sys.func(...'_sysTime',"ymdhms")` 代码断言都成立。定向测试仍有 1 个失败来自 Phase 87 旧用例继续期待错误的自由变量文本；下一步把该用例改为验证显式参数对应 sobj AST，并保留原有静态名称边界断言。
+- 旧用例已纠正：外围必须保留 jsfn 时，后台时间调用会变为 `$v2`，而第二个 args 是 `ref ['sobj','serverSys'] → method '_sysTime'`；字符串 `"$serverSys"`、静态对象键 `$serverSys`、静态成员名 `plain.$serverSys` 和局部同名变量仍保持原样。
+- 定向公式测试 26/26 通过。实现只在 server scope 为规范化后的 `$sobj_serverSys` 建立专用上下文，普通对象路径生成结构化 dict；full-JS/custom fallback 则将同一结构化时间调用作为显式参数注入。
+- 项目完整测试由 73 增至 74，74/74 全部通过（fail 0）。测试日志中的 ParseError/parse error 均为既有 fallback 场景的预期可观测输出；没有新增测试失败。
+- 第 18 例已用最新 V4 源原位重转成功：诊断从 Phase 87 的 176/174 降为 172/170，dropped 仍为 0；恰好清除了原先四个后台系统 unknown-varType/jsfn fallback。
+- 首轮完整审计 failures 为空：四个目标 BID 各有且仅有一个 `dict` 和一个 `sobj/serverSys → _sysTime(ymdhms)`，目标子树 jsfn 为 0；两个服务最终 `_code` 各有 2 次 `$sys.func(...'_sysTime'...)`、自由 serverSys 0、new Function 0、语法均可编译。
+- 全局基线保持：组件 1,727/1,727、启用 action 1,905、启用非 root 3,128、data-if 70/70 且 binds.value 0、服务调用 34/34 与 14 个 target 分布一致。jsfn 从 176 降至 172，172 个均可编译且参数/旧引用审计为 0。
+- 审计脚本用动作名包含 `upload` 的宽松规则命中 2 条，与旧报告“启用上传 0”口径冲突；需查看具体动作后按真实上传组件/方法规则校准，不能据宽松名称命中改写案例结论。
+- 两条 `uploadFile` 动作自身 `enable=true`，但各自所属事件 root 均为 `enable=false`，因此有效启用上传仍为 0；旧报告口径正确，宽松审计已按祖先启用状态校准。
+- 新产物为 2,929,297 bytes，SHA-256 `e2df8b7831ca94e6c5423b29ddd822da0ed8abfec50b83c8d9a15d1af8495b44`；诊断 JSON/Markdown 分别为 101,727/41,730 bytes，SHA-256 `80d4b077a607bc2b72e4f929fc1479b3f46001c41e48c0fa0a4e52a319422471` / `7d1e4e605ac22e3456972974448de24db83207daa30766f08a10c881a770ff37`。
+- 第 18 例 `conversion-report.md` 已按最终事实重写：明确撤销“自由 `$sobj_serverSys` 可运行”的错误结论，记录正式 sobj AST、4 次 `$sys.func`、172/170 诊断、74/74 测试和新产物哈希；发布状态待本轮实际完成后回填。
