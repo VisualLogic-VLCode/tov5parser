@@ -16,6 +16,7 @@ jsep.plugins.register(newOp)
 jsep.plugins.register(template)
 
 jsep.addBinaryOp('**', 10)
+jsep.addBinaryOp('in', 7)
 
 Jsep.hooks.add('gobble-expression', env => {
   let { exprIndexesQueue, index } = env.context

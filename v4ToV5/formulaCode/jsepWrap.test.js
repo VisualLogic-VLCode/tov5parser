@@ -80,6 +80,53 @@ test('jsepWrap registers the v4 formula syntax plugins', () => {
   assert.equal(templateAst.type, 'TemplateLiteral')
 })
 
+test('custom fallback preserves the JavaScript in operator inside callbacks', () => {
+  const parsed = jsep('key in value')
+  assert.equal(parsed.type, 'BinaryExpression')
+  assert.equal(parsed.operator, 'in')
+
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.find(i => fParamgroup.key in i) && true',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.match(jsfn.val[0], /\.find\(\(i\) => \$v2 in i\)/)
+  assert.doesNotMatch(jsfn.val[0], /,\s*in\s*,/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.equal(evaluate([{ code: 1 }], 'code'), true)
+})
+
+test('custom fallback preserves computed object property keys', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.map(i => ({[i.name]: i.value})) || []',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.match(jsfn.val[0], /\(\{\[i\.name\]: i\.value\}\)/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.deepEqual(evaluate([{ name: 'size', value: 'M' }]), [
+    { size: 'M' }
+  ])
+})
+
 test('server action bare cbParams unwraps legacy single callback results', () => {
   loadRuntimeMaps()
   const converter = new V4FormulaCodeConverter({

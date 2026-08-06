@@ -24,6 +24,7 @@ export default class ExprAstToString {
     '<=': 30,
     '>': 30,
     '>=': 30,
+    in: 30,
     '==': 30,
     '!=': 30,
     '===': 30,
@@ -140,7 +141,9 @@ export default class ExprAstToString {
             } else if (shorthand) {
               return `${this.visit({ ast: item.value })}`
             } else {
-              return `${this.visit({ ast: item.key })}: ${this.visit({
+              const key = this.visit({ ast: item.key })
+              const propertyKey = item.computed ? `[${key}]` : key
+              return `${propertyKey}: ${this.visit({
                 ast: item.value
               })}`
             }

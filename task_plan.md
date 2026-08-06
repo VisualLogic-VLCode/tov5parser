@@ -1186,3 +1186,133 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 **tov5parser 发布：** 修复提交 `d03e501e1e888708be60b0be2b20e7c02270915c` 已推送 main。部署阶段再次通过 77/77，归档包 `archive-d03e501-20260806T034845Z.zip`；Lambda 版本 23、CodeSha256 `wqGi5MxxILd3otPWUEodK4FQjEbblJbZMoFWTaCpCXI=`，prod 冒烟执行版本 23、业务 code 0。
 
 **VxEditor41 与最终核验：** 同步提交 `23297061cb11c1e6e1cd709223a63768bc5189a7` 已推送 master；生产 Webpack 构建 exit 0，仅有 33 组仓库既有 warning。双仓 HEAD 均与各自远端一致，VxEditor41 用户原有改动未混入提交。AWS 只读复核确认 `prod → 23`，版本 23 为 `Active / Successful`，CodeSha256 与本轮部署一致。Phase 94 complete，返回第 21 例人工审阅门禁，不启动第 22 例。
+
+### Phase 95：clothing 第 22 例逐例转换与审计（2026-08-06）
+
+- [x] 参数化只读查询 nid `11276461` 的当前版本、ntype 与最新 work_id
+- [x] 若为 V4，从中文服获取最新完整 JSON 并保存 V4 元数据与产物
+- [x] 使用当前转换器生成 V5 JSON 与结构化诊断
+- [x] 审计组件/事件/jsfn/data-if/服务/上传及源悬空引用
+- [x] 生成单例转换报告并返回人工审阅门禁
+
+**Status:** complete
+
+**授权与范围：** 用户明确回复“继续”；第 21 例修复与人工审阅门禁解除。保留全部历史案例，只处理第 22 例 `工厂信息_11276461_温晓华.json`；若发现转换器错误，仅汇报并等待修复授权，不自动启动第 23 例。
+
+**前置校准：** 源目录按 UTF-8 字节序仍为 51 个 JSON，第 22 个精确为目标，前后分别是小线预设库与工序库；本例 V4/V5 目标目录均不存在，不会覆盖历史产物。首次按仓库根目录猜测 `.platform_cookie` 与旧 `/Users/lianghuang/Desktop/case-json-migrator/.env` 路径时两者均不存在，`stat` 退出 1 且未读取任何秘密值；后续只定位已记录的实际凭据文件，不重复失效路径。
+
+**凭据路径校准：** 仅在 Desktop 下按文件名搜索没有结果，因为有效 Cookie 位于 Documents。持久化记录确认实际路径为 `/Users/lianghuang/Documents/docs/auth/.platform_cookie`，数据库只读 env 为 `/Users/lianghuang/Desktop/case-json-migrator/raw/lianghuang-cn-db-20260630/lianghuang_ro.mysql.env`；后续只检查文件元数据并在进程内加载，不输出值。
+
+**连接前置：** Cookie 204 bytes、数据库 env 850 bytes，权限均为 `0600`；中文服只读 SSH 隧道继续监听 `127.0.0.1:13306`。当前 `/tmp` 没有可复用 PyMySQL，将新建隔离临时依赖目录并执行参数化 SELECT，不修改项目依赖。
+
+**安全错误记录：** 为确认变量名执行的 `rg` 范围包含了交接目录中的 env 文件，导致凭据值意外出现在本地工具输出；没有修改文件或额外发送网络请求。后续禁止对该交接目录做内容检索，凭据只在查询/下载进程内解析且仅输出业务结果。
+
+**查询脚本错误记录：** 首次封装隔离 PyMySQL 安装与 schema 查询时，Python SQL 字符串里的反引号提前终止了外层 JavaScript 模板，调度层报 `SyntaxError: Unexpected string`；命令未执行，因此没有创建临时目录、安装依赖或连接数据库。下一次移除反引号，不重复原封装。
+
+**数据库结论：** 参数化只读查询唯一命中。`node_vx_data/node_vx` 均为 `edt_ver=4.1`，`verDetail=null`，确认为 V4.1；`ntype=1`、作品版本 235、当前 `work_id=ci43oesqlql8k4fski00-348`。数据库标题 `APS工厂信息`、作者温晓华、gid/eid `25391/10000586`，已发布且上架，链接码 `Fd0E1Lsh`。
+
+**下载实现复核：** 本项目没有现成下载脚本；VxEditor41 当前 bundle 仍包含权威解码链路：固定口令经 PBKDF2（1000 次）得到 AES key，GCM 解密后按低位长度头切分，`pako.inflateRaw` 解压；第二段 `server.case` 提升为顶层 `case`。下一步从 VxEditor41 现有 `sjcl/pako` 依赖执行内存下载解码，完成三根校验后再创建目录写入。
+
+**V4 下载结果：** `/work/load` 返回 HTTP 200、`application/octet-stream`、317,628-byte 二进制，解密为 2 段（3,431,915 / 26,687 bytes）并生成 3,458,622-byte 紧凑 V4。case/server/stage 三根类型与 ID 校验通过，SHA-256 `4a244e5bbcc86c63269a0de8b0c15b3e70e96ae6ee63b2a696e95690620a8b29`；`app.json` 与来源 README 已保存，历史目录未删除。
+
+**转换结果：** 当前转换器以 `--ntype 1 --diag` 成功生成 2,298,287-byte V5，SHA-256 `10466adebac01d252ce7e440f625f010632f5f91456f95ac0785264dd176e209`；三根 ID/type 保持一致。诊断 JSON 147,342 bytes、Markdown 44,256 bytes，total/unique/customExpr 均为 180、dropped 0。首次摘要脚本只尝试 `errors/items/diagnostics` 键，因实际数组位于 `records` 而显示 itemCount 0；文件本身结构正常，后续审计改读固定 `records`。
+
+**审计初始画像：** 180 条诊断均为 `custom-expr-fallback`：`||` 59、`&&` 45、NewExpression 21、eval 19、full-JS 13、hasOwnProperty 6、substring 5、unknown varType 4、赋值解析 3、callee/SpreadElement 各 2、toString 1。最终 AST 也有 180 个 jsfn；首两个样本的声明参数与实参完整。V5 有 41 个 data-if、1 个本地服务和 10 个共享服务。V4 事件块为 root/action/comment/con/status/loop/group = 225/1252/17/319/111/76/7；V5 带 `ln` 节点 2222，需按 V5 实际 op 和完整服务调用形态继续精确对照。
+
+**结构初审：** 组件 901/901、唯一 ID 900/900，ID/type 多重集与类型分布完全一致；1252/1252 个 action 均有 V5 `ln`。1782 个非 root 事件块仅两个 `uploading` status wrapper 无自身 `ln`，它们都位于已禁用 upload 动作下，V5 的 `uploadingCb alambda` 保留全部子 BID 且随父动作 `skip:true`，不是语义丢失。180 个 jsfn 语法/参数/`$vN` 检查通过；初次正则把字符串字面量 `'$any'` 误报自由变量，改用 Acorn 标识符扫描后自由 `$` 为 0。71 个非空 `_code` 均可编译。
+
+**服务与引用初审：** 17/17 次 fireService→runsvc，11 个 target 的次数分布完全一致；1/10 个本地/共享服务数量一致，共享服务全字段一致。41/41 个 data-if 均有 `conditionVal.ast`；307 个 item/index ref 与全部 var ref 无悬空目标。4 个 upload 动作均保留同 `ln`，三个源禁用动作在 V5 父行 `skip:true`。下一步重点验证本地服务代码生成、禁用服务动作 skip 位置以及 eval/NewExpression/赋值/spread 的代表性运行语义。
+
+**服务代码复核：** 本地服务 `getDataMap` 的 `events.list[0]` 有 block AST 和 1,145 字符 `_code`；此前“本地服务 codeCount 0”是审计 walker 不回调原始字符串的统计错误，不是产物缺码。三个源禁用 fireService 的 V5 `ln` 均落在 `skip:true` 的 let 行，禁用语义保留。
+
+**运行审计错误记录：** 首次把 12 个代表性 jsfn 运行断言封装为“按精确代码查找，找不到即抛错”，其中一个逻辑表达式的精确短串与实际完整六参数表达式不一致，脚本在执行完总结前以 `missing runtime sample` 退出；没有修改产物。下一次改为为每类输出匹配状态并使用实际前缀/特征选择，不重复精确等值假设。
+
+**动作与运行验证：** 1252 个 action 中 1236 个具有实际 object/action；1128 个启用动作均未误加 skip，108 个禁用动作全部在对应 V5 `ln` 行保留 `skip:true`，缺失 0。13 组代表性 jsfn 实际执行全部通过，覆盖 eval 直接/聚合/空值、new Date、spread Set、对象赋值、块体 map、hasOwnProperty、substring、逻辑式和图表 option 字符串。109 个 cType 为 stage String 101、server JsonVal/boolean/String 4/2/2。
+
+**审计夹具校准：** 本轮动作/运行脚本里再次以过窄路径猜测本地服务 `_code`，得到 length 0；这与已精确读取的 `data-service.events.list[0]._code` 长度 1145 冲突，属于同一审计选择器问题。最终服务结论沿用节点内精确字段并单独编译，不采用该窄路径统计。
+
+**服务与测试收尾：** 精确读取 `data-service cd1wyvva3j50000jwx1g` 确认 1 个事件同时具有 `op:block` AST 和 1,145 字符 `_code`，代码可编译。项目完整测试 77/77 通过、fail 0；输出中的 ParseError/parse error 均为测试刻意覆盖 fallback 的既有日志。本例目前未发现转换器错误，准备生成单例报告。
+
+**最终审计结论：** 组件 901/901、实际 action 1236/1236、180 个 jsfn、71 个 `_code`、41/41 个 data-if、17/17 个服务调用、1/10 个本地/共享服务、307 个循环引用和 4/4 个上传动作均闭合；没有悬空 var 引用。单例报告已生成，下一步复核文件解析、哈希与工作区范围后完成 Phase 95。
+
+**最终复核：** V4、V5、诊断 JSON 均可重新解析，字节数与 SHA-256 和报告一致；报告 5,413 bytes，明确记录成功结论与第 23 例门禁。`git diff --check` 通过，工作区只显示本轮三份规划文件与用户无关未跟踪文档；案例产物按既有 ignore 规则留存在本地目录。Phase 95 complete，不启动第 23 例。
+
+### Phase 96：clothing 第 23 例逐例转换与审计（2026-08-06）
+
+- [x] 参数化只读查询 nid `11276212` 的当前版本、ntype 与最新 work_id
+- [x] 若为 V4，从中文服获取最新完整 JSON 并保存 V4 元数据与产物
+- [x] 使用当前转换器生成 V5 JSON 与结构化诊断
+- [x] 审计组件/事件/jsfn/data-if/服务/上传及源悬空引用
+- [x] 生成单例转换报告并返回人工审阅门禁
+
+**Status:** complete
+
+**授权与范围：** 用户明确回复“继续”；第 22 例人工审阅门禁解除。保留全部历史案例，只处理第 23 例 `工序库_11276212_温晓华.json`；若发现转换器错误，仅汇报并等待修复授权，不自动启动第 24 例。
+
+**规划更新错误记录：** session catchup 后第一次三文件联合补丁使用了不匹配的 `progress.md` 锚点，补丁校验失败并整体未生效；随后读取精确文件末尾并重新追加，不重复错误锚点。
+
+**查询前置检查：** Cookie 与只读数据库 env 均存在且权限 `0600`，本例 V4/V5 目标目录均不存在，不会覆盖历史产物；但上轮 `127.0.0.1:13306` SSH 隧道当前未监听，`/tmp` 也没有可复用 PyMySQL。先从交接文档恢复安全的只读隧道方式，再执行参数化单条 SELECT。
+
+**隧道恢复：** 已定位只读交接包自带的 `start-mysql-tunnel.sh` 并直接执行，脚本退出 0 且没有输出凭据；下一步只读检查端口是否实际监听，再安装隔离 PyMySQL。
+
+**连接确认：** SSH 已在 `127.0.0.1:13306` 监听；仅枚举 env 键名确认可直接使用 `MYSQL_USER/MYSQL_PASSWORD/MYSQL_HOST/MYSQL_PORT/MYSQL_DATABASE`，没有输出值。准备在新 `/tmp` 目录安装 PyMySQL 并执行 nid 参数化查询。
+
+**数据库结论：** 参数化只读查询唯一命中。`node_vx_data/node_vx` 均为 `edt_ver=4.1` 且 `verDetail=null`，确认为 V4.1；`ntype=1`、版本 40、最新 `work_id=ci416m4qlql8k4fskbvg-216`。数据库标题 `FRP_工序库`、作者罗安琪、gid/eid `25391/10000586`，data/node 均已发布、上架且未删除，链接码 `KphorRwC`。
+
+**规划更新错误记录（二）：** 数据库结论的首次三文件补丁把既有文本中的 `PyMySQL 并执行` 少写了一个空格，锚点校验失败且整体未生效；已修正精确锚点，不重复该文本。
+
+**V4 下载结果：** `/work/load` 返回 HTTP 200、`application/octet-stream`、708,768-byte 二进制，解密为 2 段（7,554,979 / 594,409 bytes），生成 8,149,408-byte 紧凑完整 V4。三根类型及 ID 校验通过，SHA-256 `561742ddf9d49582ffe80e5d6f06ccb399ca16a79f04b70f65c12b45957785fa`；`app.json` 与来源 README 已保存，历史案例未删除。
+
+**转换结果：** 当前转换器以 `--ntype 1 --diag` 成功生成 5,905,861-byte V5，SHA-256 `30321b1ad234536ea598ad48a29f293ab7840947efcb130471b7be84c97b24c2`；三根 ID/type 保持一致。诊断 JSON 104,694 bytes、Markdown 40,454 bytes，total/unique/customExpr 均为 161、dropped 0。主要 fallback 为 `&&`/`||` 各 47、正则 29、full-JS 9、callee 9、hasOwnProperty 6、unknown varType 4，进入最终 AST 结构与代表运行审计。
+
+**结构初审：** 组件 2,734/2,734、唯一 ID 2,652/2,652，ID/type 多重集一致；3,403/3,403 个 action 均有 V5 `ln`。161 个 jsfn 的参数/实参数量与自由 `$` 检查通过，但 8 个最终 jsfn 无法被 JavaScript 解析，已确认为转换器错误：2 处把合法 `key in i` 错生成为 `$v5[0], in, i`，6 处把合法计算属性 `{[sub.name]: sub.value}` / `{[sub.standard + "\\n" + sub.size]: sub.value}` 错生成为 `{sub.name: ...}` / `{sub.standard + ...: ...}`。源 V4 公式均语法正确，受影响文本节点与 6 个 setValue 动作已定位。
+
+**审计夹具错误记录：** 首轮服务 target 对照错误使用 `x.action.object`，而 V4 目标实际位于 action 块的 `x.object`，因此出现 113 个 undefined 假差；后续按 `x.object` 重算，不采用该错误结果。另有 3 个源 `enable:true` 的 play 动作在 V5 为 `skip:true`，需结合转换器规则与上下文单独定性。
+
+**结构复核：** 服务调用按正确字段重算为 113/113，target 次数分布完全一致；42/42 个本地服务均有 1 份非空 `_code`，13/13 个共享服务全字段一致。258/258 个 data-if 中唯一无 conditionVal.ast 的节点，源 V4 本来就是 null 条件与空兼容 bind。52 次/24 个悬空 var ID 全部能在源 V4 action/code/str 中回证，且源组件集合本来就没有这些 ID，属于源案例陈旧引用。6 个无自身 `ln` 的 status 均为上传 success/fail callback 包装，全部子 BID 已由 V5 alambda 保留。
+
+**待定项：** 5 个上传动作均保留同 BID 且启用；另外 3 个 V4 `data-animate.play` 动作明确 `enable:true`、父 con/group 也启用，但 V5 对应行被置 `skip:true`，源中没有显式 skip 字段。需检查转换器是否把“动作位于禁用祖先/分支”另行编码，若没有则是第二个独立转换器问题。
+
+**skip 定性：** 3 个目标动画的源 `props.infinite` 均为 true。转换器明确将 infinite `data-animate.play` 标为 skip，避免 V4 回调动作转 async/await 后永不结束并阻塞后续动作链，且已有永久回归测试覆盖；因此这 3 处不是本例新增错误。
+
+**有效 fallback 运行验证：** 除 8 个语法无效 jsfn 外，其余 153 个均可编译、参数声明与 args 对齐且无自由 `$`。选取 16 组代表输入实际执行全部通过，覆盖正则字面量/捕获、Date.now、新数组、Set 去重、spread、hasOwnProperty、findIndex、toString、对象构造、模板字符串、可选链、Object.assign 和逻辑三元式。待运行项目完整测试并生成失败报告。
+
+**测试与审计结论：** 项目完整测试 77/77 通过、fail 0，但现有测试没有覆盖本例的 `in` 与 computed property fallback 序列化缺陷。综合结论为“产物生成成功，但审计失败”：2 类/8 处转换器错误会导致对应 jsfn 在运行前即语法解析失败；其余组件、事件、data-if、服务、上传、引用与代表运行审计闭合。准备生成单例失败报告并返回修复门禁。
+
+**最终复核：** `conversion-report.md` 已生成（7,237 bytes），明确列出 2 类/8 处错误、受影响节点/BID、源/目标代码与修复方向。V4、V5、诊断 JSON 均可重新解析，字节数和 SHA-256 与报告一致；`git diff --check` 通过，工作区只显示三份规划文件和用户无关未跟踪文档，案例产物由既有 ignore 规则保留在本地。Phase 96 complete，停在第 23 例修复门禁，不启动第 24 例。
+
+### Phase 97：修复第 23 例 `in` 与对象计算属性 jsfn 生成错误并自动发布（2026-08-06）
+
+- [x] 为 BinaryExpression `in` 与 computed Property 补失败回归测试
+- [x] 实施通用代码生成修复并运行定向、完整测试
+- [x] 重转第 23 例并复核 8 处目标及全量审计
+- [ ] 提交、推送 tov5parser 并部署 Lambda、完成线上冒烟
+- [ ] 同步 VxEditor41 转换器，验证后提交、推送
+
+**Status:** in_progress
+
+**授权与范围：** 用户明确回复“修复”，授权修复第 23 例暴露的两类通用转换器缺陷。按项目 AGENT/CLAUDE 既定流程，修复通过后自动完成 tov5parser 提交推送、Lambda 部署，以及 VxEditor41 同步提交推送；不启动第 24 例。
+
+**工作区与发布约束：** tov5parser `main` 与 `origin/main` 同步，只有三份规划文件和用户无关未跟踪文档；VxEditor41 `master` 与 `origin/master` 同步，但有用户原有 `.gitignore`、`src/stores/event.js` 与多个未跟踪视图目录。后续只暂存本轮转换器/测试/规划文件，并严格排除两仓无关改动。
+
+**初步定位：** fallback 入口在 `V4FormulaCodeConverter.js`，使用 Acorn 解析、astring 生成代码。主结构化转换本身已有 computed property 处理，但本例错误发生在自定义表达式 walker 对外部引用局部替换之后再生成代码的路径；需要精读 `processCustomExpr` 与 walker 替换形态，先以两类真实公式建立失败基线。
+
+**代码路径校准：** full-JS 与普通 customExpr 共用 `walkCustomExprParsed`，之后都由 astring 生成 jsfn 文本；现有 `jsepWrap.test.js` 已集中覆盖嵌套回调、对象返回箭头、完整 JS 与参数完整性，适合追加两类最小回归。主转换 `processProperty` 对 computed=true 的结构化 AST 支持不代表 fallback walker 替换后仍保持 ESTree Property 形态，下一步精读 walker 的 Binary/Property 分支并直接运行最小公式。
+
+**根因收窄：** 普通 customExpr 并非 astring 输出，而是兼容 JSEP 非标准节点的 `ExprAstToString`。该打印器的 ObjectExpression 分支完全忽略 `Property.computed`，直接打印 key，明确造成 6 处方括号丢失。`in` 结果呈现为逗号连接，说明 JSEP 当前可能把 word operator 拆成 Compound，而打印器也没有 `in` 优先级；需同时检查 `jsepWrap` 注册并以 AST 形态决定是补二元运算符注册还是将该类公式路由 full parser。
+
+**最小解法验证：** 当前 JSEP 确实把 `a in b` 解析为 Compound；运行时临时注册 `jsep.addBinaryOp('in', 7)` 后，顶层与箭头回调内均正确得到 `BinaryExpression(operator='in')`。通用修复应在 jsepWrap 注册 `in`、在旧打印器补同级比较优先级，并让 ObjectExpression 对 `item.computed` 输出 `[key]`。这保持现有 JSEP fallback 架构且不需枚举本例公式。
+
+**同步路径错误记录：** 首次比较 VxEditor41 时按本项目平铺路径猜测 `formulaCode/jsepWrap.js`，该文件不存在；编辑器注释已明确其实际位置是 `formulaCode/jsepWrap/index.js`。未修改任何文件，后续使用真实路径，不重复错误路径。`ExprAstToString.js` 当前与本项目无差异。
+
+**失败基线：** 两条定向测试首次运行 0/2。`in` 测试精确得到 `$v1.find((i) => fParamgroup.key, in, i)`，成功命中真实缺陷。computed 测试最初只用顶层 `.map(...)`，转换先尝试结构化数组方法并因未加载运行 map 抛 TypeError，导致没有生成 jsfn；这是测试夹具入口选择错误，不是第三个转换器问题。已改为 `.map(...) || []`，稳定强制走与真实案例一致的 gateway custom fallback，再重跑失败基线。
+
+**实现与定向回归：** 修复只改通用语法层：jsepWrap 将 `in` 注册为比较级二元运算符（优先级 7），`ExprAstToString` 增加对应优先级 30，并在 ObjectExpression 打印时按 `Property.computed` 为 key 加 `[]`。定向回归从稳定 0/2 转为 2/2，包含 AST 类型、最终 jsfn 语法与实际运行结果断言；没有针对案例 ID 或具体字段名特判。
+
+**完整测试与重转：** 项目完整测试从 77 增至 79，79/79 通过、fail 0。第 23 例已用当前代码重新转换成功，诊断仍为 total/unique/customExpr 161、dropped 0，说明修复改变的是 fallback 最终代码合法性而非诊断/降级数量；进入 8 处精确结果与全量结构复核。
+
+**重转全量审计：** 修复后 V5 为 5,906,037 bytes，SHA-256 `7fcecbe3943e996f038895e717c43ece322eb7196c054d06a1041e25ab11d2cf`。2 处 `in` 与 6 处 computed property 均生成合法代码，8/8 组构造输入实际执行通过；161 个 jsfn 全部语法、参数/args 和自由变量检查通过。组件 2,734/2,734、action 3,403/3,403、data-if 258/258、服务 113/113、local/shared 42/13、上传 5/5 均闭合；3 个 skip 仍仅为既有无限动画策略，24 个悬空目标仍可回证为源 V4 陈旧引用。
+
+**报告复核：** `conversion-report.md` 已从失败报告更新为修复成功报告（7,628 bytes / SHA-256 `020ea0c2e095ee57aaee1b985dae0067c7d495cbc06b547344aa08d627da1ab7`）。V4、修复后 V5 与诊断 JSON 均可重新解析，报告已清除旧哈希、旧 77/77 测试数和等待修复结论；`git diff --check` 通过。
+
+**提交范围：** 仅暂存 `jsepWrap.js`、`ExprAstToString.js`、对应回归测试与三份规划记录，共 6 个文件；cached diff check 通过。用户无关未跟踪文档继续排除。
