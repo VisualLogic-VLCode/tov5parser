@@ -1166,10 +1166,10 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 - [x] 为旧 `$sys.util.math_ceil` 前台/后台转换补失败回归测试
 - [x] 实施最小通用修复并运行定向、完整测试
 - [x] 重转第 21 例并复核两处正式 Math AST 及全量审计
-- [ ] 提交、推送 tov5parser 并部署 Lambda，完成线上验证
-- [ ] 同步 VxEditor41 转换器，运行测试并提交、推送
+- [x] 提交、推送 tov5parser 并部署 Lambda，完成线上验证
+- [x] 同步 VxEditor41 转换器，运行测试并提交、推送
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确回复“修复”；沿用用户此前要求并写入项目文档的自动发布流程。只修复第 21 例暴露的通用转换器问题并完成双仓发布，不启动第 22 例。
 
@@ -1182,3 +1182,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 **实现与初验：** 统一 Math AST 归一化已完成，定向 2/2、完整 77/77 通过。第 21 例重转成功，诊断从 86 降为 84，恰好移除两条 `unknown varType: undefined` math_ceil fallback；进入精确 AST 与全量审计。
 
 **重转审计：** 两处目标均为 `ref:["js","Math"] + method:"ceil"` 正式 AST，84 个 jsfn 与 137 个 `_code` 无问题；组件、事件、data-if、101 个服务、循环引用、上传及源陈旧引用复核闭合。补强嵌套分页文本和后台实际执行断言后，定向 2/2、完整 77/77 再次通过。
+
+**tov5parser 发布：** 修复提交 `d03e501e1e888708be60b0be2b20e7c02270915c` 已推送 main。部署阶段再次通过 77/77，归档包 `archive-d03e501-20260806T034845Z.zip`；Lambda 版本 23、CodeSha256 `wqGi5MxxILd3otPWUEodK4FQjEbblJbZMoFWTaCpCXI=`，prod 冒烟执行版本 23、业务 code 0。
+
+**VxEditor41 与最终核验：** 同步提交 `23297061cb11c1e6e1cd709223a63768bc5189a7` 已推送 master；生产 Webpack 构建 exit 0，仅有 33 组仓库既有 warning。双仓 HEAD 均与各自远端一致，VxEditor41 用户原有改动未混入提交。AWS 只读复核确认 `prod → 23`，版本 23 为 `Active / Successful`，CodeSha256 与本轮部署一致。Phase 94 complete，返回第 21 例人工审阅门禁，不启动第 22 例。

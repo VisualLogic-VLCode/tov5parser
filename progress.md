@@ -2274,3 +2274,13 @@
 - 两处目标已精确变为前台 `js/Math.ceil` 正式 AST；84 个 jsfn 问题数 0，137 个 `_code`、组件/事件/服务/循环/上传审计通过。新 V5 与诊断摘要已记录。一次独立 ast2js 运行验证因调用上下文不完整报 `invalid node`，准备按实际签名修正验证。
 - 已确认 `invalid node` 是误用仅面向后台的独立 ast2js 去编译前台 js scope；改用 server `java/JsMath` AST 后生成 `Math.abs(-(3))` 并执行为 3。准备把后台运行断言和分页文本嵌套 Ceil 断言补进永久回归。
 - 已补嵌套分页文本和后台实际执行永久断言，定向 2/2、完整 77/77 再次通过。第 21 例修复后重转与全量审计完成，Phase 94 前三项 complete；下一步更新案例报告并准备精确提交。
+- tov5parser 修复提交 `d03e501e1e888708be60b0be2b20e7c02270915c` 已创建并推送 `origin/main`。提交严格只有 5 个任务文件；用户无关未跟踪文档未进入暂存或提交。下一步从该提交部署生产 Lambda。
+- 生产 Lambda 版本 23 发布成功：部署阶段再次通过 77/77，归档包 `archive-d03e501-20260806T034845Z.zip`，CodeSha256 `wqGi5MxxILd3otPWUEodK4FQjEbblJbZMoFWTaCpCXI=`。`prod` 已切到 23；冒烟 StatusCode 200、ExecutedVersion 23、FunctionError null、业务 code 0。Phase 94 第四项 complete，开始同步 VxEditor41。
+> 2026-08-06 同步进度：VxEditor41 目标转换器已确认与主项目只差本轮 legacy `$sys.util.math_*` 归一化逻辑；首次补丁因函数签名上下文不一致未命中，文件未被修改，现按实际代码位置做最小同步。
+> 2026-08-06 VxEditor41 同步验证：目标文件已完成最小差异同步并通过 `git diff --check`；生产构建正在执行，其他用户改动均未暂存。
+> 2026-08-06 VxEditor41 构建仍在运行，暂未出现错误；等待最终退出状态后再提交。
+> 2026-08-06 VxEditor41 生产构建完成（Webpack exit 0，33 组既有 warning、无 error）；已仅暂存 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`，暂存差异为 28 行新增，用户其他改动未进入暂存区。
+> 2026-08-06 VxEditor41 已提交并推送 `23297061cb11c1e6e1cd709223a63768bc5189a7`，本地与 `origin/master` 一致；用户原有 `.gitignore`、`src/stores/event.js` 及未跟踪界面目录仍保留。tov5parser 代码提交与 `origin/main` 同为 `d03e501a264aca104a3ce5a7aece549bc98d5a37`，仅规划文档待最终提交。直接 AWS CLI 复核因默认会话无凭据失败，部署命令本身先前已确认版本 23、别名 `prod` 与成功冒烟，下一步复用项目部署配置做只读核验。
+> 2026-08-06 最终核验补充：首次配置检索因不存在的 `deploy*` glob 被 zsh 提前拒绝；改用实际目录检索后确认生产部署使用 AWS profile `vl-case-json-converter-cn`，region `cn-northwest-1`。
+> 2026-08-06 Phase 94 complete：AWS profile 只读复核确认 `prod → 23`，版本状态 `Active / Successful`、CodeSha256 与部署结果一致；双仓代码提交均已推送，返回第 21 例人工审阅门禁，不启动第 22 例。
+> 2026-08-06 发布记录暂存复核通过：仅 `findings.md`、`progress.md`、`task_plan.md`，Phase 94 五项均完成；准备提交并推送最终记录。

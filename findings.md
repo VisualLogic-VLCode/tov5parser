@@ -1821,3 +1821,8 @@
 - 修复后 V5 4,578,401 bytes，SHA-256 `43c34b8e4971711e2ae676e5c1cb16ffe8d443cb88d7d1c372f4d50eb4b067dd`；诊断 JSON 55,574 bytes / `cfff346acc71dbbd96fddfe987d7fe6200515202637c11184abcde1d3a288db1`，Markdown 22,147 bytes / `2bc51b75fdce1796681610e6fd7a1e91a19798763c30b3e0e1d5f7ddd0d22522`。
 - `invalid node` 根因已澄清：本项目 `v4ToV5/ast2js.js` 文件头明确是 standalone V5 backend compiler，只支持 `ref` scope `java`，不支持 stage 的 `js` scope；因此不能用它执行前台 AST。用 server 的 `java/JsMath.abs(-3)` 重试后生成 `Math.abs(-(3))` 并实际执行得到 3。前台继续按编辑器既有 `js/Math` 正式 AST 做结构验证。
 - 永久回归已补强：除直接 stage/server 调用外，还覆盖本例“字符串拼接中嵌套 Ceil”不得降级 jsfn，并把 server AST 编译为 `Math.abs(-(3))` 实际执行得到 3。补强后定向 2/2、完整 77/77 再次通过。
+- tov5parser 修复已精确提交为 `d03e501e1e888708be60b0be2b20e7c02270915c`（`fix: normalize legacy runtime math formulas`）并推送 `origin/main`；提交只含转换器、回归测试和三份规划记录，无关未跟踪文档未暂存。
+- 生产 Lambda 部署成功：部署内置 77/77 测试通过，运行包约 1.9 MB，S3 历史归档 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-d03e501-20260806T034845Z.zip`。发布版本 23，CodeSha256 `wqGi5MxxILd3otPWUEodK4FQjEbblJbZMoFWTaCpCXI=`；prod 已切换至 23，冒烟 StatusCode 200、ExecutedVersion 23、FunctionError null、业务 code 0。
+- Phase 94 完成：VxEditor41 仅同步了通用 `$sys.util.math_* → Math.*` 归一化，提交 `23297061cb11c1e6e1cd709223a63768bc5189a7` 已推送；生产 Webpack 构建成功，33 组 warning 均来自仓库既有代码。
+- 最终发布状态：tov5parser `d03e501e1e888708be60b0be2b20e7c02270915c` 与 `origin/main` 一致，VxEditor41 `23297061cb11c1e6e1cd709223a63768bc5189a7` 与 `origin/master` 一致；Lambda `prod` 指向版本 23，状态 Active/Successful，CodeSha256 `wqGi5MxxILd3otPWUEodK4FQjEbblJbZMoFWTaCpCXI=`。
+- 当前检查点仍是第 21 例人工审阅：本轮修复、双仓发布与云端部署均闭环，不启动第 22 例。
