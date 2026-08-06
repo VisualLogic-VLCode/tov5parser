@@ -89,6 +89,27 @@ const LEGACY_RUNTIME_IDENTIFIER_ALIASES = new Map([
   ['$serverSys', '$sobj_serverSys']
 ])
 
+const getLegacyRuntimeMathMethod = ({ value, localNames }) => {
+  if (
+    value?.type !== 'MemberExpression' ||
+    value.computed ||
+    value.property?.type !== 'Identifier' ||
+    !value.property.name.startsWith('math_') ||
+    value.object?.type !== 'MemberExpression' ||
+    value.object.computed ||
+    value.object.object?.type !== 'Identifier' ||
+    value.object.object.name !== '$sys' ||
+    value.object.property?.type !== 'Identifier' ||
+    value.object.property.name !== 'util' ||
+    localNames.has('$sys')
+  ) {
+    return
+  }
+
+  const method = value.property.name.slice('math_'.length)
+  if (typeof Math[method] === 'function') return method
+}
+
 const isStaticIdentifierName = ({ parent, parentKey }) => {
   if (!parent) return false
   if (
@@ -124,6 +145,13 @@ const normalizeLegacyRuntimeIdentifiers = parsed => {
       return
     }
     if (!value || typeof value !== 'object') return
+
+    const legacyMathMethod = getLegacyRuntimeMathMethod({ value, localNames })
+    if (legacyMathMethod) {
+      value.object = { type: 'Identifier', name: 'Math' }
+      value.property = { type: 'Identifier', name: legacyMathMethod }
+      value.computed = false
+    }
 
     if (value.type === 'Identifier') {
       const alias = LEGACY_RUNTIME_IDENTIFIER_ALIASES.get(value.name)

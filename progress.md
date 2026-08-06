@@ -2186,3 +2186,91 @@
 - VxEditor41 已只同步 `src/utils/convertV4ToV5/utils/action.js`。目标 ESLint 0 error/0 warning，生产 webpack 构建成功（0 error、33 个仓库既有 warning）。
 - VxEditor41 同步提交 `e26fec397e9e24ae3c34465d5d960692ed3bc137` 已推送 `origin/master`，提交仅含目标转换器文件；用户已有 `.gitignore`、store 和 UI 目录修改均保留未暂存。
 - 最终复核完成：tov5parser `HEAD=origin/main=b6c142e`，VxEditor41 `HEAD=origin/master=e26fec397`，Lambda `prod=22` 且 Active/Successful。Phase 90 complete，当前返回第 18 例人工审阅门禁，不启动第 19 例。
+- 2026-08-05：Phase 90 完成后收到 planning-with-files 自动续跑 hook（94/95 phases）。发布闭环和第 18 例报告均已完成；唯一剩余主阶段是 Phase 67 的逐例人工审阅循环。自动 hook 不构成启动第 19 例的授权，当前继续停在第 18 例审阅门禁。
+- 2026-08-05：用户明确回复“继续”，第 18 例人工审阅门禁解除。session catchup 确认 Phase 90 发布无遗漏；现开始第 19/51 例 `审批流_11145234_温晓华.json`（nid `11145234`），保留全部历史案例，本例汇报后再次暂停。
+- 第 19 例前置复核完成：中文服只读隧道仍监听 `127.0.0.1:13306`；数据库 env 与平台 Cookie 均存在且权限 `0600`，仅检查变量名/元数据、未输出凭据。V4/V5 目标目录均不存在，不会覆盖历史产物。
+- 按旧记录直接读取 `raw/中文服完整案例JSON导出.md` 时发现该路径已不存在；未修改数据。下一步用文件清单定位当前文档实际路径，不重复访问失效路径。
+- 已在 `/tmp/clothing-case19-pymysql.uZOkPV` 安装隔离 PyMySQL，并通过只读连接复核 `node_vx_data/node_vx/users` 当前字段；`users` 的作者字段仍应使用 `real_name`。下一步用校正后的固定字段做 nid `11145234` 参数化 SELECT。
+- 第 19 例参数化只读查询唯一命中：`data_edt_ver=node_edt_ver=4.1`、`verDetail=null`，确认为 V4.1；`ntype=23`、版本 1、最新 `work_id=ce9agstk75oqp7ead4m0-662`。数据库当前标题 `FRP_审批流`、作者李小燚（源文件名标注温晓华），uid 10158452、eid 10000586、gid 0、短链 `HYRweLIA`；data/node 均未发布、未上架且未删除。
+- 第 19 例首次 `/work/load` 使用本地 Cookie 文件返回 HTTP 203、text/plain、113 bytes，确认当前缓存登录态已失效。下载器在目录创建/写文件之前退出，目标 V4/V5 目录仍不存在；不重复该 Cookie，下一步尝试复用当前 Chrome 已登录会话。
+- 浏览器运行时按目标 URL 首先选择了应用内浏览器；打开 `editor.ivx.cn` 等待 DOM 时超时并重置会话，没有下载或写入。下一步读取浏览器故障恢复说明并选择已连接的外部 Chrome，不原样重试应用内浏览器。
+- 外部 Chrome 中已定位到登录中的 `dev.ivx.cn` 编辑器标签，但“认领标签 + 大型页面 DOM 快照”组合再次超时并重置控制会话；没有发起目标下载。第三次改为认领后直接执行最小只读 fetch，只返回 HTTP 状态和字节数，不再读取 DOM。
+- 第三条最小 Chrome 路径不再读取 DOM，仅列出并认领既有编辑器标签，但仍在 60 秒内超时并重置；未执行页面内 fetch、未下载、未写文件。三次替代尝试已耗尽，Phase 91 当前等待用户刷新 `/Users/lianghuang/Documents/docs/auth/.platform_cookie` 后继续。
+- 2026-08-05：Phase 91 阻塞汇报后收到 planning-with-files 自动续跑 hook（94/96 phases）。该 hook 不代表 Cookie 已刷新，也未提供新的登录态；保持下载步骤等待状态，不重复 HTTP 203 或三条已超时的浏览器路径。
+- 2026-08-06：用户明确回复“cookie好了”，Phase 91 的外部鉴权状态已变化，三次失败计数从此处重新审计。先确认 Cookie 文件修改时间/权限，再从同一权威 `/work/load` 下载步骤恢复；数据库元数据和 work_id 继续沿用已查询结果。
+- Cookie 文件已确认更新为 2026-08-06 10:14:53 +0800，大小 204 bytes、权限 `0600`；第 19 例 V4/V5 目录仍不存在。鉴权阻塞解除，下一步直接重试 `/work/load` 内存解码器，不再使用浏览器路径。
+- 跨日恢复后再次参数化只读复核：nid `11145234` 的 `work_id` 仍为 `ce9agstk75oqp7ead4m0-662`、版本 1、V4.1 且 verDetail null，没有出现更新版本；可据此下载当前最新 JSON。
+- 刷新 Cookie 后 `/work/load` 获取成功：HTTP 200、`application/octet-stream`、110,780 bytes；解密为 2 段（1,158,844 / 182,695 bytes），完整紧凑 V4 为 1,341,559 bytes，SHA-256 `dbff01ff373e46472401332718de20aed35d9578b838bd3527e03cdd61c5784f`。
+- V4 `case/server/stage` 三根及 `ih5-case/data-server/ih5-stage` 类型均校验通过，`app.json` 与来源 README 已保存到 `localCases/v4/clothing/审批流_11145234_温晓华/`；历史案例未删除。
+- 第 19 例已用当前转换器和显式 `ntype=23` 转换成功：V5 994,034 bytes，SHA-256 `61f06cb7f8b5627e9747b6946038613d8ce0e0c94f0ef036f4cc345781462ecf`；结构化诊断 30 条、去重 30 条、dropped 0，均为 jsfn 兜底。
+- 诊断分类为 `&&` 18 条、`||` 8 条、系统工具 `match` 2 条、完整 JavaScript 表达式兜底 2 条。下一步以最终 V5 AST/_code 为准核查，特别关注两处正则 `.match(...)`，不因 ParseError 文案直接判定转换错误。
+- 两处 `.match(...)` 已定位到最终动作 AST，均未丢失：`crwzv2wa3j50000a6p2g` 生成 1 入参 jsfn，`cxyfv5ma3j50000knncg` 生成 2 入参 jsfn；声明参数数与实参 AST 数一致，正则和字符串拼接语义均保留。继续做全树数量、引用与语法审计。
+- 查找既有审计脚本时，命令中的未匹配 shell 通配符 `test*` 被 zsh 提前拒绝，未读取或修改文件；已改用 `rg --files` 做只读清单，确认仓库没有可直接复用的单例全树审计脚本，后续采用临时只读 Node 审计逻辑。
+- 第 19 例首轮全树审计：628/628 个自启 action、936/936 个自启非 root 事件块均有 V5 `ln`；30 个 jsfn 无空代码、参数错位、越界、旧式自由变量或语法错误；67 个 `_code` 全部可语法编译；7/7 个 data-if 有 `conditionVal.ast` 且 `binds.value=0`。
+- 服务调用 V4/V5 均为 29 个且逐 target 分布一致，全部目标存在；无上传动作。V5 1612 个 ref 中没有悬空 `var` 引用。组件初始统计误把 V4 事件编辑器的 `root/status/con/action` 图节点算作组件，造成表面 400/350 差异；这些 50 个正是 V5 不保留的事件图元数据，下一步过滤后复核实际组件。
+- 过滤事件图元数据后，实际组件 V4/V5 均为 350 个、唯一 ID 均为 319，ID 多重集和类型分布完全一致。23/23 个 data-service 的 AST 位于 `events.list[0].ast`，生成代码位于同项 `_code`，需要按正确位置做服务代码复核。
+- 源代码中表面“悬空”的 `I_<forId>` / `i_<forId>` 不是组件引用，而是 V4 当前行/当前序号占位符；V5 已分别生成正式 `ref ["item", forId]` 与 `ref ["index", forId]`。两个 data-for 本体均存在，相关 value/样式/删除动作 AST 均已结构化保留。
+- 30/30 条诊断均一一定位到目标 V5 jsfn；两条 full-JS 的 `filter(...).map(...)` 都是 2 声明参数/2 实参。23/23 个本地服务都有事件 AST、非空 `_code` 且可语法编译；29 个服务调用覆盖 23 个 target，逐 target 数量与 V4 完全一致。
+- 项目完整测试通过：75/75，fail 0。测试输出中的 ParseError/parse error 是预期 fallback 测试日志，最终 TAP 结果全部通过。Phase 91 结构审计已完成，下一步只生成单例报告并进入人工审阅门禁。
+- 第 19 例 `conversion-report.md` 已生成并复核；V4/V5/诊断 JSON 均可重新解析，报告结论为转换成功、未发现转换器错误。`git diff --check` 通过，用户无关未跟踪文档未读取、未修改、未暂存。
+- Phase 91 complete。当前停在第 19 例人工审阅门禁，不启动第 20 例 `审批流编辑_11047921_熊.json`。
+- 2026-08-06：第 19 例汇报后收到 planning-with-files 自动续跑 hook（95/96 phases）。session catchup 仅发现已同步的第 19 例最终汇报和本次 hook，没有遗漏案例动作或产物；自动 hook 不构成解除逐例人工审阅门禁的授权，先复读 `task_plan.md`，不启动第 20 例。
+- 已复读 `task_plan.md`：Phase 91 的五项均完成，95/96 中唯一未完成的是长期 Phase 67 的剩余 32 个案例循环；Phase 67 明确要求每例汇报后等待用户确认。当前没有可在既定授权内继续执行的案例动作，保持第 19 例审阅门禁，不修改转换器、不启动第 20 例。
+- 2026-08-06：用户明确回复“继续”，第 19 例人工审阅门禁解除。session catchup 未发现未同步动作；现启动 Phase 92，只处理第 20/51 例 `审批流编辑_11047921_熊.json`（nid `11047921`），保留所有历史案例，完成后再次暂停。
+- 第 20 例前置复核完成：源目录按 UTF-8 字节序共有 51 个 JSON，第 20 个精确为 `审批流编辑_11047921_熊.json`，前后分别是审批流和小线预设库。中文服只读隧道监听 `127.0.0.1:13306`；数据库 env 与平台 Cookie 均为 `0600`，且 V4/V5 目标目录都不存在，不会覆盖历史产物。
+- 复用导出脚本查找 SQL 字段时，脚本中没有匹配到数据库查询文本（无错误、无文件修改）；已确认当前权威参考仍是 `docs/case-json-export-findings.md`，下一步读取其中固定查询字段，不臆测列名。
+- 导出 findings 确认元数据口径：`node_vx_data` 使用 `title/ntype/gid/edt_ver/deleted_at`，`node_vx` 提供当前 `work_id/edt_ver/extra` 与发布路径信息。现有 Phase 19 隔离 PyMySQL 仍可复用。
+- 一条本应只打印 env 变量名的脱敏命令未生效，凭据值意外出现在本地工具输出；未写文件、未发网络。已停止任何文本式 env 查看，后续仅在进程内解析，输出限制为案例业务元数据。
+- 第 20 例参数化只读查询唯一命中：data/node `edt_ver=4.1`、`verDetail=null`，确认为 V4.1；`ntype=1`、版本 32、最新 `work_id=cbahd5mnmi9ilme76bn0-106`。数据库标题 `frp-流程编辑`、uid 10006977、gid 25391、短链 `UgfZvscS`，两表未删除且 `is_launch=1`。
+- `users` 的主键字段为 `id` 而不是 `uid`，作者名字段为 `real_name`；下一步用 `data_uid → users.id` 做单条只读作者补查，再按当前 work_id 下载。
+- 作者补查完成：uid 10006977 对应数据库当前作者熊维祥、eid 10000586；源文件名作者“熊”与当前作者一致。
+- VxEditor41 的 stageProxy bundle 仍包含权威解码链路与固定密钥逻辑：PBKDF2 → AES-GCM → 分段长度头 → pako `inflateRaw`，server 中的 case 提升为顶层 case。下一步复用该只读实现直接请求当前 `/work/load`，完整校验后再写目录。
+- 第 20 例首次下载尝试未进入网络阶段：本项目没有可直接 import 的 `sjcl`，Node 在模块加载时返回 `ERR_MODULE_NOT_FOUND`；没有创建目标目录或文件。下一次改从 VxEditor41 的现有依赖环境解析同一库，不重复失败导入。
+- VxEditor41 的 `sjcl/pako` 依赖均可解析；改用其依赖环境后 `/work/load` 成功：HTTP 200、`application/octet-stream`、134,072 bytes，解密为 2 段（1,061,995 / 26,322 bytes）。
+- 第 20 例完整 V4 为 1,088,337 bytes，SHA-256 `16c63d406dcc0a32df3e52de3d77c51badf6408b8a8095463d8ae20d6e02be89`；case/server/stage 三根 ID 与类型校验通过，`app.json` 和来源 README 已保存，历史案例未删除。
+- 第 20 例 V5 转换成功：857,106 bytes，SHA-256 `d0f8e731c90a52fb956ec73d8dd7a4263ea3b4e659bccac56b1276f66b6d17d4`。诊断 JSON 41,360 bytes、Markdown 16,244 bytes；原始/去重均 64，dropped 0，全部为 jsfn 兜底。
+- 诊断分类：`||` 30、`&&` 11、unknown varType 7、hasOwnProperty 4、findIndex 3、callee 2、full-JS 2、SpreadElement 2、TemplateLiteral/NewExpression/toString 各 1。高风险核查重点为 `window.*` 全局量、spread、new Array、Math.random/toString、可选链和嵌套回调。
+- 首轮全树审计：294/294 个自启 action、411/411 个自启非 root 事件块均有 V5 `ln`；64 个 jsfn 无空代码、参数错位、越界、旧式自由变量或语法错误；20 个 `_code` 全部可语法编译；35/35 个 data-if 有 `conditionVal.ast` 且 `binds.value=0`。
+- 原始组件表面 469/467 的差异来自两个 V4 事件树 `type=group` 图节点（均同时含 bid/id），不是真实组件；过滤事件图 group 后实际应为 467/467、唯一 ID 466/466。3 个 data-sharedService 按设计只保存共享服务元数据、V4/V5 完全相同，不应要求本地 AST/_code。
+- V5 中出现 2 个指向源组件树也不存在 ID 的 `ref ["var", ...]`；需追溯源 bind 判断是源案例陈旧引用还是转换器错误。诊断按 BID 粗映射时同一动作内多参数 jsfn 会互相混入，不能用“每 BID 恰好 1 个 jsfn”作为本例标准，改为按动作参数 AST 精确核查。
+- 两个不存在目标的 var ref 已证实来自 V4 原始 bind：流程编辑模块实例直接引用缺失 `cbcfqxfa...`，文本 marginBottom 直接引用缺失 `ccrmzhya...`；每个 ID 在源 JSON 仅出现于该 bind 的 code/_code/token/_cite，源组件本身不存在。转换器只是忠实保留陈旧源引用，不是本轮新造悬空引用。
+- 条件 BID `cbd23b5...` 的诊断 jsfn 位于其父 switch 条件而非带 ln 的分支 block；最终 AST 正确组合 `startNodeId != to` 与 `relation.some(item.from===start && item.to===to) == false`，内层 jsfn 为 4 参数/4 实参。setProps BID `cctmjd1...` 的 x/y 分别保留 `window.midPoint[0]` 与 `[1]`，没有混淆。
+- 服务结构校正：2 个本地 data-service 均有 AST、非空 `_code` 且可编译；3 个 sharedService 只保留元数据且 V4/V5 一致。直接按 JSON 遍历顺序把诊断与 jsfn zip 会错位，因为转换阶段顺序与序列化树顺序不同；不采用该错误映射口径。
+- 两个 addNode 行对象已核对：Math.random 通过正式 `ref ["js","Math"] → method random` 作为显式 jsfn 实参，再在 jsfn 内执行 `.toString(32).slice(2)`；其余 9/11 个参数也逐一对应 x/y/type/width/height，没有自由变量。
+- 复杂 fallback 数量与诊断吻合：window 6、Date.now 1、hasOwnProperty 4、findIndex 3、spread 2、new Array 1、模板字符串 1、toString(32) 2、块体回调 2。选取 13 组代表输入直接执行最终 jsfn，全部得到预期结果；window.line 与 midPoint[0]/[1] 均保真。
+- 最终结构审计闭合：过滤事件图 group 后组件 467/467、唯一 ID 466/466，ID 多重集与类型分布一致；事件 294/294 自启 action、411/411 自启非 root 块全部保留；64 个 jsfn 和 20 个 `_code` 无结构/语法错误。
+- data-if 35/35，均有 conditionVal.ast 且 binds.value 0；服务调用 5/5、target 分布一致，2 个本地服务代码通过、3 个共享服务元数据一致；162 个 item/index ref 全部指向 data-for；无上传动作。仅有 2 个 var 悬空引用，均已证明源 V4 自带。
+- 项目完整测试 75/75 通过、fail 0；测试输出中的 ParseError 是预期 fallback 覆盖日志。当前没有发现第 20 例的转换器错误，下一步生成报告并明确单列两处源案例陈旧绑定。
+- 第 20 例 `conversion-report.md` 已生成并复核；V4/V5/诊断 JSON 可重新解析，报告明确区分“转换成功、无转换器错误”与“2 个源 V4 陈旧绑定”。`git diff --check` 通过，用户无关未跟踪文档未读取、未修改、未暂存。
+- Phase 92 complete。当前停在第 20 例人工审阅门禁，不启动第 21 例 `小线预设库_11312950_温晓华.json`。
+- 2026-08-06：第 20 例汇报后收到 planning-with-files 自动续跑 hook（96/97 phases）。session catchup 仅发现已同步的第 20 例最终汇报和本次 hook，没有遗漏案例动作或产物；自动 hook 不构成解除逐例人工审阅门禁的授权，先复读 `task_plan.md`，不启动第 21 例。
+- 已复读 `task_plan.md`：Phase 92 五项均完成，96/97 中唯一未完成的是长期 Phase 67 的剩余 31 个案例循环；Phase 67 明确要求每例汇报后等待用户确认。当前没有可在既定授权内继续执行的案例动作，保持第 20 例审阅门禁，不修改转换器、不启动第 21 例。
+- 2026-08-06：用户明确回复“继续”，第 20 例人工审阅门禁解除。session catchup 未发现未同步动作；现启动 Phase 93，只处理第 21/51 例 `小线预设库_11312950_温晓华.json`（nid `11312950`），保留全部历史案例，完成后再次暂停。
+- 第 21 例前置复核完成：源目录按 UTF-8 字节序第 21 个精确为目标文件，前后分别是审批流编辑和工厂信息；只读隧道、0600 env/Cookie 均可用，V4/V5 目标目录不存在。
+- 参数化只读查询唯一命中：V4.1（两表 edt_ver 4.1、verDetail null），ntype 1、版本 69、work_id `cj5kl9i6qucc06pnocbg-175`。标题 `FRP_小线预设库`，当前作者罗安琪，uid/eid/gid 为 10000588/10000586/25391，短链 `6bdifJSG`；data/node 均已上架、未删除。
+- 第 21 例 `/work/load` 成功：HTTP 200、`application/octet-stream`、536,520 bytes，解密为 2 段（6,366,927 / 218,769 bytes）。完整 V4 6,585,716 bytes，SHA-256 `6570d68dc9b79fb73d0d6a3c40bcb3a15d9edee967daf554eb0a88676780c466`；三根校验通过，app.json 与来源 README 已保存，历史案例未删除。
+- 第 21 例已用当前转换器和 `--ntype 1 --diag` 成功生成 V5：4,578,185 bytes，SHA-256 `a58d23e18c937733a2c9f1bef32b7aec5686820085513a05e75a4d1efe75caa6`；诊断 JSON 56,791 bytes、86 条、dropped 0。当前进入全结构与复杂 jsfn 审计，尤其核对 `$sys.util.math_ceil`、正则、模板字符串和逻辑表达式兜底结果。
+- 初步结构复核确认 V4/V5 的 case/server/stage 根 ID 与类型一致。已校正审计采集条件为 `op:"jsfn"`；下一步仅检查最终 AST 的 jsfn `val/args`、语法和自由变量，不把 V5 中保留的源 code/_code 文本误报为最终 AST 错误。
+- 精确收集的最终 jsfn 为 86 个，数量与诊断一致。发现 2 个 jsfn 仍直接写 `$sys.util.math_ceil(...)`，而自身只声明两个 `$vN` 参数；已定位 VxEditor41 的 jsfn 代码生成分支，正在核实运行时是否注入 `$sys`，目前先记为待定高风险项而非直接判错。
+- 高风险项已实证为转换器错误：V5 jsfn 通过 `new Function` 只注入 `val.slice(1)` 声明的 `$vN`，不注入 `$sys`，异常还会被 catch 吞掉为 undefined。分页文本节点 `cdfhzsfa3j500001pqw0` 与页码 blur 条件 `ce0xq0wa3j50000853h0` 的两处 Ceil 公式均受影响。继续完成其余结构审计，以确认是否还有独立问题；本轮只汇报，不修改转换器。
+- 全结构首轮结果：组件 2,259/2,259、唯一 ID 2,251/2,251，ID/类型一致；自启 action 2,806/2,806、自启非 root 事件块 4,329/4,329、实际启用 action 2,536/2,536；86 个 jsfn 仅两处 `$sys` 问题，137 个 `_code` 全部语法通过。服务 101/101、local/shared 21/19 均保留，上传动作同 BID 存在。还需精确复核一个兼容型 data-if、服务 target、9 个源悬空 var ID 以及 draggable 循环上下文。
+- 精确复核完成：唯一无 conditionVal.ast 的 data-if 源 V4 本来就是 null 条件和空兼容 bind；服务 target 分布完全一致；984 个 item/index ref 的 54 个目标全部存在，tree/draggable 目标也是循环上下文。逐项回证 9 个悬空 var ID 的首次只读脚本因缺少闭合括号未执行，已记录并准备修正重跑。
+- 修正后的源引用审计已完成：9 个唯一悬空 var ID、15 次 V5 引用全部能在 V4 的 action object、code/_code 或 str.nodeId 中回证，且源组件树本来就没有这些 ID，属于源案例陈旧引用，不是转换器新增问题。
+- 共享服务 19/19 全字段一致；21/21 个本地服务均有 AST 与可编译 `_code`。共 339 个 cType（stage 207、server 132；String/JsonArr/JsonVal/boolean 为 245/1/73/20）。诊断 Markdown 22,659 bytes，SHA-256 `0e53c4eb3ed53c1197ab7076548cf5a7d75bc4aa0c7a87c23c144d37ee683882`。
+- 项目完整测试通过：75/75、fail 0。测试日志中的 ParseError 是预期 fallback 用例输出；现有测试没有覆盖本例 `$sys.util.math_ceil` 落入 jsfn 后运行时缺少 `$sys` 的问题。下一步确认正确 AST 形态、生成单例失败报告并暂停等待修复授权。
+- 查询正确 math_ceil AST 时，对压缩单行历史 JSON 的文本检索命中整行造成输出过大，但只读且未影响产物。已确认编辑器注册 `math_ceil`；下一步改用结构化 JSON 遍历和精确代码片段读取，避免再次输出大文件整行。
+- 正确前台 Ceil AST 已从转换器实现确认：`ref:["js","Math"]` 加 `method:"ceil"`，由 `$sysUtil` get 包装；本例位于 stage，应把旧 `$sys.util.math_ceil` 归一化到该结构。审计结论已足够生成本例“转换产物生成成功但存在转换器错误”的报告。
+- 已生成并复核第 21 例 `conversion-report.md`（6,726 bytes）：三份 JSON 可重新解析，`git diff --check` 通过，未读取/修改/暂存用户无关未跟踪文档。报告列出 1 类/2 处 Ceil 转换错误、正确前台 Math AST、全量通过项和 9 个源陈旧引用。
+- Phase 93 complete。当前停在第 21 例人工审阅门禁，等待用户决定是否修复转换器；不启动第 22 例 `工厂信息_11276461_温晓华.json`。
+- 2026-08-06：第 21 例汇报后收到 planning-with-files 自动续跑 hook（97/98 phases）。session catchup 只发现已同步的最终校验、最终汇报和本次 hook，没有遗漏案例动作或产物。自动 hook 不构成“修复转换器”或“继续第 22 例”的用户授权；先复读 `task_plan.md`，保持第 21 例人工审阅门禁。
+- 已复读 `task_plan.md`：Phase 93 五项均已完成；97/98 中唯一未完成的是长期 Phase 67 的剩余 30 个案例循环。当前检查点明确要求本例发现转换器错误后等待用户决定是否修复，因此没有可在现有授权内继续的动作；不修改转换器、不启动第 22 例。
+- 2026-08-06：用户明确回复“修复”，第 21 例修复门禁解除。启动 Phase 94：补 `$sys.util.math_ceil` 回归、实施通用最小修复、重转审计，并按既定规则自动提交/推送/部署 Lambda、同步 VxEditor41 后提交推送；不启动第 22 例。
+- 已复读项目固定发布规则和双仓状态：tov5parser main 可按任务文件精确提交；VxEditor41 master 有大量用户现有修改，但转换器目录未显示脏文件，将只同步并暂存对应转换器实现/测试。部署使用项目正式脚本并要求提交后干净工作树；无关未跟踪文档继续排除。
+- 根因修复路径已收敛：在 jsep/Acorn 共用的旧运行时 AST 归一化层，把 `$sys.util.math_*` 转成标准 `Math.*`，复用现有前后台 `genMathMethodAST`；不改 jsfn 执行器。准备先统计真实旧方法集合，再补 stage/server/full-JS 回归。
+- 扫描确认旧 math 前缀覆盖 ceil/abs/floor/round/random/min/max，不能只特判 ceil；将用标准 Math 方法白名单统一归一化。现有 Math 路径的 stage/server AST 已直接验证正确。定位命令中一个不存在的 `env.js` 路径已记录并移除，未影响代码或数据。
+- 已补 stage/server、full-JS 与局部 `$sys` 遮蔽回归；定向测试 0/2 如期失败，分别捕获坏 jsfn 和 full-JS 自由 `$sys`。Phase 94 回归基线完成，开始实现 AST 归一化。
+- 通用 AST 归一化已实现，按标准 Math 函数能力识别 `$sys.util.math_*`，不枚举案例值且保护局部 `$sys`。定向回归 2/2 通过；下一步运行完整测试并重转第 21 例。
+- 完整测试 77/77 通过。第 21 例已重转成功，诊断 86→84，恰好消除两条 math_ceil fallback；开始核对两处正式 AST、自由变量清零、结构计数和更新报告。
+- 两处目标已精确变为前台 `js/Math.ceil` 正式 AST；84 个 jsfn 问题数 0，137 个 `_code`、组件/事件/服务/循环/上传审计通过。新 V5 与诊断摘要已记录。一次独立 ast2js 运行验证因调用上下文不完整报 `invalid node`，准备按实际签名修正验证。
+- 已确认 `invalid node` 是误用仅面向后台的独立 ast2js 去编译前台 js scope；改用 server `java/JsMath` AST 后生成 `Math.abs(-(3))` 并执行为 3。准备把后台运行断言和分页文本嵌套 Ceil 断言补进永久回归。
+- 已补嵌套分页文本和后台实际执行永久断言，定向 2/2、完整 77/77 再次通过。第 21 例修复后重转与全量审计完成，Phase 94 前三项 complete；下一步更新案例报告并准备精确提交。

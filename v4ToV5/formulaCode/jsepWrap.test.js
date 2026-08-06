@@ -442,6 +442,106 @@ test('legacy server system references are structured without rewriting static na
   assert.doesNotMatch(shadowedJsfn.val[0], /\$sobj_serverSys/)
 })
 
+test('legacy runtime math methods use structured stage and server Math AST', () => {
+  const convert = ({ str, scope }) =>
+    new V4FormulaCodeConverter({
+      str,
+      scope,
+      getCtx(name) {
+        if (name === 'Math') {
+          return {
+            varType: scope === 'server' ? 'serverMath' : 'stageMath'
+          }
+        }
+      }
+    }).exec()
+
+  const stageAst = convert({
+    str: '$sys.util.math_ceil(5 / 2)',
+    scope: 'stage'
+  })
+  assert.equal(findAst(stageAst, item => item.op === 'jsfn'), undefined)
+  assert.deepEqual(stageAst, {
+    op: 'var',
+    args: [
+      {
+        op: 'get',
+        _blockType: '$sysUtil',
+        args: [
+          { op: 'ref', val: ['js', 'Math'] },
+          {
+            op: 'method',
+            val: 'ceil',
+            args: [
+              {
+                op: '/',
+                args: [
+                  { op: 'val', val: 5 },
+                  { op: 'val', val: 2 }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  })
+
+  const stageTextAst = convert({
+    str: '"共" + $sys.util.math_ceil(5 / 2) + "页"',
+    scope: 'stage'
+  })
+  assert.equal(findAst(stageTextAst, item => item.op === 'jsfn'), undefined)
+  assert.equal(
+    findAst(stageTextAst, item => item.op === 'method' && item.val === 'ceil')
+      ?.val,
+    'ceil'
+  )
+
+  const serverAst = convert({
+    str: '$sys.util.math_abs(-3)',
+    scope: 'server'
+  })
+  assert.equal(findAst(serverAst, item => item.op === 'jsfn'), undefined)
+  assert.deepEqual(serverAst.args[0].args[0], {
+    op: 'ref',
+    val: ['java', 'JsMath']
+  })
+  assert.equal(serverAst.args[0].args[1].val, 'abs')
+  const serverCode = ast2js({
+    ast: serverAst,
+    getNodeByIdFunc() {},
+    eventNodeId: 'math-test'
+  })
+  assert.equal(serverCode, 'Math.abs(-(3))')
+  assert.equal(new Function(`return ${serverCode}`)(), 3)
+})
+
+test('legacy runtime math methods normalize inside fallback without rewriting local $sys', () => {
+  const getCtx = name => {
+    if (name === 'fParamgroup') return { varType: 'param' }
+    if (name === 'Math') return { varType: 'stageMath' }
+  }
+  const fallbackAst = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.map(item => { return $sys.util.math_floor(item) })',
+    getCtx,
+    scope: 'stage'
+  }).exec()
+  const fallbackJsfn = findAst(fallbackAst, item => item.op === 'jsfn')
+  assert.match(fallbackJsfn.val[0], /Math\.floor\(item\)/)
+  assert.doesNotMatch(fallbackJsfn.val[0], /\$sys\.util\.math_/)
+  assertJsfnArgumentsComplete(fallbackAst)
+
+  const shadowedAst = new V4FormulaCodeConverter({
+    str: '(() => { const $sys = {util:{math_floor:value => value}}; return $sys.util.math_floor(3) })()',
+    getCtx,
+    scope: 'stage'
+  }).exec()
+  const shadowedJsfn = findAst(shadowedAst, item => item.op === 'jsfn')
+  assert.match(shadowedJsfn.val[0], /const \$sys =/)
+  assert.match(shadowedJsfn.val[0], /\$sys\.util\.math_floor\(3\)/)
+})
+
 test('nested callback locals stay in the owning jsfn scope', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
