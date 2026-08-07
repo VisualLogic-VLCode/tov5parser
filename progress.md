@@ -2506,3 +2506,4 @@
 > 2026-08-07：生产 Lambda 发布完成：部署过程再次通过 83/83 测试，发布版本 25，`prod` 别名和冒烟 ExecutedVersion 均为 25，CodeSha256 `H4NEleBxf77vWZIx/aVnGhRWHLhJ+HkHr4qdTaRGDEQ=`。
 > 2026-08-07：VxEditor41 已只同步两个公式转换文件，完整生产构建成功（0 errors，仓库既有 warnings），两个目标文件定向 ESLint 零告警；提交 `5a4847084e6c818e9b18893a74da802765e55eee` 已推送 master，用户原有 `.gitignore`、`src/stores/event.js` 和未跟踪组件目录均未入提交。
 > 2026-08-07：Phase 108 complete。第 33 例转换器错误已修复、双仓提交推送与 Lambda 发布全部完成；检查点回到 Phase 67 人工审阅门禁，等待用户明确“继续”，不启动第 34 例。
+> 2026-08-07：最终 AWS 只读复核首次漏传项目 profile，CLI 返回 NoCredentials，未产生外部变更；随后按部署脚本固定 profile `vl-case-json-converter-cn` 重试成功，确认 `prod → 25`，版本 25 为 `Active / Successful`，CodeSha256 与部署结果一致。双仓远程差异均为 0，案例报告/V5 哈希复核一致。
