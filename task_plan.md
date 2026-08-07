@@ -714,7 +714,7 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。后续数据库查询必须同时读取 `extra.ver`、两表 `edt_ver`、`verDetail` 与 `ntype`：`extra.ver == 2` 优先判 V5，`ntype ∈ {91,92}` 只在此前提下细分 V5.1；`edt_ver`/`verDetail` 仅作辅助。下载后必须扫描完整 JSON：任一事件条目存在 op-AST `ast` 即判 V5；只有 V4 结构信号且无事件 AST 才进入转换器；无信号或矛盾时留档人工判断。
 
-**当前检查点：** 第 33/51 例 `智能样板打板_11285959_吴坤.json` 已完成。数据库与 JSON 实物共同确认 V4.1，V5 文件已生成，但审计发现 1 类转换器错误影响 4 处活跃公式：full-JS/jsfn 残留 `$SF_arr_search`，运行时均抛方法不存在。其余组件 2,244/2,244、事件 485/485、动作 3,339/3,339，排除错误位置后的代表运行 23/23、项目测试 79/79；源侧另有 9 个陈旧引用目标。当前等待用户决定是否修复转换器，不启动第 34 例。
+**当前检查点：** 第 33/51 例 `智能样板打板_11285959_吴坤.json` 已完成并修复发布。复核纠正旧报告漏计，实际有 5 个 `$SF_arr_search` 落点，其中一处组合 `$SF_objArr_item`；当前 5/5 运行通过，318 个 jsfn 无旧 `$SF_*` 残留，组件 2,244/2,244、事件 485/485、动作 3,339/3,339 等全案审计闭合，项目测试 83/83。生产 Lambda 已更新至版本 25，VxEditor41 已同步。当前等待用户审阅并明确“继续”，不启动第 34 例。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -1633,11 +1633,11 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 - [x] 为 JSEP custom-expression 与 full-JS callback 两条兜底路径补充失败回归，覆盖空 receiver、严格相等和单次求值语义
 - [x] 在共用 ESTree 归一化层将 V4 receiver 方法 `$SF_arr_search(target)` 转换为等价 V5 JavaScript
 - [x] 运行定向及完整测试，重转第 33 例并复核全部真实公式及全案例结构
-- [ ] 更新第 33 例报告和规划记录，仅提交并推送本次 tov5parser 相关变更
-- [ ] 发布生产 Lambda、完成 prod 冒烟并记录版本与代码摘要
-- [ ] 同步 VxEditor41 转换器，完成定向检查/构建后仅提交推送同步文件
+- [x] 更新第 33 例报告和规划记录，仅提交并推送本次 tov5parser 相关变更
+- [x] 发布生产 Lambda、完成 prod 冒烟并记录版本与代码摘要
+- [x] 同步 VxEditor41 转换器，完成定向检查/构建后仅提交推送同步文件
 
-**Status:** in_progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求“修复”。本阶段只修复第 33 例确认的通用 `$SF_arr_search` 转换缺口，不启动第 34 例。实现必须基于 V4 widgets 的权威语义（空值降级为空数组、严格相等、返回 findIndex 下标），不得按案例 ID 或公式文本特判。按照项目 `AGENT.md`/`CLAUDE.md` 中用户既有固定授权，验证通过后自动完成双仓提交推送与 Lambda 生产发布；受保护的未跟踪文档不读取、不修改、不暂存。
 
@@ -1648,3 +1648,5 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 **真实案例复核：** 重转后的 V5 为 5,351,804 bytes、SHA-256 `a9cfdad9669535dc097fe5eaee3d6d759383f09ae75a0b1f12c0c0d231b03372`；诊断仍为 318 条/去重 317/dropped 0，两个诊断文件摘要不变。上一轮漏计一个 `ih5-text` 活跃绑定，故实际 `$SF_arr_search` 落点为 5 个而非 4 个；当前 5/5 均已运行通过，其中组合公式的 `$SF_objArr_item` 也已消除，318 个 jsfn 中旧 `$SF_*` 残留为 0。全案仍为组件 2,244/2,244、事件 485/485、动作 3,339 全部回映、禁用 skip 106/106、额外 infinite 动画 skip 3、data-if 114/114、服务 target 43/43、data-service 33/33、data-func 41/41、cType 494 且非法 0；jsfn 语法/arity 与 237 个 `_code` 语法错误均为 0。
 
 **报告更新：** 第 33 例报告已由失败结论改为转换成功，纠正落点数并记录实现、运行与结构证据；报告 7,342 bytes、SHA-256 `940545ccec72fd195be3b83893b957afb58731c3770c2bc0f2ae22f0e96ba7e1`。第 34 例仍未启动。
+
+**发布结果：** tov5parser 修复提交 `af1fd41ec97b00ff9dfc2a681b5e44ed0d59ddc8` 已推送 `main`；生产 Lambda 发布版本 `25`，`prod` 别名与冒烟执行版本均为 25，CodeSha256 `H4NEleBxf77vWZIx/aVnGhRWHLhJ+HkHr4qdTaRGDEQ=`；VxEditor41 同步提交 `5a4847084e6c818e9b18893a74da802765e55eee` 已推送 `master`，完整生产构建成功（仅仓库既有告警），两个转换文件定向 ESLint 零告警。双仓库远程均与本地提交同步；受保护文档和 VxEditor41 用户原有修改均未纳入提交。

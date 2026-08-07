@@ -1961,6 +1961,7 @@
 - 修复回归最终覆盖 JSEP callback、full-JS IIFE、严格相等、null receiver、单次求值、名字冲突、两方法组合和 `0x10/01/空/null` 行号语义；项目完整测试 83/83 通过。
 - 第 33 例最终 V5 为 5,351,804 bytes、SHA-256 `a9cfdad9669535dc097fe5eaee3d6d759383f09ae75a0b1f12c0c0d231b03372`。5/5 修复落点运行通过，318 个 jsfn 的旧 `$SF_*` 残留、语法和 arity 错误均为 0；组件/事件/动作、data-if、服务 target、data-service、data-func、cType 和 `_code` 审计继续闭合。
 - 第 33 例报告已更新为成功结论，7,342 bytes、SHA-256 `940545ccec72fd195be3b83893b957afb58731c3770c2bc0f2ae22f0e96ba7e1`；诊断仍为 318/317/dropped 0 且文件摘要不变。第 34 例未启动，后续是固定双仓发布流程。
+- 第 33 例修复已完成固定发布闭环：tov5parser 提交 `af1fd41ec97b00ff9dfc2a681b5e44ed0d59ddc8` 已推送；生产 Lambda `prod` 已切至版本 25、冒烟实际执行版本 25，CodeSha256 `H4NEleBxf77vWZIx/aVnGhRWHLhJ+HkHr4qdTaRGDEQ=`；VxEditor41 同步提交 `5a4847084e6c818e9b18893a74da802765e55eee` 已推送。编辑器完整构建成功，两个同步文件定向 ESLint 零告警；两个仓库均只提交本次相关文件。
 - 第 26 例下载后结构信号与数据库初筛一致：1,095 个 `events.list[*].tree`、12,719 个 Formula，事件 ast、全案 ast/op/ln/cType 均为 0。由“只有 V4 信号且无 ast”规则最终判为 V4.1；本例验证了校正后的双层判定流程。
 - 第 26 例 V4→V5 转换成功，诊断 212 条全部由 jsfn 兜底承接且 dropped=0。V5 11,403,673 bytes，哈希 `bd19b02904fd302ff8c63385d8d390ffb320475107d14cfec904a3c3c82e2dc7`；下一步必须检查全部 jsfn 的语法、参数和自由变量，并对 30 个正则、SpreadElement、callee、findIndex/hasOwnProperty 等高风险类别做代表运行验证。
 - 第 26 例结构主审计已闭合：组件 4,167/4,167、事件 1,095/1,095、动作 5,548/5,548；53 个本地服务均有 AST/_code，28 个共享服务精确一致，194 个 runsvc target 分布一致。两个 status 是上传回调包装，三项额外 skip 是既有 infinite 动画规则，两个无 AST data-if 是源空条件。70 次/32 个唯一悬空 ref 均在源 V4 已存在且目标本来不在组件/块集合，不属于转换新增。
