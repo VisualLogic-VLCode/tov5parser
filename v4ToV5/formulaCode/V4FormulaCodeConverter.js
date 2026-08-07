@@ -73,6 +73,111 @@ const collectLocalIdentifierNames = (value, names = new Set()) => {
   return names
 }
 
+const collectScopeDeclarationNames = (value, names) => {
+  if (!value || typeof value !== 'object') return
+  if (Array.isArray(value)) {
+    for (const item of value) collectScopeDeclarationNames(item, names)
+    return
+  }
+  if (
+    ['ArrowFunctionExpression', 'FunctionExpression'].includes(value.type)
+  ) {
+    return
+  }
+  if (value.type === 'FunctionDeclaration') {
+    addPatternIdentifierNames(value.id, names)
+    return
+  }
+  if (value.type === 'VariableDeclarator') {
+    addPatternIdentifierNames(value.id, names)
+  }
+  for (const [key, child] of Object.entries(value)) {
+    if (['exprStr', 'start', 'end', 'loc'].includes(key)) continue
+    collectScopeDeclarationNames(child, names)
+  }
+}
+
+const collectLocalIdentifierNodes = value => {
+  const localNodes = new WeakSet()
+
+  const isBound = (name, scopes) => {
+    for (let index = scopes.length - 1; index >= 0; index -= 1) {
+      if (scopes[index].has(name)) return true
+    }
+    return false
+  }
+
+  const walk = (node, scopes = []) => {
+    if (!node || typeof node !== 'object') return
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, scopes)
+      return
+    }
+
+    if (
+      ['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'].includes(
+        node.type
+      )
+    ) {
+      const functionScope = new Set()
+      addPatternIdentifierNames(node.id, functionScope)
+      for (const param of node.params || []) {
+        addPatternIdentifierNames(param, functionScope)
+      }
+      collectScopeDeclarationNames(node.body, functionScope)
+      walk(node.body, [...scopes, functionScope])
+      return
+    }
+
+    if (node.type === 'CatchClause') {
+      const catchScope = new Set()
+      addPatternIdentifierNames(node.param, catchScope)
+      walk(node.body, [...scopes, catchScope])
+      return
+    }
+
+    if (node.type === 'Identifier') {
+      if (isBound(node.name, scopes)) localNodes.add(node)
+      return
+    }
+
+    if (node.type === 'VariableDeclarator') {
+      walk(node.init, scopes)
+      return
+    }
+
+    if (node.type === 'MemberExpression') {
+      walk(node.object, scopes)
+      if (node.computed) walk(node.property, scopes)
+      return
+    }
+
+    if (
+      ['Property', 'MethodDefinition', 'PropertyDefinition'].includes(node.type)
+    ) {
+      if (node.computed) walk(node.key, scopes)
+      walk(node.value, scopes)
+      return
+    }
+
+    if (node.type === 'LabeledStatement') {
+      walk(node.body, scopes)
+      return
+    }
+    if (['BreakStatement', 'ContinueStatement'].includes(node.type)) return
+
+    for (const [key, child] of Object.entries(node)) {
+      if (['exprStr', 'start', 'end', 'loc'].includes(key)) continue
+      walk(child, scopes)
+    }
+  }
+
+  const rootScope = new Set()
+  collectScopeDeclarationNames(value, rootScope)
+  walk(value, rootScope.size > 0 ? [rootScope] : [])
+  return localNodes
+}
+
 const collectIdentifierNames = (value, names = new Set()) => {
   if (!value || typeof value !== 'object') return names
   if (Array.isArray(value)) {
@@ -87,15 +192,22 @@ const collectIdentifierNames = (value, names = new Set()) => {
   return names
 }
 
-const containsLocalIdentifier = (value, localNames) => {
-  if (!value || typeof value !== 'object' || !localNames?.size) return false
+const containsLocalIdentifier = (value, localIdentifierNodes) => {
+  if (!value || typeof value !== 'object' || !localIdentifierNodes) return false
   if (Array.isArray(value)) {
-    return value.some(item => containsLocalIdentifier(item, localNames))
+    return value.some(item =>
+      containsLocalIdentifier(item, localIdentifierNodes)
+    )
   }
-  if (value.type === 'Identifier' && localNames.has(value.name)) return true
+  if (
+    value.type === 'Identifier' &&
+    localIdentifierNodes.has(value)
+  ) {
+    return true
+  }
   return Object.entries(value).some(([key, child]) => {
     if (['exprStr', 'start', 'end', 'loc'].includes(key)) return false
-    return containsLocalIdentifier(child, localNames)
+    return containsLocalIdentifier(child, localIdentifierNodes)
   })
 }
 
@@ -223,7 +335,12 @@ const unwrapLegacyGetSelfCalls = value => {
 
 const normalizeLegacyFallbackCalls = (
   parsed,
-  { arraySearch = true, objectArrayItem = true } = {}
+  {
+    arraySearch = true,
+    objectArrayItem = true,
+    arrayOneItem = true,
+    getSelf = true
+  } = {}
 ) => {
   const normalized = cloneParsedTree(parsed)
   const identifierNames = collectIdentifierNames(normalized)
@@ -401,6 +518,62 @@ const normalizeLegacyFallbackCalls = (
     )
   }
 
+  const buildArrayOneItemCall = value => {
+    const valueName = nextGeneratedName('ArrOneItem', 'Value')
+    const indexName = nextGeneratedName('ArrOneItem', 'Index')
+    const normalizedName = nextGeneratedName('ArrOneItem', 'Normalized')
+    const ref = name => identifier(name)
+    const undefinedIdentifier = () => identifier('undefined')
+    const nullLiteral = () => ({ type: 'Literal', value: null, raw: 'null' })
+
+    const normalizedValue = conditional(
+      {
+        type: 'LogicalExpression',
+        operator: '&&',
+        left: ref(valueName),
+        right: member(ref(valueName), 'length')
+      },
+      ref(valueName),
+      { type: 'ArrayExpression', elements: [] }
+    )
+    const validIndex = logicalAnd([
+      binary('!==', ref(indexName), undefinedIdentifier()),
+      binary('!==', ref(indexName), nullLiteral()),
+      {
+        type: 'UnaryExpression',
+        operator: '!',
+        prefix: true,
+        argument: call(identifier('isNaN'), [ref(indexName)])
+      }
+    ])
+    const body = iife(
+      [normalizedName],
+      conditional(
+        validIndex,
+        computedMember(
+          ref(normalizedName),
+          call(identifier('parseFloat'), [ref(indexName)])
+        ),
+        undefinedIdentifier()
+      ),
+      [normalizedValue]
+    )
+
+    return iife(
+      [valueName, indexName],
+      body,
+      [value.callee.object, ...(value.arguments || [])]
+    )
+  }
+
+  const isLegacyGetSelfCall = value => {
+    return (
+      getLegacyMethodName(value) === '$SF_getSelf' &&
+      value.arguments?.length === 0 &&
+      value.callee.computed === false
+    )
+  }
+
   const walk = value => {
     if (Array.isArray(value)) return value.map(walk)
     if (!value || typeof value !== 'object') return value
@@ -416,6 +589,17 @@ const normalizeLegacyFallbackCalls = (
       getLegacyMethodName(value) === '$SF_objArr_item'
     ) {
       return buildObjectArrayItemCall(value)
+    }
+    if (
+      arrayOneItem &&
+      ['$SF_arr_oneArrItem', '$SF_db_getDbOneArrItem'].includes(
+        getLegacyMethodName(value)
+      )
+    ) {
+      return buildArrayOneItemCall(value)
+    }
+    if (getSelf && isLegacyGetSelfCall(value)) {
+      return value.callee.object
     }
     return value
   }
@@ -553,7 +737,7 @@ export default class V4FormulaCodeConverter {
       vList: [],
       jsFnArgs: [],
       fullJsMode: true,
-      localNames: collectLocalIdentifierNames(parsed)
+      localIdentifierNodes: collectLocalIdentifierNodes(parsed)
     }
     this.walkCustomExprParsed({ parsed, context })
     parsed = normalizeLegacyFallbackCalls(parsed)
@@ -2266,14 +2450,16 @@ export default class V4FormulaCodeConverter {
     // 先归一化 array search，避免包含 callback 局部变量的旧方法在结构化
     // 试探阶段触发未知 sysutil；其余旧方法等参数化完成后只处理真正残留项。
     parsed = normalizeLegacyFallbackCalls(parsed, {
-      objectArrayItem: false
+      objectArrayItem: false,
+      arrayOneItem: false,
+      getSelf: false
     })
     let context = {
       num: 0,
       vList: [],
       jsFnArgs: [],
       fullJsMode: true,
-      localNames: collectLocalIdentifierNames(parsed)
+      localIdentifierNodes: collectLocalIdentifierNodes(parsed)
     }
     this.walkCustomExprParsed({ parsed, context })
     parsed = normalizeLegacyFallbackCalls(parsed)
@@ -2538,7 +2724,7 @@ export default class V4FormulaCodeConverter {
     return Boolean(
       context?.fullJsMode &&
         (this.containsFunctionExpression({ parsed }) ||
-          containsLocalIdentifier(parsed, context.localNames))
+          containsLocalIdentifier(parsed, context.localIdentifierNodes))
     )
   }
   walkOrReplaceCustomExpr = ({ parsed, context }) => {

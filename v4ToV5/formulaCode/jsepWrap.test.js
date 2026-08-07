@@ -823,6 +823,98 @@ test('legacy object-array item fallback preserves V4 row coercion', () => {
   )
 })
 
+test('legacy array one item and getSelf normalize inside custom fallback', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.groups.$SF_arr_oneArrItem(fParamgroup.groups.findIndex((x) => x.modelData.findIndex((a) => a.index == fParamgroup.id) != -1)).modelData.$SF_getSelf().findIndex((x) => x.index == fParamgroup.target)',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.doesNotMatch(jsfn.val[0], /\$SF_arr_oneArrItem|\$SF_getSelf/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  const groups = [
+    {
+      modelData: [{ index: 0 }, { index: 7 }]
+    },
+    {
+      modelData: [{ index: 0 }, { index: 7 }]
+    }
+  ]
+  assert.equal(evaluate(groups, groups, 7, 7), 1)
+})
+
+test('legacy array one item full-JS normalization preserves coercion and single evaluation', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: '(() => { const __v4ArrOneItemValue1 = "kept"; let receiverCount = 0; let indexCount = 0; const source = () => { receiverCount += 1; return ["A", "B"] }; const index = () => { indexCount += 1; return "01" }; const result = source().$SF_arr_oneArrItem(index()).$SF_getSelf(); const empty = null.$SF_arr_oneArrItem(0); return [result, empty, receiverCount, indexCount, __v4ArrOneItemValue1] })()',
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.doesNotMatch(jsfn.val[0], /\$SF_arr_oneArrItem|\$SF_getSelf/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.deepEqual(evaluate(), ['B', undefined, 1, 1, 'kept'])
+})
+
+test('structured callback locals become explicit jsfn arguments across shadowed inner callbacks', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.find(x => x.modelIndex == [...new Set(fParamgroup.items.map((x) => x.modelIndex))][fParamgroup.index])',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const lambda = findAst(ast, item => item.op === 'lambda')
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.ok(lambda)
+  assert.ok(jsfn)
+  assertJsfnArgumentsComplete(ast)
+  assert.match(jsfn.val[0], /^\$v1 ==/)
+  assert.match(jsfn.val[0], /\.map\(\(?x\)? => x\.modelIndex\)/)
+  assert.ok(
+    findAst(
+      jsfn,
+      item => item.op === 'ref' && item.val?.[0] === 'local' && item.val?.[1] === lambda.val[0]
+    )
+  )
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'shadowed-callback-local-test',
+    getNodeByIdFunc() {}
+  })
+  const items = [
+    { modelIndex: 2 },
+    { modelIndex: 4 }
+  ]
+  const result = new Function('$sys', 'param', `return ${code}`)(
+    {
+      util: {
+        objArr_find: (value, callback) => value.find(callback),
+        obj_item: (value, key) => value[key]
+      }
+    },
+    { items, index: 1 }
+  )
+  assert.equal(result, items[1])
+})
+
 test('nested callback locals stay in the owning jsfn scope', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
