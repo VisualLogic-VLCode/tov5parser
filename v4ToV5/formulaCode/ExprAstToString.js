@@ -77,15 +77,25 @@ export default class ExprAstToString {
           return `${objStr}${optionalStr}.${propertyStr}`
         }
       }
-      case 'CallExpression':
-        // 处理函数调用
-        return `${this.visit({ ast: ast.callee })}(${ast.arguments
+      case 'CallExpression': {
+        // 箭头函数作为 callee 时必须带括号，否则会打印成无效的 `() => x()`。
+        let callee = this.visit({ ast: ast.callee })
+        if (
+          ['ArrowFunctionExpression', 'FunctionExpression'].includes(
+            ast.callee?.type
+          )
+        ) {
+          callee = `(${callee})`
+        }
+        return `${callee}(${ast.arguments
           .map(item => this.visit({ ast: item }))
           .join(', ')})`
+      }
       case 'UnaryExpression':
         // 处理一元表达式（例如负号或逻辑非），递归处理操作数
         return `${ast.operator}${this.visit({ ast: ast.argument })}`
-      case 'BinaryExpression': {
+      case 'BinaryExpression':
+      case 'LogicalExpression': {
         // 处理二元表达式，递归处理左子树和右子树，处理运算优先级,判断使用扩号
         let { operator, left, right } = ast
         let leftStr = this.visit({ ast: left })

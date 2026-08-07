@@ -1873,3 +1873,96 @@
 - 第 23 例修复验证证明该方案是通用语法修复：JSEP 把 `in` 保持为 BinaryExpression，旧打印器按 `Property.computed` 输出方括号；真实 8 处表达式全部可解析并在构造输入上得到预期结果，未依赖案例 ID、字段名或公式文本枚举。
 - 第 23 例诊断产物的真实文件名是 `app.convert-errors.json` 与 `app.convert-errors.md`；最终报告必须引用这两个文件的现有哈希，不能沿用审计脚本猜测的 `conversion-diagnostics.md` 路径。
 - 修复后报告已完成一致性检查：不再包含“审计失败/等待修复”、旧 V5 大小哈希或 77/77 测试数；当前报告 SHA-256 为 `020ea0c2e095ee57aaee1b985dae0067c7d495cbc06b547344aa08d627da1ab7`。
+- 生产发布脚本会把任何未跟踪文件也视为脏树；本轮唯一阻塞项是受保护的用户文档。使用脚本自身 `--allow-dirty` 不会把该文件打入运行包，构建来源仍明确记录为提交 `ba63791dbdd182d7ecd7f7b42de5a22790c65884`；Lambda 版本 24 的冒烟已成功。
+- 直接在普通 shell 调 AWS CLI 没有自动继承部署脚本的认证配置并返回 NoCredentials。Lambda 最终状态复核需要复用部署脚本同一认证加载方式，不能把独立 CLI 环境失败误判为部署失败。
+- 部署脚本默认 profile 是 `vl-case-json-converter-cn`；复用后确认 prod=24、State=Active、LastUpdateStatus=Successful，CodeSha256 与发布输出一致。第 23 例两类错误的代码、案例审计、云端发布和编辑器同步均闭环。
+- 第 23 例节点 `crea8kta3j50000nq580` 的 V4/V5 路径均为 `stage.classes[13].children[6].children[2].children[0].children[0].children[0]`。所属前台小模块是“修改对比小模块”，classId `C_cecm420a3j50000p5pf0`、定义 ID `cecm420a3j50000p5peg`、widgetId 17481；案例中的实例 ID 为 `cnqectv2ntpg0009a81g` 与 `cjhyrhta3j50000qb3hg`。
+- clothing 第 24 例目标来自已排序源清单：`工序组合库_11310840_温晓华.json`，nid 为 `11310840`。必须先按数据库当前状态判断是否仍为 V4；只有 V4 才下载并转换。
+- 本例开始时历史案例不会被覆盖：`localCases/v4|v5/clothing/工序组合库_11310840_温晓华` 均不存在。只读隧道和两份 0600 凭据均可用；数据库查询应复用 `node_vx_data/node_vx/users` 的已校正字段与 `d.nid=%s` 参数化条件。
+- PyPI 本轮出现 ReadTimeout，不能假设公网依赖下载稳定；优先从 pip cache、其他本地 Python site-packages 或已有 Node MySQL 包恢复只读客户端。
+- 清华 PyPI 镜像可用于隔离安装 PyMySQL；当前可复用目录为 `/tmp/clothing-case24-pymysql-mirror.0s8wz6`。SSH 隧道可能在前置检查后退出，正式查询前必须再次确认端口监听。
+- 隧道脚本本轮可能以前台方式阻塞；把“启动脚本”和“端口检查”串在同一短时命令里无法得到可靠状态。后续需拆分检查进程/监听，避免把超时包装结果当作明确启动失败。
+- `node_vx_data` 没有 `eid`；案例所属企业 ID 应通过 `node_vx_data.uid -> users.id` 后读取 `users.eid`。第 24 例第一次 SQL 的 1054 仅是字段选择错误。
+- nid `11310840` 当前为 V4.1：data/node edt_ver 4.1、verDetail null；ntype 1、版本 174、work_id `cj3gsn26qucc06pnmp8g-559`。数据库作者罗安琪与源文件名作者温晓华不同，来源 README 和报告需同时记录。
+- 第 24 例下载无需新建项目依赖：权威导出脚本可直接 require `/Users/lianghuang/Desktop/ivx_repos/VxEditor41/node_modules/sjcl` 与 `pako/lib/inflate`，按 stage/server 两段恢复完整 V4。
+- 导出文档示例默认写格式化 JSON；clothing 逐例产物实际采用紧凑 JSON。本轮只改变最终 `JSON.stringify` 的空白格式，不改变解码或三根校验逻辑。
+- 第 24 例 V4 三根 ID 为 case `cj416pja3j500004gf7g`、server `cj416pja3j500004gf70`、stage `cj416pja3j500004gf6g`；类型分别为 `ih5-case/data-server/ih5-stage`。产物 11,209,286 bytes，哈希 `b1c6d54178716e799bbdb115fe296f76f7910a0f1b213c6402607980a8a7b4a5`。
+- 第 24 例转换诊断 171 条全部由 jsfn 兜底承接、dropped 0。高风险类别包括 22 个正则、12 个 full-JS、11 个 findIndex、10 个 callee、5 个解构回调，以及大量嵌套 &&/||；必须对最终 171 个 jsfn 做语法、参数、自由变量与代表运行审计，不能从 ParseError 日志直接判错。
+- V5 动作 AST 的定位键是属性 `ln=<V4 bid>`，不是节点 `op='ln'`。第 24 例初步数量为 363 个 data-if、46 个 data-service、17 个 data-sharedService，V4/V5 一致。
+- 第 24 例核心结构目前未见转换错误：组件/动作完整、全部 jsfn 和 `_code` 语法有效，参数完整。两个 data-if 兼容例源条件本来为空；三个额外 skip 与前例相同，都是 infinite `data-animate.play`。
+- 第 24 例服务完整性通过；17 个悬空 var ID 全部是源 V4 自身陈旧引用，不是转换器新增。事件层唯一待收口的是 2 个上传 status 包装，需验证其各自子动作 BID 已进入对应 V5 alambda。
+- 第 24 例两个上传 status 的子动作均已进入各自 alambda；非 root 事件语义闭合。运行审计应优先覆盖 102 种唯一 jsfn 中的复杂种类，同时特别回归上一例修复的 `in` 与 computed property，因为同一小模块在本例再次出现。
+- 第 24 例 20 个代表运行断言全部成功；`in` 返回预期 transparent，计算属性生成动态 `size` 与 `S\nM` 键。当前没有发现需要修复转换器的证据，可以生成“转换成功、审计通过”报告。
+- 第 24 例最终报告为 `localCases/v5/clothing/工序组合库_11310840_温晓华/conversion-report.md`，大小 5,696 bytes，SHA-256 `bd17c531556390595e8f88cd8f22b772ba4a2eec667c395f0cef47d54879e029`；报告所列 V4/V5/诊断文件大小和哈希均已与实物复核，JSON 可正常解析。当前结论保持为转换成功、未发现转换器错误，等待人工审阅后再进入第 25 例。
+- 2026-08-06：第 25 例授权已取得，目标源文件为 `工艺制作说明书_12186761_吴坤.json`、文件名 nid `12186761`。本轮仍执行“数据库确认版本 → 获取最新 V4 → 当前转换器生成 V5 → 全量结构与代表运行审计 → 单例汇报”的逐例流程，并保留全部历史产物。
+- 第 25 例前置状态健康：源排序、nid 与相邻案例一致，目标目录为空；可复用现有只读隧道和隔离 PyMySQL。版本判断仍以 `node_vx/node_vx_data.edt_ver` 与 `node_vx.extra.verDetail` 共同确定。
+- 第 25 例数据库类型是少见的 `ntype=92`；其版本信号仍明确为 V4.1，最新 work_id 为 `d89r08n9q0bsmc9tr9tg-40`。源文件名作者吴坤、数据库当前作者王洋，属于元数据演进而非冲突；转换命令必须传 92。
+- 第 25 例可复用既有二进制导出算法；紧凑输出只改变 JSON 空白，不改变解密、解压、server.case 提升或三根完整性校验。来源 README 应保留 ntype 92 和两套作者元数据。
+- 第 25 例规模较小：完整 V4 仅 948,265 bytes，三根 ID 为 `d8b9rs33ays000gw1bx0/d8b9rs33ays000gw1bg0/d8b9rs33ays000gw1bfg`，哈希 `47635cbe0f620e62fa045e24848e46f82747295cbcb558172b008023fee884c0`。下载、解码、复解析和权限检查均通过。
+- 第 25 例暴露新的转换器崩溃：`convertIfCons` 假设传入值可 `.forEach`，但真实 V4 的某个 data-if condition 不是数组。错误发生在任何 V5 产物审计之前，需先精确定位源结构和影响节点；本轮未获修复授权。
+- 更正影响范围：不是“某个”节点，而是本例全部 27 个 data-if 都已保存 `props.conditionVal={ast:...}`；转换器没有识别这种已结构化条件。首个遍历到的节点即会让 `cons.forEach` 崩溃，V5 产物尚未生成。
+- 第 25 例的最新 work JSON 并非普通 V4 结构：大量 `ast/ln/cType/op`、`server.props.v2=1` 和 `case.props.vlId=root` 与第 24 例 V5 输出同类，而第 24 例 V4 完全没有这些标记。当前更准确的表述是“数据库 edt_ver 为 4.1，但实物已经是 V5 编译态”；转换器崩溃暴露了缺少输入格式识别/幂等守卫，是否需要转换仍需结合 ntype 92 定性。
+- 原始清单与最新 work 两份 JSON 都已是 V5 编译态，且根 ID 相同；因此不是 `/work/load` 取错或解码器污染。需要把数据库元数据与 JSON 实物格式分开判断，不能仅凭 edt_ver 决定再次转换。
+- ntype 92 是迁移工具和 VxEditor41 均认识的正常作品类型，不是异常参数。转换器应至少能在入口识别“已是 V5 编译态”的 JSON，并选择安全跳过/透传或给出结构化诊断，而不是深入旧 data-if 数组转换后崩溃。
+- 当前公共 API 没有任何 `isV5`/schema/幂等判断，只有非空对象检查；因此它无法处理数据库元数据滞后但 JSON 已转换的真实案例。批量脚本不会写出半成品，这一点工作正常。
+- 第 25 例实物自身的 V5 AST 完整性初审通过：473 个组件 ID 无重复，27 个 data-if 和 36 个事件全部有 AST，受检 ref 均有目标。项目 79 项测试虽全过，但未覆盖这类输入，因此不能用测试通过抵消真实崩溃。
+- 首个触发节点是 `d8b9rs33ays000gw1d0g`（Loading），其 `conditionVal.ast` 是合法的 `sysop:isTruthy`，并非坏数据。修复不能只让 data-if 对象跳过旧数组转换后继续处理整棵树；输入的事件和动作同样已是 V5 AST，应在公共入口做完整格式识别并对混合结构保守诊断。
+- 第 25 例最终结论：转换失败、无 V5 半成品；责任点是公共入口缺少已转换输入识别，而非某个 data-if AST 损坏。失败报告哈希 `584f1e0bd6cd90276eeb1dcf1bfb0699e9bdb848338da8fc102c1983789edbb5`，等待人工决定是否实施入口级兼容修复。
+- 推荐的通用修复是入口级幂等分类而非节点特判：V5 输入必须原样透传并跳过所有转换/编译副作用，mixed 输入必须显式失败；现有 `data-if keeps the V5 condition AST` 测试名称容易误导，其夹具输入仍是 V4 条件数组，只验证输出 AST，并未覆盖已是 V5 的输入。
+- 用户校正成立：第 25 例实际就是 V5，不是“数据库标 V4 但实物异常”的 V4 转换案例。数据库 edt_ver/verDetail 判据在本例不可靠，JSON schema 才是最终依据；此前的转换器错误定性与修复必要性均已撤回。若未来要增强入口防误用，应作为独立健壮性需求，而不是本例修复。
+- VxEditor41 的实际 import 是 `formulaCode/V4FormulaCodeConverter.js -> ../../jsepWrap/index.js`，所以编辑器 jsep 注册文件位于 `src/utils/convertV4ToV5/jsepWrap/index.js`；此前依据注释推测的 `formulaCode/jsepWrap/index.js` 仍不准确，应以 import 解析为准。
+- 路径解析还需注意 `formulaCode` 是 `src/utils/convertV4ToV5/formulaCode`：`../../jsepWrap` 实际落在 `src/utils/jsepWrap`，不是 `src/utils/convertV4ToV5/jsepWrap`。不存在路径的只读 diff 已失败退出，没有修改文件。
+- VxEditor41 的最终同步范围只有两个生产文件：共享 JSEP 注册器和 V4→V5 表达式打印器；仓库没有对应测试脚本，验证采用精确 diff check 加生产 Webpack 构建。
+- VxEditor41 全量生产构建用时约 68 秒并成功退出；33 组 warning 是该仓库既有噪声，本轮同步文件没有新增编译或 lint 错误。
+- 项目内明确的版本判断文档只有 `raw/中文服完整案例JSON导出.md` 第 102–112 行：它用 `edt_ver` 与 `extra.verDetail` 区分 3.x/4.0/4.1/5.0/5.1，但没有 JSON schema 二次确认规则。README 与接口指南只描述 V4→V5 转换契约，也没有版本分类算法。第 25 例证明数据库字段可能滞后，后续逐例流程必须以下载后的完整 JSON 结构作为最终版本判据。
+- 第 25 例旧失败报告已撤回并替换为 V5 跳过报告：27/27 data-if AST、36/36 event AST、`server.props.v2=1` 及全案 `op/ln/cType` 共同确认 V5。下载物因“不删除历史案例”仍保留原路径，但来源 README 已明确纠正标签；新报告 3,254 bytes，SHA-256 `1ef8c5bce5b1493ac293f97d173321db17e591dadce2296651957f7b99d3ae5d`。未修改转换器，也未启动第 26 例。
+- `vx-json-evolution-claude` 的版本判定正文给出了后续逐例流程应采用的完整优先级：平台元数据先看 `extra.ver == 2`；成立后按 ntype 91/92 判 V5.1，否则 V5.0。V5 的 `edt_ver` 普遍残留 `4.1`，`verDetail` 覆盖率低且只供审计。裸 work 文件只要任一事件条目带 op-AST `ast` 就判 V5，即使夹有 tree 残留；只有旧 event/tree/Formula 信号且无 ast 才判 V4；空白无信号时不得猜测。第 25 例旧 SQL 没有查询 `extra.ver`，这是数据库初筛误判的直接缺口，后续每例必须补查 `JSON_EXTRACT(node_vx.extra,'$.ver')` 并下载后结构复核。
+- clothing 第 26 例目标按 UTF-8 字节序为 `工艺库_11072568_温晓华.json`，nid `11072568`；前后是第 25 例工艺制作说明书与第 27 例快递公司配置前端。本轮只处理该例，版本查询与报告必须使用校正后的双层判定口径。
+- 第 26 例首次按新口径查到 `extra.ver=null`，没有 V5 权威元数据；两表 edt_ver 均为 4.1、verDetail null，因此只能初筛为 V4.1 候选。ntype 1、work_id `cc81pdqq86m7chl12gng-485`、数据库作者罗安琪；仍须下载最新 work 并扫描事件 ast，不能仅凭数据库结论直接进入转换器。
+- 第 27/51 例 `快递公司配置前端_12193536_吴坤` 的数据库元数据是首个直接命中完整 V5 权威组合的后续案例：`extra.ver=2`、`ntype=92`、`verDetail=5.1`，明确为 V5.1；两表 `edt_ver=4.1` 再次证明 edt_ver 不能用于覆盖 V5 权威信号。按用户规定的 V4→V5 测试范围，本例应跳过下载和转换，只保留版本信息与跳过报告。
+- 第 28/51 例 `快递公司配置后端_12193535_吴坤` 同样命中 `extra.ver=2`、`verDetail=5.1`，其 `ntype=91` 与第 27 例的 `ntype=92` 组成 V5.1 后端/前端配对。两例的 data/node edt_ver 都残留 4.1，进一步验证版本分类必须优先使用 extra.ver。本例应直接跳过 V4 下载和转换。
+- 第 29/51 例 `技术配料单_11430800_温晓华` 的 `extra.ver` 与 `verDetail` 均为空、两表 edt_ver 为 4.1，故数据库只能初筛为 V4.1 候选；ntype 1、work_id `cm4hncb1bru52ab7c4l0-277`。必须下载最新 work 并扫描事件 AST 后再最终定版，不能仅凭数据库字段直接转换。
+- 第 29 例最新 `/work/load` 实物是明确 V4.1：eventAst 0、eventTree 734、Formula 6,412，ast/op/ln/cType 均为 0；紧凑 JSON 9,390,624 bytes，SHA-256 `ce14b746c1a6612e9cfed444807a86cce3263e74c9ee6bc8f177de292bc112b9`，case/server/stage 三根完整。
+- 第 30/51 例 `排产规则_11283115_温晓华` 的 `extra.ver` 与 `verDetail` 为空、两表 edt_ver 为 4.1，只能初筛为 V4.1 候选；ntype 1、work_id `cibq2rfl557ut9e0du4g-335`。当前数据库作者邵伟明与源文件名作者不同，需分别记录；最终仍以最新 work 的事件 AST/V4 tree 结构定版。
+- 第 30 例最新 `/work/load` 实物明确为 V4.1：eventAst 0、eventTree 260、Formula 3,401，ast/op/ln/cType 均为 0；紧凑 JSON 3,591,813 bytes、SHA-256 `80af7831326a4cf2912f9635f1b43e553a8ed979a1c1a2b2819cdd9ef7f6a840`，三根完整。
+- 第 30 例 4 个 `findIndex` 公式已逐一回溯 V4 `code/str`：3 个规范源式的 V5 括号与 `!= -1` 位置正确；唯一的 `$v1.findIndex((x) => x == $v2 != -1)` 在 V4 源式中就已将 `!= -1` 写入回调内部（组件 `ccbgmrba3j50000y9ea0`、动作 `ccc4dh6a3j50000bk9t0`）。该式返回索引而非预期布尔值，是源业务公式问题，转换器没有改变其结构或新造错误。
+- 第 30 例 25 组规范 jsfn 代表输入全部通过；异常源 `findIndex` 的命中/未命中输入也都与 V4 等价表达式严格一致（均返回 0）。这既证明转换保真，也具体暴露源式缺陷：对非空数组几乎总在首项返回 truthy 回调结果，因此不能产生预期的包含判断布尔值。
+- 第 30 例完成项目全量回归：79/79 tests pass、fail 0。结合 1,000 个组件、260 个事件、1,379 个动作的结构闭合和代表运行，可定性为转换成功、未发现转换器错误；源 `findIndex` 缺陷应作为业务数据提醒，而不是触发转换器修复。
+- 第 30 例最终报告 4,967 bytes、SHA-256 `1ef387d05d0a9064f92f42c170514e625098e663a8f49c80bae10f56d7d3a63e`；V4/V5/诊断均已复解析和核验摘要，历史产物未删除。下一案例须按源目录重新核对后再开始，不能仅依赖预记文件名。
+- 更正：第 31/51 例按真实源目录字节序核对后是 `排程池_11283121_叶育科.json`，此前 findings 末尾预记的 `排程池_11280677_温晓华.json` 并不存在。应以文件名 nid `11283121` 查询，不能沿用预记值；纠正发生在任何数据库查询或案例写入之前。
+- 第 31 例前置环境健康：源与相邻排序吻合，两个目标目录为空，Cookie/数据库 env 为 0600，SSH 隧道已监听。本机无 mysql CLI 和系统 PyMySQL，需要临时隔离安装；SQL 继续使用 `node_vx_data`/`node_vx`/`users` 联查，并新增 `JSON_EXTRACT(n.extra,'$.ver')` 权威版本字段。
+- 第 31 例数据库查询唯一命中：`extra.ver=null`、两表 edt_ver 4.1、verDetail null，因此只是 V4.1 候选；ntype 1、版本 580、work_id `cibq4ofl557ut9e0du70-338`，标题 `APS排程池`、作者叶育科、uid/eid/gid `10187685/10000586/25391`、短链 `MkZzqib0`。必须继续以下载 JSON 实物定版。
+- 第 31 例最新 `/work/load` 实物明确为 V4.1：eventAst 0、eventTree 2,532、Formula 25,153，ast/op/ln/cType 全为 0；紧凑 JSON 61,211,338 bytes、SHA-256 `715ad6c1af7068f64a71c8eddeebaa4600942b867fc42a24a51ea8f9a768839b`。这是目前 clothing 循环中明显较大的案例，后续转换和全量审计需控制内存与遍历次数。
+- 第 31 例 V4→V5 转换成功，V5 48,331,941 bytes、SHA-256 `5fba07c0d81f8cc6b1fdb1f0e9a89f10010ab9e95d2315da1d7a2522feee232a`。1,310 条诊断全部由 jsfn fallback 承接且 dropped=0，去重 1,284；高频为逻辑或/与、模板字符串、findIndex、spread、flat、full-JS、正则、unknown varType、sortAndUniqueData 和 NewExpression，必须从最终 AST/运行语义核验，不能直接按日志数量判错。
+- 第 31 例审计真实入口已校准：组件只沿三根 children/classes 统计；V4 action 从 event tree 的 `type=action` 识别，V5 用 `ln` 回映；data-service 总计 105 个；唯一 uploadPic 已生成 V5 method；664 个 data-if 的普通代表样本符合新契约，仅保留 `props.conditionVal.ast`、删除兼容 `binds.value`。
+- 第 31 例首轮结构主链完整：10,142 个组件、2,532 个事件、11,156 个 action 全闭合；1,274 个 jsfn 与 1,019 个 `_code` 均可编译，参数/args、自由 `$` 和旧占位符问题均为 0。待回证项只有 2 个启用 play 的 skip、5 个空条件 data-if、25 个唯一悬空引用，以及含 `sortAndUniqueData/processPackageMaterials_*` 等非 `$` 自由函数名的 jsfn 是否依赖源事件局部上下文。
+- server.classes 的 23 个模块定义不是“应逐字不变”的共享数据：本例其中包含大量 V4 event tree，转换后必然转为 V5 AST，所以精确 JSON diff 全部不等不代表错误。正确口径是模块 ID/type、内部组件/事件/action 的总量与回映闭合，另对 105 个 data-service 分区核验后台 AST/_code。
+- 第 31 例结构例外均已闭合：2 个启用 play skip 对应 infinite 动画；5 个空 data-if 源 condition 为空，V5 `{op:'val'}` 兼容 bind 符合既有修复；25 个悬空目标在 V4/V5 全对象索引均不存在但源原文都有引用；105 个 data-service 后台 AST/_code 全部完整；23 个 server module 的 ID/type/组件数/事件数一致；uploadPic 全子树 BID 均回映。
+- 本例出现非 `$` 自由标识符，需要区分合法 initJs 全局与漏参数：`numberPrecision` 8 次、sortAndUniqueData 21、processPackageMaterials 系列 4、formatData 4、checkMember 8，以及 isToShow/getElementHeight 各 1；另有无参数 `productionOrder...` 1 次。不能因语法可编译就直接判正确，下一步需核查全局脚本声明和该零参数式的外层 AST/源 loop 上下文。
+- 非 `$` 自由标识符已经找到定义来源：9 个 helper 均由案例内 data-func 声明并赋给 `window`，所以 jsfn 按全局函数调用是源设计；stage.initJs 只有 `exif`，但 helper 定义位于组件树的“全局函数”等 data-func 中。`productionOrder...` 则是 V4 源中纯 str 写成的零上下文公式，所在 action 本来禁用，V5 也 skip，应记为源陈旧公式而非运行中的转换错误。
+- V4/V5 的 130 个 data-func 代码逐 ID 完全一致，合法全局 helper 不仅“有定义”，而且定义和 window 挂载未被转换器改写。高风险 jsfn 代表运行应覆盖：模板/逻辑、findIndex、spread/flat、block map、Set/Array.from、numberPrecision/sortAndUniqueData/formatData、assignment/reduce/forEach、除法 receiver 的 toFixed、可选链与对象构造。
+- 校正 helper 选择器后，第 31 例 29 组代表 jsfn 全部执行通过；测试实际加载案例自身的 9 个 window helper 定义，而不是用简化假实现。Unexpected `=`、Expected comma 和除法 callee 等诊断对应的 mutation/reduce/forEach/toFixed 代表式也均返回预期。
+- 第 31 例项目完整测试 79/79、fail 0。综合 10,142 个组件、2,532 个事件、11,156 个动作、1,274 个 jsfn、105 个后台服务与上传/模块审计，本例可定性为转换成功、未发现转换器错误；报告应把 25 个源陈旧引用和禁用 productionOrder 公式作为源数据提醒。
+- 第 31 例最终报告为 `localCases/v5/clothing/排程池_11283121_叶育科/conversion-report.md`，6,320 bytes、SHA-256 `0a0d0c4170be1d76d7f54edd253e66660cdc75a290463b60d3d8eac25fb8f4b5`。V4/V5/诊断 JSON 可解析，产物大小与摘要一致，V4 权限 0600、ignore 命中且 `git diff --check` 通过；保持“转换成功、未发现转换器错误”的结论，第 32 例未启动。
+- 第 32/51 例按真实源目录排序确认为 `新裁剪任务单_12181966_吴坤.json`，nid `12181966`，前后分别是排程池和智能样板打板。本例目标目录为空、两份凭据权限 0600、只读隧道正常监听；版本查询仍必须优先读取 `extra.ver`，再用下载 JSON 的事件 AST/V4 tree 信号最终定版。
+- 第 32 例数据库权威版本信号为 `extra.ver=2`、`ntype=92`、`verDetail=5.1`，明确是 V5.1 前端案例；两表 `edt_ver=4.1` 属于已知残留，不能误判为 V4。该例应跳过 `/work/load`、V4 保存、转换与转换审计，只保留数据库元数据和跳过报告。
+- 第 32 例跳过报告位于 `localCases/v5/clothing/新裁剪任务单_12181966_吴坤/conversion-report.md`，2,162 bytes、SHA-256 `4c29be2d85c48f167ab944ef86ce430f7b2af3a09d4467fa2f18fec122d43882`。V4 目录未创建，V5 目录只含报告，转换器未运行或修改；第 33 例未启动。
+- 第 33/51 例按真实源目录排序确认为 `智能样板打板_11285959_吴坤.json`，nid `11285959`，前后分别是新裁剪任务单和标准尺码类库。目标目录为空、两份凭据权限 0600、只读隧道正常；版本查询必须继续使用 `extra.ver` 优先规则。
+- 第 33 例数据库查询唯一命中：`extra.ver=null`、两表 edt_ver 4.1、verDetail null，只能视为 V4.1 候选；ntype 1、work_id `cidu9oqso14ne2fsroh0-199`、标题 `FRP_智能样板打板审批`、数据库作者刘土明。源文件名作者吴坤与当前作者不同，来源信息需分别记录；最终版本必须由下载 JSON 结构复核。
+- 第 33 例最新 `/work/load` 实物明确为 V4.1：eventAst 0、eventTree 485、Formula 4,545，ast/op/ln/cType 均为 0；紧凑 JSON 7,518,343 bytes、SHA-256 `71bcfebeaf7eed47d24437cf555b4d4e8f571ce599623266008c5cd67fe0ba5a`，case/server/stage 三根完整。
+- 第 33 例 V4→V5 转换成功：V5 5,350,390 bytes、SHA-256 `e0eb44c12ced36cd87fec818518ce82aaf80c1e951da20dc06a27e7b59ab3fb5`；诊断 total 318、unique 317、customExpr 318、dropped 0。高频包含 `||`、full JavaScript、`&&`、TemplateLiteral、match、findIndex 等，必须检查最终 jsfn 而不能直接按 fallback 数量判错。
+- 第 33 例发现 4 个活跃 jsfn 残留 V4 方法 `$SF_arr_search`：两个是组件绑定，两个位于启用的 setValue 动作，均无 skip。对普通数组直接运行四段输出都抛 `TypeError: $v2.$SF_arr_search is not a function`；这是转换器没有完成 V4 数组搜索方法改写的确定错误。3 个额外 skip 则都指向 `props.infinite=true` 的动画，属于既有正确规则。
+- `$SF_arr_search` 的权威 V4 语义来自 VxEditor41-widgets `arr_search(value,target)`：空 receiver 降级 `[]`，再用 `findIndex(item => target === item)` 返回下标。当前 full-JS fallback 仅规范化 getSelf/Math，没有转换包含 callback 局部变量的 legacy array method，导致旧方法名残留。正确修复应在 ESTree 层按方法语义统一改写并保留空值、严格相等和下标返回，不能只做本例字符串替换。
+- 第 33 例除 `$SF_arr_search` 外的 23/23 组代表 jsfn 执行通过，项目全量测试 79/79、fail 0；现有回归未覆盖 full-JS callback 中的 legacy array search，因此全绿不否定案例实证。最终应报告 1 类转换器错误、影响 4 处，源侧另有 9 个陈旧引用目标。
+- 第 33 例失败报告位于 `localCases/v5/clothing/智能样板打板_11285959_吴坤/conversion-report.md`，6,391 bytes、SHA-256 `7fcbf4849683fea7b4fe7b1020143b9245666ee48e2892a8b6e4ba4697801380`。V4/V5/诊断 JSON 可解析，大小和摘要一致，V4 权限 0600、ignore 命中且 `git diff --check` 通过；等待用户是否修复 `$SF_arr_search`，第 34 例未启动。
+- 第 33 例修复阶段纠正了上一轮落点漏计：真实 `$SF_arr_search` jsfn 共 5 个，不是 4 个；新增落点为活跃文本绑定 `cddrrvva3j50000ebqf0`，其同一公式外层还残留 `$SF_objArr_item`。因此只消除数组搜索仍不能让整段公式可执行，companion 方法也必须按 V4 widgets 语义归一化。
+- fallback 归一化采用两阶段策略：`$SF_arr_search` 在 JSEP 结构化试探前改写，避免 callback 局部参数触发未知 sysutil；参数化完成后再扫描最终 JS AST，只处理真正残留的 `$SF_arr_search/$SF_objArr_item`。这样不会把原本可生成 V5 sysutil 的普通对象数组取值调用全部内联。
+- `$SF_arr_search` 通过局部 IIFE 保证 receiver/target 各求值一次、空 receiver 降级 `[]`、严格相等 findIndex 和额外实参副作用；`$SF_objArr_item` 精确保留 row/col 非空检查、全局 isNaN、parseFloat 行号、truthy rowItem 和 undefined 返回。生成局部名会扫描原 AST 后避碰。
+- 修复回归最终覆盖 JSEP callback、full-JS IIFE、严格相等、null receiver、单次求值、名字冲突、两方法组合和 `0x10/01/空/null` 行号语义；项目完整测试 83/83 通过。
+- 第 33 例最终 V5 为 5,351,804 bytes、SHA-256 `a9cfdad9669535dc097fe5eaee3d6d759383f09ae75a0b1f12c0c0d231b03372`。5/5 修复落点运行通过，318 个 jsfn 的旧 `$SF_*` 残留、语法和 arity 错误均为 0；组件/事件/动作、data-if、服务 target、data-service、data-func、cType 和 `_code` 审计继续闭合。
+- 第 33 例报告已更新为成功结论，7,342 bytes、SHA-256 `940545ccec72fd195be3b83893b957afb58731c3770c2bc0f2ae22f0e96ba7e1`；诊断仍为 318/317/dropped 0 且文件摘要不变。第 34 例未启动，后续是固定双仓发布流程。
+- 第 26 例下载后结构信号与数据库初筛一致：1,095 个 `events.list[*].tree`、12,719 个 Formula，事件 ast、全案 ast/op/ln/cType 均为 0。由“只有 V4 信号且无 ast”规则最终判为 V4.1；本例验证了校正后的双层判定流程。
+- 第 26 例 V4→V5 转换成功，诊断 212 条全部由 jsfn 兜底承接且 dropped=0。V5 11,403,673 bytes，哈希 `bd19b02904fd302ff8c63385d8d390ffb320475107d14cfec904a3c3c82e2dc7`；下一步必须检查全部 jsfn 的语法、参数和自由变量，并对 30 个正则、SpreadElement、callee、findIndex/hasOwnProperty 等高风险类别做代表运行验证。
+- 第 26 例结构主审计已闭合：组件 4,167/4,167、事件 1,095/1,095、动作 5,548/5,548；53 个本地服务均有 AST/_code，28 个共享服务精确一致，194 个 runsvc target 分布一致。两个 status 是上传回调包装，三项额外 skip 是既有 infinite 动画规则，两个无 AST data-if 是源空条件。70 次/32 个唯一悬空 ref 均在源 V4 已存在且目标本来不在组件/块集合，不属于转换新增。
+- 第 26 例 212 个 jsfn 共 113 种代码；全量语法/arity/自由变量与旧标记扫描通过，21 组代表输入实际执行通过。覆盖本案全部高风险语言族，包括 full-JS 块体 mutation/reduce、正则、spread、destructuring、optional chaining、computed property 以及上一例修复的二元 `in`。源中的对象/数组字面量相等比较本来就存在，转换器没有改变该既有源语义。
+- 第 26 例最终结论：V4.1→V5 转换成功、未发现转换器错误。报告位于 `localCases/v5/clothing/工艺库_11072568_温晓华/conversion-report.md`，4,896 bytes，SHA-256 `e7970d0449383ed0fc16ddf81e09f4a40f9860556b5c32f0bfd25bba75903b26`；保持人工审阅门禁，第 27 例未启动。

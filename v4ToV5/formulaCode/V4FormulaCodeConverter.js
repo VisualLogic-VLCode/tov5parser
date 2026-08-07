@@ -73,6 +73,20 @@ const collectLocalIdentifierNames = (value, names = new Set()) => {
   return names
 }
 
+const collectIdentifierNames = (value, names = new Set()) => {
+  if (!value || typeof value !== 'object') return names
+  if (Array.isArray(value)) {
+    for (const item of value) collectIdentifierNames(item, names)
+    return names
+  }
+  if (value.type === 'Identifier') names.add(value.name)
+  for (const [key, child] of Object.entries(value)) {
+    if (['exprStr', 'start', 'end', 'loc'].includes(key)) continue
+    collectIdentifierNames(child, names)
+  }
+  return names
+}
+
 const containsLocalIdentifier = (value, localNames) => {
   if (!value || typeof value !== 'object' || !localNames?.size) return false
   if (Array.isArray(value)) {
@@ -207,6 +221,208 @@ const unwrapLegacyGetSelfCalls = value => {
   return value
 }
 
+const normalizeLegacyFallbackCalls = (
+  parsed,
+  { arraySearch = true, objectArrayItem = true } = {}
+) => {
+  const normalized = cloneParsedTree(parsed)
+  const identifierNames = collectIdentifierNames(normalized)
+  let generatedNameIndex = 0
+
+  const nextGeneratedName = (method, role) => {
+    let name
+    do {
+      generatedNameIndex += 1
+      name = `__v4${method}${role}${generatedNameIndex}`
+    } while (identifierNames.has(name))
+    identifierNames.add(name)
+    return name
+  }
+
+  const identifier = name => ({ type: 'Identifier', name })
+  const member = (object, property) => ({
+    type: 'MemberExpression',
+    object,
+    property: identifier(property),
+    computed: false,
+    optional: false
+  })
+  const computedMember = (object, property) => ({
+    type: 'MemberExpression',
+    object,
+    property,
+    computed: true,
+    optional: false
+  })
+  const call = (callee, args) => ({
+    type: 'CallExpression',
+    callee,
+    arguments: args,
+    optional: false
+  })
+  const arrow = (params, body) => ({
+    type: 'ArrowFunctionExpression',
+    id: null,
+    expression: true,
+    generator: false,
+    async: false,
+    params: params.map(identifier),
+    body
+  })
+  const iife = (params, body, args) => call(arrow(params, body), args)
+  const binary = (operator, left, right) => ({
+    type: 'BinaryExpression',
+    operator,
+    left,
+    right
+  })
+  const logicalAnd = expressions =>
+    expressions.reduce((left, right) => ({
+      type: 'LogicalExpression',
+      operator: '&&',
+      left,
+      right
+    }))
+  const conditional = (test, consequent, alternate) => ({
+    type: 'ConditionalExpression',
+    test,
+    consequent,
+    alternate
+  })
+
+  const getLegacyMethodName = value => {
+    if (
+      value?.type !== 'CallExpression' ||
+      value.callee?.type !== 'MemberExpression'
+    ) {
+      return
+    }
+    const { computed, property } = value.callee
+    if (computed && property?.type === 'Literal') return property.value
+    if (!computed && property?.type === 'Identifier') return property.name
+  }
+
+  const isLegacyArraySearchCall = value => {
+    return getLegacyMethodName(value) === '$SF_arr_search'
+  }
+
+  const buildArraySearchCall = value => {
+    const valueName = nextGeneratedName('ArrSearch', 'Value')
+    const targetName = nextGeneratedName('ArrSearch', 'Target')
+    const itemName = nextGeneratedName('ArrSearch', 'Item')
+    const valueIdentifier = () => identifier(valueName)
+    const targetIdentifier = () => identifier(targetName)
+    const itemIdentifier = () => identifier(itemName)
+
+    return iife(
+      [valueName, targetName],
+      call(
+        member(
+          conditional(
+            {
+              type: 'LogicalExpression',
+              operator: '&&',
+              left: valueIdentifier(),
+              right: member(valueIdentifier(), 'length')
+            },
+            valueIdentifier(),
+            { type: 'ArrayExpression', elements: [] }
+          ),
+          'findIndex'
+        ),
+        [
+          arrow(
+            [itemName],
+            binary('===', targetIdentifier(), itemIdentifier())
+          )
+        ]
+      ),
+      // 保留全部原参数，既保持第一个 target 的含义，也不吞掉额外参数的副作用。
+      [value.callee.object, ...(value.arguments || [])]
+    )
+  }
+
+  const buildObjectArrayItemCall = value => {
+    const valueName = nextGeneratedName('ObjArrItem', 'Value')
+    const rowName = nextGeneratedName('ObjArrItem', 'Row')
+    const columnName = nextGeneratedName('ObjArrItem', 'Column')
+    const normalizedName = nextGeneratedName('ObjArrItem', 'Normalized')
+    const rowItemName = nextGeneratedName('ObjArrItem', 'RowValue')
+    const ref = name => identifier(name)
+    const undefinedIdentifier = () => identifier('undefined')
+    const nullLiteral = () => ({ type: 'Literal', value: null, raw: 'null' })
+
+    const normalizedValue = conditional(
+      {
+        type: 'LogicalExpression',
+        operator: '&&',
+        left: ref(valueName),
+        right: member(ref(valueName), 'length')
+      },
+      ref(valueName),
+      { type: 'ArrayExpression', elements: [] }
+    )
+    const validLookup = logicalAnd([
+      ref(normalizedName),
+      binary('!==', ref(columnName), undefinedIdentifier()),
+      binary('!==', ref(columnName), nullLiteral()),
+      binary('!==', ref(rowName), undefinedIdentifier()),
+      binary('!==', ref(rowName), nullLiteral()),
+      {
+        type: 'UnaryExpression',
+        operator: '!',
+        prefix: true,
+        argument: call(identifier('isNaN'), [ref(rowName)])
+      }
+    ])
+    const rowItem = computedMember(
+      ref(normalizedName),
+      call(identifier('parseFloat'), [ref(rowName)])
+    )
+    const lookupResult = iife(
+      [rowItemName],
+      conditional(
+        ref(rowItemName),
+        computedMember(ref(rowItemName), ref(columnName)),
+        undefinedIdentifier()
+      ),
+      [rowItem]
+    )
+    const body = iife(
+      [normalizedName],
+      conditional(validLookup, lookupResult, undefinedIdentifier()),
+      [normalizedValue]
+    )
+
+    return iife(
+      [valueName, rowName, columnName],
+      body,
+      [value.callee.object, ...(value.arguments || [])]
+    )
+  }
+
+  const walk = value => {
+    if (Array.isArray(value)) return value.map(walk)
+    if (!value || typeof value !== 'object') return value
+    for (const [key, child] of Object.entries(value)) {
+      if (['exprStr', 'start', 'end', 'loc'].includes(key)) continue
+      value[key] = walk(child)
+    }
+    if (arraySearch && isLegacyArraySearchCall(value)) {
+      return buildArraySearchCall(value)
+    }
+    if (
+      objectArrayItem &&
+      getLegacyMethodName(value) === '$SF_objArr_item'
+    ) {
+      return buildObjectArrayItemCall(value)
+    }
+    return value
+  }
+
+  return walk(normalized)
+}
+
 export default class V4FormulaCodeConverter {
   constructor(props) {
     this.props = props
@@ -331,9 +547,7 @@ export default class V4FormulaCodeConverter {
     // V4 的 `$SF_getSelf()` 是 receiver identity。full-js fallback 会把源码原样
     // 放进 jsfn，V5 运行时却没有该原型方法，因此只在 ESTree 中折叠零参数成员调用。
     // 带参数或计算属性调用保持原样，避免把未知用户代码当作旧占位符处理。
-    parsed = normalizeLegacyRuntimeIdentifiers(
-      unwrapLegacyGetSelfCalls(parsed)
-    )
+    parsed = normalizeLegacyRuntimeIdentifiers(unwrapLegacyGetSelfCalls(parsed))
     const context = {
       num: 0,
       vList: [],
@@ -342,6 +556,7 @@ export default class V4FormulaCodeConverter {
       localNames: collectLocalIdentifierNames(parsed)
     }
     this.walkCustomExprParsed({ parsed, context })
+    parsed = normalizeLegacyFallbackCalls(parsed)
     return {
       op: 'var',
       args: [
@@ -2020,7 +2235,11 @@ export default class V4FormulaCodeConverter {
     // 可能先后被 Unary/Call 等试探路径结构化多次；若直接修改源 AST，后续
     // 只能看到 $vN 而找不到对应参数来源，最终会生成 args=[] 的坏 jsfn。
     // 每次在独立副本上工作，保证代码占位符与参数 AST 始终成对产生。
-    parsed = cloneParsedTree(parsed)
+    // 先归一化 array search，避免包含 callback 局部变量的旧方法在结构化
+    // 试探阶段触发未知 sysutil；其余旧方法等参数化完成后只处理真正残留项。
+    parsed = normalizeLegacyFallbackCalls(parsed, {
+      objectArrayItem: false
+    })
     let context = {
       num: 0,
       vList: [],
@@ -2029,6 +2248,7 @@ export default class V4FormulaCodeConverter {
       localNames: collectLocalIdentifierNames(parsed)
     }
     this.walkCustomExprParsed({ parsed, context })
+    parsed = normalizeLegacyFallbackCalls(parsed)
     let { jsFnArgs, vList } = context
     // 与编辑器公式编辑器保存 bind 的产物一致：jsfn 外层包 var（表达式值包装）
     return {

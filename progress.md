@@ -2336,3 +2336,169 @@
 > 2026-08-06：案例目录中的诊断文件实际为 `app.convert-errors.json/.md`；旧失败报告仍引用修复前 V5 哈希与结论，正在改写为修复成功报告，随后进入自动发布。
 > 2026-08-06：第 23 例成功报告已更新并复核：7,628 bytes / SHA-256 `020ea0c2e095ee57aaee1b985dae0067c7d495cbc06b547344aa08d627da1ab7`；三份 JSON 可解析，报告已使用修复后 V5 哈希和 79/79 测试结论。下一步精确提交 tov5parser 并执行正式 Lambda 发布。
 > 2026-08-06：tov5parser 提交范围已精确暂存为 6 个文件：转换器 2 个、回归测试 1 个、规划记录 3 个；`git diff --cached --check` 通过。用户无关未跟踪文档没有暂存。
+> 2026-08-06：tov5parser 修复提交 `ba63791dbdd182d7ecd7f7b42de5a22790c65884` 已推送。Lambda 首次洁净检查只因用户无关未跟踪文档失败，未触碰该文件，使用正式 `--allow-dirty` 参数从已提交 SHA 重试成功：内置测试 79/79，生产版本 24，CodeSha256 `aZpN6SanbV8k2P+gIzFjrRL/LLPqVu3hRhGdhgWPY5s=`，prod 冒烟 200、ExecutedVersion 24、业务 code 0。
+> 2026-08-06：双仓远端核对通过：tov5parser HEAD=origin/main=`ba63791dbdd182d7ecd7f7b42de5a22790c65884`，VxEditor41 HEAD=origin/master=`e57617d9f4450c8307189a6b308cc651234bcec0`。独立 AWS CLI 复核未加载部署脚本使用的认证环境，返回 NoCredentials；这不推翻刚完成的脚本发布与冒烟结果，下一步从部署脚本恢复同一凭据加载方式后再查 Active 状态。
+> 2026-08-06：复用部署脚本默认 AWS profile 后最终核对成功：Lambda alias prod=`24`，版本 24 为 Active / Successful，CodeSha256 `aZpN6SanbV8k2P+gIzFjrRL/LLPqVu3hRhGdhgWPY5s=`。VxEditor41 提交 `e57617d9f4450c8307189a6b308cc651234bcec0` 已推送且只含两个同步文件。Phase 97 complete，保持第 23 例审阅门禁，不启动第 24 例。
+> 2026-08-06：第 23 例修复完成后的 planning-with-files 自动续跑 hook 报告 101/102 phases。session catchup 仅发现已同步的最终汇报、本次 hook 与恢复操作；Phase 97 已闭环。自动 hook 不构成用户对第 24 例的“继续”授权，先复读 `task_plan.md` 确认唯一剩余长期循环与人工审阅门禁。
+> 2026-08-06：已复读 `task_plan.md`：Phase 97 五项全部完成；101/102 中唯一未完成的是长期 Phase 67 的剩余案例循环。Phase 67 明确要求每例汇报后暂停，现已把其陈旧的第 21 例检查点更新为第 23 例完成后的真实门禁；等待用户明确“继续”，不启动第 24 例。
+> 2026-08-06：应用户追问，已从第 23 例 V4/V5 层级精确定位节点 `crea8kta3j50000nq580`：它是“修改对比小模块”（classId `C_cecm420a3j50000p5pf0`、定义 ID `cecm420a3j50000p5peg`、widgetId 17481）内的 `ih5-text`，位于 rel-banner → data-if → layoutcol → grid-for 下；该模块有两个实例。随后自动 hook 再次触发，仍不视为解除第 24 例门禁。
+> 2026-08-06：用户明确回复“继续”，第 23 例门禁解除。启动 Phase 98，只处理第 24/51 例 `工序组合库_11310840_温晓华.json`（nid `11310840`），保留全部历史案例；完成单例查询、转换、审计与报告后暂停，不启动第 25 例。
+> 2026-08-06：第 24 例前置检查通过：源排序位置、nid 和相邻案例吻合，目标 V4/V5 目录均不存在；平台 Cookie、只读数据库 env 均为 0600，SSH 隧道正在 127.0.0.1:13306 监听。可直接沿用校正后的参数化只读查询，不输出凭据。
+> 2026-08-06：`/tmp` 没有可复用 PyMySQL；向新隔离目录首次安装时 PyPI 读取超时，未完成安装、未发起数据库查询、未写案例文件。下一步改查本机 pip 缓存或已有 Node 驱动，不重复相同公网安装命令。
+> 2026-08-06：本地缓存/Node 依赖无 MySQL 驱动；改用清华镜像后隔离 PyMySQL 安装成功。随后首次数据库连接返回 ConnectionRefused，说明刚才仍在监听的 SSH 隧道已退出，SQL 未执行。下一步重新启动权威只读隧道并确认端口后查询。
+> 2026-08-06：重新调用隧道脚本时 10 秒内无输出且包装层未返回 exit code，串联的端口检查未执行，当前启动结果不确定。按错误协议先独立只读检查 SSH 进程和 13306 监听，再决定替代启动方式。
+> 2026-08-06：独立检查确认隧道实际已启动，前一命令仅因 `ssh -N` 前台驻留而未结束。连接后的首次 SELECT 因误取不存在的 `d.eid` 返回 1054；未写数据。按已知 schema 改为 `u.eid` 后重新执行新的参数化 SQL。
+> 2026-08-06：校正后的只读查询唯一命中第 24 例：明确 V4.1（两表 edt_ver 4.1、verDetail null），ntype 1、版本 174、work_id `cj3gsn26qucc06pnmp8g-559`；标题 `FRP_工序组合库`、当前作者罗安琪、短链 `ul2bTXOs`。Phase 98 第一项完成，进入完整 V4 下载。
+> 2026-08-06：已复核上例 README 与 `raw/中文服完整案例JSON导出.md`，第 24 例继续使用权威 `/work/load` 二进制链路及 VxEditor41 sjcl/pako 解码；只有 HTTP、分段、JSON 和 case/server/stage 三根校验全部通过后才落盘。
+> 2026-08-06：本机没有现成导出脚本；已完整读取权威文档中的实现，准备以内联 Node 执行同一算法，避免新增临时项目文件。输出采用历史案例一致的紧凑 JSON，并记录二进制/分段/最终哈希。
+> 2026-08-06：第 24 例完整 V4 下载成功：HTTP 200，二进制 977,972 bytes；2 段解压为 10,524,885 / 684,381 bytes，组合紧凑 JSON 11,209,286 bytes，SHA-256 `b1c6d54178716e799bbdb115fe296f76f7910a0f1b213c6402607980a8a7b4a5`。三根类型和 ID 校验通过，README 已保存，Phase 98 第二项完成。
+> 2026-08-06：第 24 例 V5 转换成功：8,211,917 bytes / SHA-256 `e8ea111b6f55a033eb5b32040d59d5bb03d8ef8ff6e8d2437c9df53c8ed82632`；三根 ID/type 一致。诊断 171 条且全部 customExpr、dropped 0；主要是 && 46、|| 41、正则 22、full-JS 12、findIndex 11、callee 10、hasOwnProperty/unknown 各 7、解构参数 5。进入最终 AST 与结构/运行审计。
+> 2026-08-06：审计入口已校准：V5 动作通过任意 AST 节点的 `ln` 字段映射 V4 BID；组件计数必须排除 V4 event tree 元数据。初步 data-if 363/363、local/shared 服务 46/17 一致；171 个 jsfn、273 个 `_code` 待全量语法/参数检查。
+> 2026-08-06：核心硬门禁通过：组件 3,674/3,674（唯一 3,664/3,664，ID/type 无差异）；action 4,788/4,788，138 个禁用均 skip，额外 3 个 skip 仅为 infinite 动画；171 个 jsfn 无语法/arity/自由 `$` 问题，273 个 `_code` 可编译。363 个 data-if 中 2 个无 AST 均回证为源 null 条件与空兼容 bind。
+> 2026-08-06：服务/引用复核通过：146/146 个服务调用 target 分布一致，46/46 本地服务 AST+code 完整，17/17 共享服务精确相同；1,210 item 与 251 index ref 无缺失。37 次/17 个 var 悬空目标全部可回证为源 V4 已存在且源组件集合本来也缺失的陈旧引用。事件仅有 2 个上传 status 包装无直接 ln，下一步核对其子 BID/alambda。
+> 2026-08-06：上传 callback 已闭环：两个 status 的唯一子 BID 分别存在于 V5 beforeUploadCb/uploadingCb alambda。171 个 jsfn 共 102 种代码，已按高风险特征列出代表样本，准备执行逻辑、正则、集合、赋值、可选链、`in` 和计算属性等运行断言。
+> 2026-08-06：20/20 组高风险 jsfn 代表运行通过，包含上例修复的 2 个 `in` 和 6 个 computed property 形态；项目完整测试 79/79、fail 0。结合全量结构/语法/引用审计，本例当前未发现转换器错误，准备生成成功报告并做最终复核。
+> 2026-08-06：两次写回第 24 例最终状态时，补丁引用文本与文件现状不一致，均原子失败且未产生文件改动；已按实际文本重新定位处理。
+> 2026-08-06：第 24 例单例报告已生成并复核，报告 5,696 bytes，SHA-256 `bd17c531556390595e8f88cd8f22b772ba4a2eec667c395f0cef47d54879e029`。V4/V5/诊断 JSON 均可解析，报告哈希与文件一致，`git diff --check` 通过，案例产物受 `.gitignore` 忽略。结论：转换成功，未发现本例新增转换器错误；等待人工审阅，不启动第 25 例。
+> 2026-08-06：第 24 例汇报后收到 planning-with-files 自动续跑检查（102/103 phases）。已交付结论和人工审阅门禁均已同步；该自动检查不构成用户对第 25 例的“继续”授权。下一步复读 `task_plan.md`，确认唯一剩余的长期案例循环仍受逐例审阅约束。
+> 2026-08-06：已复读 `task_plan.md`：Phase 98 五项均已完成；102/103 中唯一未完成的是长期 Phase 67 的剩余 27 个案例循环。当前检查点明确停在第 24 例人工审阅门禁，必须收到用户明确“继续”才能启动第 25 例，因此当前没有可在既有授权内继续执行的步骤。
+> 2026-08-06：用户明确回复“继续”，第 24 例人工审阅门禁解除。planning-with-files session catchup 只发现已同步的第 24 例交付、自动门禁复核和当前授权，没有遗漏代码或案例动作。启动 Phase 99，只处理第 25/51 例 `工艺制作说明书_12186761_吴坤.json`（nid `12186761`），保留所有历史案例，汇报后不启动第 26 例。
+> 2026-08-06：第 25 例源排序与前置条件复核通过：文件确在 51 例中的第 25 位，目标 V4/V5 目录尚不存在；Cookie、只读数据库 env 均为 0600，SSH 隧道正监听 13306，隔离 PyMySQL 可直接复用。数据库查询继续采用权威文档的参数化只读 SQL，不输出凭据。
+> 2026-08-06：第 25 例只读查询唯一命中：V4.1（data/node edt_ver 4.1、verDetail null），`ntype=92`、版本 4、work_id `d89r08n9q0bsmc9tr9tg-40`；标题 `工艺制作说明书ai`、当前作者王洋、短链 `j2xbSPMu`。Phase 99 第一项完成；后续必须使用 ntype 92，不能沿用常见的 ntype 1。
+> 2026-08-06：已复核权威下载脚本与第 24 例 README 格式；第 25 例继续使用中文服只读 `/work/load` 二进制链路、VxEditor41 sjcl/pako 解码并生成紧凑 JSON。只有 HTTP、分段、JSON 解析及 case/server/stage 三根校验全部通过后才保存 V4。
+> 2026-08-06：第 25 例最新完整 V4 下载成功：HTTP 200、二进制 81,096 bytes，2 段解压为 899,789 / 48,456 bytes；紧凑 `app.json` 948,265 bytes，SHA-256 `47635cbe0f620e62fa045e24848e46f82747295cbcb558172b008023fee884c0`。三根 ID/type、复解析与 0600 权限均通过，README 已保存；Phase 99 第二项完成。
+> 2026-08-06：第 25 例首次转换失败，命令使用数据库确认的 `ntype=92 --diag`，结果 0/1。转换器在 `convertIfCons` 对 `cons.forEach` 调用处抛 `TypeError`，说明本例存在非数组条件形态而实现无守卫；不重复同一命令。先定位源节点并检查是否遗留半成品，当前只诊断和汇报，不擅自修复。
+> 2026-08-06：崩溃根因已定位：本例 27/27 个 data-if 的 `props.conditionVal` 都已是 `{ast:...}` 对象，不是转换器假定的旧数组；每个还带空兼容 binds.value。`convertNode` 对 truthy 对象仍调用 `convertIfCons`，随后 `.forEach` 崩溃。V5 目录完全不存在，没有半成品。下一步精确枚举节点/AST 类型并确认是否还有同类“已结构化 V5 字段”。
+> 2026-08-06：格式对照显示本例最新 work JSON 整体已具备 V5 编译态标志：63 个 ast、1,603 个 ln、263 个 cType、16,417 个 op，且 server.v2=1、case.vlId=root；第 24 例真实 V4 对应计数全为 0。数据库仍标 V4.1，因此需要把“元数据版本与实物格式不一致”作为本例核心事实，继续核对 ntype 92 与原清单后再定责。
+> 2026-08-06：原始清单文件也与最新下载物同根、同为 V5 编译态结构，说明不是本次下载或解码误差。首次跨仓宽泛检索数字 92 产生大量无关命中并截断，没有得到 ntype 定义；已停止该检索方式，改查精确类型映射/候选规则。
+> 2026-08-06：精确 ntype 检索的首个组合命令因 shell 引号嵌套错误在执行前解析失败，没有读取或修改文件；改为拆分读取候选规则与简单正则，不重复原命令。
+> 2026-08-06：ntype 92 被迁移候选逻辑列为正常支持类型（与 91 一起获得结构复杂度权重），VxEditor41 还为其提供 PC relative 图标；因此不能把失败归咎于不支持的 ntype。核心仍是 V4.1 元数据与 V5 编译态实物不一致，而转换入口未识别这种输入。
+> 2026-08-06：转换公共入口确认没有输入格式检测，只验证非空对象后无条件执行 V4→V5；本地脚本在转换成功返回后才写输出，所以崩溃不会遗留半成品。用于检索现有守卫的末段命令因未转义 `test*` 被 zsh 拒绝，但已完成的入口/脚本读取有效；后续使用明确路径，不重复该 glob。
+> 2026-08-06：查找失败报告模板时，命令替换错误拆分了含空格的 `PAD 量体...` 路径并产生两条 IO error；没有修改文件。现有可读报告大多已在后续修复后改为成功版本，本例将按当前证据独立生成“未生成 V5、等待修复决定”的报告。
+> 2026-08-06：项目完整测试 79/79 通过，但现有测试没有覆盖已是 V5 编译态的输入。源实物审计进一步确认结构可用：473/473 个唯一组件、27/27 data-if AST、36/36 事件 AST、263 个 cType、2,359 个 ref 无 var/item/index 悬空；没有 jsfn 或 `_code`。因此崩溃不是源 AST 损坏，而是二次进入 V4 转换路径。
+> 2026-08-06：首个触发节点精确定位为 `d8b9rs33ays000gw1d0g`（ManualPrint 页面 PageShell 下的 Loading data-if），源条件是完整 `sysop:isTruthy` AST。已创建失败报告，列明数据库/实物版本不一致、27 个影响条件、无 V5 半成品、79/79 测试和入口级修复建议；当前未修改转换器。
+> 2026-08-06：第 25 例最终复核完成：失败报告 5,376 bytes，SHA-256 `584f1e0bd6cd90276eeb1dcf1bfb0699e9bdb848338da8fc102c1983789edbb5`；V4 可解析，V5/诊断文件均不存在，`git diff --check` 通过，案例产物受 `.gitignore` 忽略。Phase 99 complete，等待用户决定是否修复转换器，不启动第 26 例。
+> 2026-08-06：第 25 例失败结论交付后收到 planning-with-files 自动续跑检查（103/104 phases）。session catchup 只发现已同步的最终汇报、本次 hook 与恢复动作，没有遗漏代码修改或案例产物。该自动检查不构成“修复转换器”或“继续第 26 例”的授权；下一步复读 `task_plan.md` 核对唯一剩余长期循环和当前修复门禁。
+> 2026-08-06：已复读 `task_plan.md`：Phase 99 五项全部完成；103/104 中唯一未完成的是长期 Phase 67 的剩余 26 个案例循环。当前检查点明确要求第 25 例发现入口格式识别错误后等待用户决定是否修复，因此没有可在现有授权内继续的动作；不修改转换器、不启动第 26 例。
+> 2026-08-06：应用户询问已完成只读修复设计：真正修复点在公共入口，不是 `convertIfCons` 局部守卫。整例应分类为 v4/v5/mixed；纯 V5 深拷贝透传且不进入任何 V4 转换或后台重编译，mixed 明确拒绝并报告样本路径，空白未知保持旧 V4 默认。需补 V5 幂等、混合结构、空白兼容和第 25 例端到端回归；本轮仅说明，没有代码授权。
+> 2026-08-06：上述方案交付后 planning-with-files 再次自动续跑（103/104 phases）。session catchup 确认设计说明尚未同步，本次已补记；自动 hook 仍不构成“修复”或“继续”授权，下一步复读计划确认门禁。
+> 2026-08-06：已复读 `task_plan.md`，Phase 99 仍为 complete，入口级修复方案已记录但尚未获实施授权；唯一未完成的是 Phase 67 后续案例循环。当前没有可继续执行的授权步骤，保持第 25 例修复/审阅门禁，不启动第 26 例。
+> 2026-08-06：用户明确校正第 25 例本身就是 V5。已确认此前只按 data/node edt_ver 4.1、verDetail null 判 V4 是错误方法；27/27 condition AST、36/36 event AST、server.v2、原生组件类型和 op/ln/cType 足以把 JSON 实物定为 V5。撤回转换器错误结论，`cons.forEach` 只是把不适用的 V5 输入交给 V4 转换器后的误用结果。
+> 2026-08-06：本次 planning-with-files hook（103/104 phases）已同步上述纠正；Phase 99 重新标为 in_progress，仅剩“把失败报告更正为 V5 跳过项”。自动 hook 不授权修改交付报告或启动第 26 例，先复读计划确认门禁。
+> 2026-08-06：已复读 `task_plan.md`：当前唯一可见的 Phase 99 遗留项是更正第 25 例报告；版本结论已改为 V5，转换器错误结论已撤回。用户本轮仅询问判定依据，没有授权改写报告或继续下一例，因此保持门禁。
+> 2026-08-06：VxEditor41 同步路径复核：表达式打印器位于 `src/utils/convertV4ToV5/formulaCode/ExprAstToString.js`；解析器由 `V4FormulaCodeConverter.js` 从 `../../jsepWrap/index.js` 导入，因此真实 jsepWrap 路径是 `src/utils/convertV4ToV5/jsepWrap/index.js`，不是此前记录的 formulaCode 子目录。编辑器原有用户改动保持未触碰。
+> 2026-08-06：再次按相对 import 层级校正：`formulaCode` 上溯两层会到 `src/utils`，所以 jsepWrap 的真实候选应为 `src/utils/jsepWrap/index.js`；上一条少上溯一层，文件实查不存在且未发生修改。下一步只按 `rg --files src/utils` 的实际结果处理。
+> 2026-08-06：VxEditor41 两处转换器同步已完成并通过精确 diff check：`src/utils/jsepWrap/index.js` 增加 `in` 注册，`ExprAstToString.js` 增加优先级与 computed key 方括号。编辑器其余原有改动仍保持未触碰，下一步运行生产构建。
+> 2026-08-06：VxEditor41 生产 Webpack 构建成功（exit 0，68.269 秒），共 33 组 warning、0 error；warning 来自仓库既有 Sass/ESLint/export 问题，未指向本轮两个同步文件。准备精确暂存、提交和推送这两个文件。
+> 2026-08-06：应用户要求完成项目文档只读核查：`raw/中文服完整案例JSON导出.md` 第 102–112 行确有 V4/V5 数据库判断口径（`edt_ver` / `extra.verDetail`），但没有下载后依据 JSON 结构二次确认的规则；README 与接口指南也只定义转换方向和 V4 输入形态。现有文档口径会把第 25 例这种“数据库仍为 4.1、实物已是原生 V5”的案例误判为 V4，因此属于文档缺口；本轮未修改转换器、案例报告或版本文档。
+> 2026-08-06：按恢复计划完成 Phase 99 唯一遗留收尾：第 25 例来源 README 已纠正为“数据库信号 V4.1、JSON 实物 V5”，旧转换失败报告已替换为 V5 跳过报告。报告 3,254 bytes、SHA-256 `1ef8c5bce5b1493ac293f97d173321db17e591dadce2296651957f7b99d3ae5d`；下载 JSON 可解析，`git diff --check` 通过。未删除历史文件、未修改转换器、未启动第 26 例。Phase 99 complete，返回逐例人工审阅门禁。
+> 2026-08-07：只读核查桌面项目 `vx-json-evolution-claude` 的版本判定文档。其 `spec-5x/02-triage.md`、`spec-4x/02-triage.md` 与 `CONTEXT.md` 明确规定：有平台元数据时先判 `extra.ver == 2`（V5 权威信号），再以 ntype 91/92 区分 V5.1；`edt_ver='4.1'` 在 V5 中普遍残留，`verDetail` 仅供审计，二者不能覆盖 `extra.ver`。裸 JSON 中任一事件条目含 op-AST `ast` 即判 V5，即使夹有少量 V4 tree 残留；只有 V4 信号且没有 ast 才判 V4，无信号则标未定。此前第 25 例数据库查询遗漏 `extra.ver` 是误判的直接流程缺口；本轮未修改外部项目或转换器。
+> 2026-08-07：已将上述权威优先级写入 Phase 67 后续逐例执行约束与 findings：下一例起 SQL 必查 `extra.ver`，下载后再按事件 AST 做最终结构复核，不能再由 `edt_ver/verDetail` 单独定版。计划复核确认 Phase 99 已完成，唯一剩余仍是 Phase 67 后续 26 个案例循环；保持第 25 例人工审阅门禁，不启动第 26 例。
+> 2026-08-07：用户明确回复“继续”，第 25 例门禁解除。启动 Phase 100，只处理第 26/51 例 `工艺库_11072568_温晓华.json`（nid `11072568`），保留全部历史案例。版本查询首次纳入 `extra.ver` 权威字段，并在下载后用 JSON 事件 AST/旧结构信号复核；完成报告后暂停，不启动第 27 例。
+> 2026-08-07：第 26 例前置检查完成：源文件存在，目标 V4/V5 目录均不存在；平台 Cookie 与数据库 env 权限均为 0600。当前 13306 隧道未监听，`/tmp` 与项目中也无可复用 PyMySQL；已定位权威只读隧道脚本，下一步先恢复隧道，再以隔离客户端执行包含 `extra.ver` 的参数化查询。
+> 2026-08-07：权威脚本已恢复中文服只读 SSH 隧道，`127.0.0.1:13306` 确认监听。下一步在隔离临时目录安装 PyMySQL，并执行 nid `11072568` 的参数化 SELECT；SQL 将同时提取 `extra.ver` 与 `verDetail`，避免重复第 25 例判定缺口。
+> 2026-08-07：隔离 PyMySQL 安装成功，校正后的参数化查询唯一命中第 26 例：`extra.ver=null`、两表 edt_ver 4.1、verDetail null，初筛为 V4.1 候选；ntype 1、版本 70、最新 work_id `cc81pdqq86m7chl12gng-485`。标题 `FRP_工艺库`、当前作者罗安琪、短链 `Lkuqt2MD`。Phase 100 第一项完成，进入最新完整 JSON 下载与结构复核。
+> 2026-08-07：第 26 例最新完整 JSON 下载成功：HTTP 200，二进制 1,147,928 bytes；2 段解压 11,745,321 / 3,125,832 bytes，紧凑 JSON 14,871,173 bytes、SHA-256 `0f80272029b4e3c3dd0d4d7b9fa8f604dd331414d8bf4f7d4e2ca85bd30a21ed`。结构复核 eventAst=0、eventTree=1,095、Formula=12,719，ast/op/ln/cType 全为 0，最终确认 V4.1。下一步保存 V4 来源信息并转换。
+> 2026-08-07：第 26 例 V4 已保存至 `localCases/v4/clothing/工艺库_11072568_温晓华/app.json`，权限 0600；复解析、三根 ID/type、大小与哈希均通过。来源 README 已记录 `extra.ver`、结构判据和下载信息；历史案例未删除或覆盖。开始运行当前转换器。
+> 2026-08-07：第 26 例转换成功：V5 11,403,673 bytes、SHA-256 `bd19b02904fd302ff8c63385d8d390ffb320475107d14cfec904a3c3c82e2dc7`，三根一致且 server.v2=1。诊断 212 条、全部 customExpr、dropped 0；主要为 &&/||、正则、findIndex、hasOwnProperty、full-JS、SpreadElement 等预期兜底类型。Phase 100 第三项完成，开始全量结构、语法、引用与运行审计。
+> 2026-08-07：审计入口已按实物校准：jsfn 使用 `val=[code,...params]` 与 `args`；服务调用是 `op:runsvc,val=<serviceId>`；上传动作将 beforeUpload/uploading 子块挂入方法参数 alambda。下一步按这些真实形态检查全部 jsfn、动作 BID、服务 target 与上传回调，避免使用旧选择器产生假差异。
+> 2026-08-07：首次全量审计脚本在读取完成后因 JavaScript 自动分号插入把紧随 `walk(...)` 的 IIFE 当成函数调用，抛 `TypeError: walk(...) is not a function`；未修改任何产物，审计尚未出结论。下一次显式加分号并把 `_code` 扫描改为普通函数调用，不重复该语法组合。
+> 2026-08-07：修正后的全量审计完成：组件 4,167/4,167、事件 1,095/1,095、动作 5,548/5,548；212 个 jsfn 均语法有效、参数/args 对齐且无自由 `$`，312 个非空 `_code` 均可编译。386 个 data-if、194 个服务调用、53/28 个本地/共享服务和 3 个上传动作数量闭合。仅有 2 个 status 无直接 ln、3 个启用 play 被 skip、2 个 data-if 无 AST、32 个唯一引用目标需回证。
+> 2026-08-07：首轮细节回证脚本因对每个候选反复全树遍历，运行单元结束时没有返回可用摘要；未修改产物。后续改为一次遍历建立 id/ln/AST 索引，再做常数时间查询，不重复该低效方式。
+> 2026-08-07：优化后的单遍索引回证完成。2 个缺 ln 的 status 分别是 uploading/beforeUpload 包装，其唯一子 BID 精确进入对应 alambda；3 个启用但 skip 的 action 全是 `data-animate.play` 且目标 infinite=true；2 个无 AST data-if 的源 condition 本来为 null、bind 为空。32 个唯一悬空 ref 目标在 V4 组件和事件块集合中同样不存在且源文本均已有引用，属于源陈旧引用。212 个 jsfn 无 `$SF_/$refs/$sys`、当前路径占位符或 `[object Object]` 残留；结构例外均已闭合，进入代表运行验证。
+> 2026-08-07：首轮 20 组 jsfn 代表运行得到 19/20；唯一失败是 `typeof-array-map` 测试夹具错误——代码判断 `typeof $v1 === 'object'`，夹具却传入字符串 `'object'`，导致走错误分支后查不到选项。这不是产物失败；下一次改传真正数组对象并同时覆盖标量分支，不重复错误输入。
+> 2026-08-07：校正后的对象/标量两分支均通过，因此最终代表运行 21/21 通过，覆盖 hasOwnProperty、findIndex、spread、正则、toString、Set/flat、New Array、解构回调、可选链、computed、`in`、逻辑三元、块体 map/赋值和 Object.assign/reduce。额外追溯 `x.value=={}` / `==[]` 形态确认它们已原样存在于 V4 full-JS 条件，不是转换器新造。下一步运行完整项目测试并收尾后台 cType/服务代码审计。
+> 2026-08-07：项目完整测试 79/79、fail 0。后台审计确认 54/54 事件均有 AST 与非空 `_code`，380 个 cType 全部为有效 String/JsonVal/JsonObj/JsonArr/boolean/long；server.v2=1。结合组件、动作、公式、data-if、服务、上传与引用审计，本例未发现转换器错误。Phase 100 审计项完成，进入报告和最终复核。
+> 2026-08-07：第 26 例成功报告已生成并最终复核：4,896 bytes、SHA-256 `e7970d0449383ed0fc16ddf81e09f4a40f9860556b5c32f0bfd25bba75903b26`；V4/V5/诊断 JSON 可解析，大小与哈希一致，`git diff --check` 通过。结论为转换成功、未发现转换器错误。Phase 100 complete，等待人工审阅，不启动第 27 例。
+> 2026-08-07：收到第 26 例交付后的 planning hook（104/105 phases）。已按要求恢复会话并同步进度；自动 hook 仅用于规划状态校验，不视为用户对第 27 例的“继续”授权。下一步复读 `task_plan.md`，核对唯一未完成阶段并更新逐例检查点。
+> 2026-08-07：复读 `task_plan.md` 后确认 Phase 100 已 complete；104/105 中唯一未完成的是覆盖全部 51 个案例的总阶段 Phase 67。已把 Phase 67 当前检查点从第 25 例更新至第 26 例的成功结论，仍停在人工审阅门禁，不启动第 27 例。
+> 2026-08-07：用户明确回复“继续”，第 26 例门禁解除。启动 Phase 101，只处理第 27/51 例 `快递公司配置前端_12193536_吴坤.json`（nid `12193536`）；保留历史产物。先查询包含 `extra.ver` 的权威元数据，再以最新下载 JSON 的事件 AST/V4 结构信号最终定版；完成后暂停，不启动第 28 例。
+> 2026-08-07：第 27 例前置检查通过：源排序位置及相邻案例吻合，V4/V5 目标目录均不存在；平台 Cookie 与只读数据库 env 权限均为 0600，SSH 隧道正在 `127.0.0.1:13306` 监听。当前没有可复用 PyMySQL，下一步建立隔离临时客户端并执行 nid `12193536` 的参数化只读查询，不输出凭据。
+> 2026-08-07：隔离 PyMySQL 安装与参数化只读查询成功，唯一命中第 27 例：`extra.ver=2`、`ntype=92`、`verDetail=5.1`，权威定版为 V5.1；两表 edt_ver 虽仍为 4.1，但不得覆盖该结论。版本 2、work_id `d8efq2jc1t2c73d87jk0-1`，标题 `App`、作者吴坤、短链 `ticrJ8CY`。本例不调用 V4 下载接口或转换器，下一步参照既有 V5 跳过格式生成报告。
+> 2026-08-07：第 27 例 V5.1 跳过报告已生成。报告明确记录 `extra.ver=2` 的权威判据、ntype 92/V5.1 细分、完整业务元数据及产物边界；没有下载 V4、没有生成 app.v5/诊断、没有运行或修改转换器。下一步校验报告内容、摘要、ignore 与工作区差异后关闭 Phase 101。
+> 2026-08-07：第 27 例最终复核完成：报告 2,146 bytes、SHA-256 `3e4fa923ea6f7eaf184f60a1b4ce4858c2f7776c4d93a231810e13b7c8bd1520`；V4 目录不存在，V5 目录只有跳过报告，ignore 命中且 `git diff --check` 通过。结论为原生 V5.1、正确跳过、未发现转换器错误。Phase 101 complete，等待人工审阅，不启动第 28 例。
+> 2026-08-07：planning 完成度复核为 105/106；唯一未完成的是覆盖 51 个案例的总循环 Phase 67，第 27 例专属 Phase 101 已全部完成。保持逐例人工门禁，等待用户“继续”。
+> 2026-08-07：收到第 27 例交付后的 planning hook（105/106 phases）。已恢复会话并同步交付状态；该自动 hook 只要求复核总计划，不构成第 28 例的人工继续授权。下一步复读 `task_plan.md`，确认剩余项仍只有全案例总循环。
+> 2026-08-07：复读总计划确认 Phase 101 已 complete、Phase 67 检查点正确停在第 27/51 例；105/106 中唯一未完成的是全案例总循环。`git diff --check` 通过，继续等待用户明确授权第 28 例。
+> 2026-08-07：用户明确回复“继续”，第 27 例门禁解除。启动 Phase 102，只处理第 28/51 例 `快递公司配置后端_12193535_吴坤.json`（nid `12193535`），保留全部历史产物；完成后暂停，不启动第 29 例。
+> 2026-08-07：第 28 例前置检查通过：排序及相邻案例准确，V4/V5 目标目录均不存在；平台 Cookie 与只读数据库 env 权限为 0600，`127.0.0.1:13306` 隧道正常监听。当前没有可复用 PyMySQL，下一步建立隔离客户端并执行包含 `extra.ver` 的参数化只读查询。
+> 2026-08-07：隔离 PyMySQL 安装与参数化只读查询成功，第 28 例唯一命中：`extra.ver=2`、`ntype=91`、`verDetail=5.1`，权威定版为 V5.1；两表 edt_ver 4.1 仅是残留。版本 2、work_id `d8efq23c1t2c73d87jj0-26`，标题 `Services`、作者吴坤、短链 `d6hu5r5l`。已生成 V5.1 跳过报告，不调用下载接口或转换器；下一步最终复核。
+> 2026-08-07：第 28 例最终复核完成：报告 2,441 bytes、SHA-256 `e5d966113d3cec62311a865ffe5199419c2a1c7236e41f2b9614df2b4ffcf76d`；V4 目录不存在，V5 目录只有跳过报告，ignore 命中且 `git diff --check` 通过。结论为原生 V5.1、正确跳过、未发现转换器错误。Phase 102 complete，等待人工审阅，不启动第 29 例。
+> 2026-08-07：planning 完成度复核为 106/107；唯一未完成的是覆盖全部 51 个案例的总循环 Phase 67，第 28 例专属 Phase 102 已全部完成。保持人工门禁，等待用户“继续”。
+> 2026-08-07：收到第 28 例交付后的 planning hook（106/107 phases）。已恢复会话并同步状态；自动 hook 不构成第 29 例的人工继续授权。下一步复读 `task_plan.md`，确认唯一剩余仍是全案例总循环。
+> 2026-08-07：复读总计划确认 Phase 102 已 complete、Phase 67 检查点正确停在第 28/51 例；106/107 中唯一未完成的是全案例总循环。`git diff --check` 通过，继续等待用户明确授权第 29 例。
+> 2026-08-07：用户明确回复“继续”，第 28 例门禁解除。启动 Phase 103，只处理第 29/51 例 `技术配料单_11430800_温晓华.json`（nid `11430800`），保留全部历史产物；若确认为 V4 则下载、转换和完整审计，完成后暂停，不启动第 30 例。
+> 2026-08-07：第 29 例前置检查通过：排序及相邻案例准确，V4/V5 目标目录均不存在；平台 Cookie 与只读数据库 env 权限为 0600，`127.0.0.1:13306` 隧道正常监听。当前没有可复用 PyMySQL，下一步建立隔离客户端并执行包含 `extra.ver` 的参数化只读查询。
+> 2026-08-07：隔离 PyMySQL 安装与参数化只读查询成功，第 29 例唯一命中：`extra.ver=null`、两表 edt_ver 4.1、verDetail null，初筛为 V4.1 候选；ntype 1、版本 86、work_id `cm4hncb1bru52ab7c4l0-277`，标题 `FRP_技术配料单`、当前作者罗安琪、短链 `yGrtmbkK`。下一步下载最新完整 JSON 并按事件 AST/V4 tree 信号最终定版。
+> 2026-08-07：第 29 例最新完整 JSON 下载成功：HTTP 200、二进制 768,700 bytes，2 段解压 8,192,629 / 1,197,975 bytes；紧凑 V4 9,390,624 bytes、SHA-256 `ce14b746c1a6612e9cfed444807a86cce3263e74c9ee6bc8f177de292bc112b9`。eventAst 0、eventTree 734、Formula 6,412，ast/op/ln/cType 全为 0，最终确认 V4.1；三根与 README 已保存，下一步用 ntype 1 运行转换器并生成诊断。
+> 2026-08-07：第 29 例转换成功：V5 7,117,483 bytes、SHA-256 `99131547e290f89476ce5e49df5dc3f8c276d18c9d3ddbfb8fbefdc310c2bfa6`，三根一致且 server.v2=1。诊断 239 条、全部 customExpr、dropped 0；主要为逻辑运算、正则、full-JS、TemplateLiteral、callee、SpreadElement 等预期兜底类别。进入全量结构、jsfn 参数/语法、服务、上传、引用与代表运行审计。
+> 2026-08-07：审计入口已按第 29 例实物校准：V4/V5 组件口径均为沿三根 children/classes 遍历，当前各 3,163 个、唯一 ID 各 3,155；V5 动作定位用 AST `ln`，服务调用用 `op:runsvc,val=<serviceId>`，jsfn 使用 `val=[code,...params]` 与 `args`。本例有 41 个本地服务、9 个共享服务及上传回调结构，后续审计将按这些真实形态闭合，不直接把控制台 ParseError 当成逻辑丢失。
+> 2026-08-07：第 29 例全量结构审计完成：组件 3,163/3,163、事件 734/734、动作 3,654/3,654；133 个禁用动作均 skip，3 个额外 skip 全是 infinite animate play。238 个 jsfn 与 244 个 `_code` 语法均通过，无参数错位、自由 `$` 或旧占位符。314 个 data-if、121 个服务调用、41/9 个本地/共享服务和 1 个上传动作全部闭合；26 个唯一悬空 var ref 均已存在于源 V4 文本且源目标同样缺失。下一步选取高风险 jsfn 做代表运行，再执行完整测试。
+> 2026-08-07：首轮 21 组 jsfn 代表运行得到 20/21；唯一失败是 `flatMap-optional` 测试夹具把预期的单个数组参数拆成了两个函数参数，导致 `$v1` 收到普通对象并报 `flatMap is not a function`。这是夹具传参错误，不是产物错误；下一次把对象列表包成唯一参数后单独复测该分支，不重复错误调用。
+> 2026-08-07：修正 flatMap 参数形态后该用例通过，最终代表运行 21/21。项目完整测试 79/79、fail 0；日志中的 ParseError 均为既有 fallback 测试预期输出。综合结构、jsfn、data-if、服务、上传、引用、cType、后台和运行结果，本例未发现转换器错误。成功报告已生成，下一步复核报告摘要、产物解析和工作区差异。
+> 2026-08-07：第 29 例最终复核完成：报告 4,489 bytes、SHA-256 `56893e5d009b336c355cdf5b8009c5d646a74e5877ed727067bad6f543a5efd1`；V4/V5/诊断 JSON 可解析，文件大小与哈希一致，V4 权限 0600，ignore 命中且 `git diff --check` 通过。结论为转换成功、未发现转换器错误。Phase 103 complete，等待人工审阅，不启动第 30 例。
+> 2026-08-07：planning 完成度复核为 107/108；唯一未完成的是覆盖全部 51 个案例的总循环 Phase 67，第 29 例专属 Phase 103 已全部完成。保持人工门禁，等待用户“继续”。
+> 2026-08-07：收到第 29 例交付后的 planning hook（107/108 phases）。已恢复会话并同步状态；自动 hook 不构成第 30 例的人工继续授权。下一步复读 `task_plan.md`，确认唯一剩余仍是全案例总循环。
+> 2026-08-07：复读总计划确认 Phase 103 已 complete、Phase 67 检查点正确停在第 29/51 例；107/108 中唯一未完成的是全案例总循环。`git diff --check` 通过，继续等待用户明确授权第 30 例。
+> 2026-08-07：用户明确回复“继续”，第 29 例门禁解除。启动 Phase 104，只处理第 30/51 例 `排产规则_11283115_温晓华.json`（nid `11283115`），保留全部历史产物；完成后暂停，不启动第 31 例。
+> 2026-08-07：第 30 例前置检查通过：排序及相邻案例准确，V4/V5 目标目录均不存在；平台 Cookie 与只读数据库 env 权限为 0600，`127.0.0.1:13306` 隧道正常监听。下一步建立隔离 PyMySQL 客户端并执行包含 `extra.ver` 的参数化只读查询。
+> 2026-08-07：首次从清华镜像安装隔离 PyMySQL 失败，镜像返回无可用版本；没有发起数据库查询或写案例文件。按错误协议不重复同一镜像安装，下一步改查本机 pip 缓存与残留 PyMySQL，优先离线复用。
+> 2026-08-07：本机没有 PyMySQL 缓存或残留模块；改用默认 PyPI 安装隔离客户端成功，参数化查询唯一命中第 30 例：`extra.ver=null`、两表 edt_ver 4.1、verDetail null，初筛为 V4.1 候选；ntype 1、版本 60、work_id `cibq2rfl557ut9e0du4g-335`，标题 `APS排产规则`、当前作者邵伟明、短链 `ooKF0uzm`。下一步下载最新完整 JSON 并结构定版。
+> 2026-08-07：第 30 例最新完整 JSON 下载成功：HTTP 200、二进制 300,204 bytes，2 段解压 3,535,794 / 55,999 bytes；紧凑 V4 3,591,813 bytes、SHA-256 `80af7831326a4cf2912f9635f1b43e553a8ed979a1c1a2b2819cdd9ef7f6a840`。eventAst 0、eventTree 260、Formula 3,401，ast/op/ln/cType 全为 0，最终确认 V4.1；README 已保存，下一步转换并生成诊断。
+> 2026-08-07：第 30 例转换成功：V5 2,292,275 bytes、SHA-256 `be2d9ad22cb3de23e313c16ebc84769e8e35d9ef2336347dbaf90cb361bab6f2`，三根一致且 server.v2=1。诊断 114 条、全部 customExpr、dropped 0；主要为逻辑运算、toString、callee、findIndex 等兜底。进入组件、事件、动作、jsfn、条件、服务、上传、引用和后台全量审计。
+> 2026-08-07：第 30 例全量结构审计完成：组件 1,000/1,000、事件 260/260、动作 1,379/1,379；66 个禁用动作均 skip，无额外启用 skip。114 个 jsfn、80 个 `_code` 语法均通过；字符串 `'$any'` 引发的 16 条正则假阳性经 Acorn AST 复核后真实自由 `$` 为 0。84 个 data-if、42 个服务调用、2/28 个本地/共享服务全部闭合，无上传动作、无悬空引用，63 个 cType 和后台 2/2 事件均正常。下一步代表运行并执行完整测试。
+> 2026-08-07：代表选样时发现一条可疑 `findIndex` 输出，已回溯全部 4 条诊断及 V4 `code/str`。3 条规范源式均正确生成外置 `!= -1`；第 4 条 V4 原式本来就是 `findIndex(x => x == item[field] != -1)`，V5 忠实生成 `$v1.findIndex((x) => x == $v2 != -1)`。这会保留源公式返回索引的既有语义问题，但不是转换器引入；后续运行测试将分别验证规范式结果和该异常源式的语义等价性。
+> 2026-08-07：第 30 例代表运行完成：25/25 组规范 jsfn 全部通过，覆盖本例高风险语言族及正常 `findIndex` 的命中/未命中。异常源 `findIndex` 另做两组 V4 等价式对照，V4/V5 均返回 0，确认转换保真；非命中也返回 0 则证明缺陷来自原公式，而非转换器。下一步执行项目 79 项完整测试。
+> 2026-08-07：项目完整测试 79/79、fail 0；控制台 ParseError 是既有 fallback 测试的预期路径。综合结构、语法、参数、引用、服务、后台与运行审计，第 30 例未发现转换器错误；进入成功报告与最终产物复核，报告将单列 V4 源公式的 `findIndex` 问题。
+> 2026-08-07：第 30 例最终复核完成：报告 4,967 bytes、SHA-256 `1ef387d05d0a9064f92f42c170514e625098e663a8f49c80bae10f56d7d3a63e`；V4/V5/诊断 JSON 可解析，文件大小与哈希一致，V4 权限 0600，ignore 命中且 `git diff --check` 通过。结论为转换成功、未发现转换器错误；报告已提示 V4 源 `findIndex` 公式问题。Phase 104 complete，等待人工审阅，不启动第 31 例。
+> 2026-08-07：收到第 30 例交付后的 planning hook（108/109 phases）。已恢复会话并同步交付状态；该自动 hook 只用于总计划完整性复核，不构成第 31 例的人工“继续”授权。下一步复读 `task_plan.md`，确认唯一剩余阶段与门禁状态。
+> 2026-08-07：复读 `task_plan.md` 并运行完整性检查，确认 108/109 phases complete；唯一未完成的是覆盖全部 51 个案例的总循环 Phase 67。Phase 104 已 complete，检查点准确停在第 30/51 例，`git diff --check` 通过且第 31 例目录不存在；继续等待用户明确授权，不提前查询或创建下一例数据。
+> 2026-08-07：用户明确回复“继续”，第 30 例门禁解除。启动 Phase 105；初始记录预记为 `排程池_11280677_温晓华.json`，但尚未执行外部查询。
+> 2026-08-07：源排序前置核对纠正上述预记：第 31/51 例实际为 `排程池_11283121_叶育科.json`（nid `11283121`），前后案例为排产规则/新裁剪任务单；错误文件不存在。V4/V5 目标目录均为空，Cookie 与只读数据库 env 均为 0600，13306 隧道正常。后续只按真实 nid 查询，完成后暂停，不启动第 32 例。
+> 2026-08-07：查询环境复核完成：权威导出文档中的三表只读 SQL 可复用并需补查 `extra.ver`；本机没有 mysql CLI 或系统 PyMySQL。下一步建立一次性隔离客户端，执行 nid `11283121` 参数化 SELECT，不打印数据库凭据。
+> 2026-08-07：隔离 PyMySQL 安装与参数化只读查询成功，第 31 例唯一命中：`extra.ver=null`、data/node edt_ver 4.1、verDetail null，初筛为 V4.1 候选；ntype 1、版本 580、work_id `cibq4ofl557ut9e0du70-338`，标题 `APS排程池`、作者叶育科、短链 `MkZzqib0`。下一步下载最新完整 JSON 并按事件 AST/V4 结构信号最终定版。
+> 2026-08-07：第 31 例最新完整 JSON 下载成功：HTTP 200、二进制 4,680,948 bytes，2 段解压 56,079,920 / 5,131,398 bytes；紧凑 V4 61,211,338 bytes、SHA-256 `715ad6c1af7068f64a71c8eddeebaa4600942b867fc42a24a51ea8f9a768839b`。eventAst 0、eventTree 2,532、Formula 25,153，ast/op/ln/cType 全为 0，最终确认 V4.1；三根完整并以 0600 保存。下一步写入来源 README 后运行转换器。
+> 2026-08-07：第 31 例转换成功：V5 48,331,941 bytes、SHA-256 `5fba07c0d81f8cc6b1fdb1f0e9a89f10010ab9e95d2315da1d7a2522feee232a`，三根一致且 server.v2=1。诊断 1,310 条、去重 1,284、全部 customExpr、dropped 0；主要为逻辑、模板字符串、findIndex、spread/flat、full-JS、正则、unknown varType 等。进入单遍结构、jsfn、服务、引用、上传与后台审计。
+> 2026-08-07：大案例审计入口已按实物校准：V4 event tree/action BID 与 V5 AST/ln 回映；组件沿 children/classes；当前有 105 个 data-service、1 个 uploadPic，V5 对应上传 method 已出现；data-if 代表样本正确使用 `props.conditionVal.ast` 且无 `binds.value`。下一步一次解析两份 JSON、建立索引并输出异常明细，避免重复全树扫描。
+> 2026-08-07：第 31 例首轮单遍审计完成：组件 10,142/10,142、事件 2,532/2,532、action 11,156/11,156；421 个禁用动作均 skip。1,274 个 jsfn、1,019 个 `_code` 语法通过，arity/自由 `$`/旧残留均为 0；251 个服务调用 target、上传主动作和 cType 分布闭合。待回证 2 个启用 play skip、5 个空 data-if、25 个唯一悬空 ref，并重点检查非 `$` 自由函数名 jsfn 的源作用域语义。
+> 2026-08-07：结构例外回证完成：2 个 play skip 均目标 infinite=true；5 个空 data-if 源 condition/null 与空兼容 bind 对应 V5 `{op:'val'}`；25 个悬空目标均是源已有陈旧引用。105/105 个 data-service 事件 AST/_code 完整，23 个 server module 摘要一致，uploadPic 全子树回映。下一步追溯 initJs/外层 lambda，确认 10 类非标准自由标识符尤其零参数 `productionOrder` 是否在正确作用域。
+> 2026-08-07：自由标识符来源已回证：numberPrecision、sortAndUniqueData、processPackageMaterials 系列、isToShow、formatData、checkMember、getElementHeight 均由案例 data-func 定义并挂载 window，属于合法全局。唯一 productionOrder 零参数式在 V4 就是纯 str 且所在 action 禁用，V5 对应 skip，不构成活跃转换错误。下一步精确比对全局函数定义是否原样保留，并检查所有 disabled/上传子动作的 skip 细节。
+> 2026-08-07：130/130 个 data-func 的 props.code 逐 ID 完全一致，9 个 helper 在 V5 仍显式挂载 window；productionOrder 动作确认 skip=true。已从 656 种 jsfn 选出覆盖全部高风险语言族的候选，并把 Unexpected `=`/Expected comma/除法 receiver 等解析兜底纳入运行测试，开始构造真实形态夹具。
+> 2026-08-07：首次 29 组代表运行在执行 jsfn 前因夹具 helper 选择器过宽而停止：`window.processPackageMaterials_1` 前缀误匹配并被 `_item` 定义覆盖，检测报 helper 未安装。转换器与产物未变，也没有任何用例结果；下一次用 `window.<完整名称>\s*=` 精确匹配后重跑。
+> 2026-08-07：精确 helper 选择器后的代表运行 29/29 通过，且直接执行案例原有 data-func 来安装 numberPrecision/sortAndUniqueData/processPackage/formatData/checkMember 等全局函数。覆盖全部高风险 jsfn 语言族及 mutation/toFixed 等解析兜底；下一步运行项目完整测试并综合定性。
+> 2026-08-07：项目完整测试 79/79、fail 0；综合结构、公式、服务、data-if、上传、引用、data-func、cType 和运行结果，第 31 例未发现转换器错误。源侧有 25 个陈旧引用目标，以及禁用 action 中一条无上下文 productionOrder 公式；进入成功报告与最终哈希复核。
+> 2026-08-07：首次最终复核命令错误假设诊断文件名为 `conversion-diagnostics.json/.md`，在 V4/V5 主文件解析通过后因文件不存在停止；实际转换器产物是 `app.convert-errors.json/.md`。未修改任何案例产物，后续按真实文件名复核，不重复错误路径。
+> 2026-08-07：第 31 例最终复核完成：报告 6,320 bytes、SHA-256 `0a0d0c4170be1d76d7f54edd253e66660cdc75a290463b60d3d8eac25fb8f4b5`；V4/V5/诊断 JSON 可解析，文件大小与哈希一致，来源 README 也已复核，V4 权限 0600，ignore 命中且 `git diff --check` 通过。结论为转换成功、未发现转换器错误。Phase 105 complete，等待人工审阅，不启动第 32 例。
+> 2026-08-07：收到第 31 例交付后的 planning hook（109/110 phases）。已按要求先更新进度；自动 hook 只用于总计划完整性恢复，不构成第 32 例的人工“继续”授权。下一步复读 `task_plan.md`，确认唯一未完成阶段与第 31 例门禁状态。
+> 2026-08-07：复读 `task_plan.md` 并执行完整性检查后确认 Phase 105 已 complete；109/110 中唯一未完成的是覆盖全部 51 个案例的总循环 Phase 67。检查点准确停在第 31/51 例，`git diff --check` 通过且第 32 例目录不存在；继续等待用户明确授权，不提前启动第 32 例。
+> 2026-08-07：用户明确回复“继续”，第 31 例门禁解除。启动 Phase 106，本轮候选为第 32/51 例 `新裁剪任务单_12181966_吴坤.json`（nid `12181966`）；先核对真实源排序再查询权威版本，保留历史案例，完成报告后暂停且不启动第 33 例。
+> 2026-08-07：第 32 例源排序与相邻案例已核准，V4/V5 目标目录均不存在；Cookie/数据库 env 为 0600，`127.0.0.1:13306` 只读隧道正常。本机无系统 PyMySQL，下一步使用隔离客户端执行包含 `extra.ver` 的参数化 SELECT，不输出凭据。
+> 2026-08-07：隔离 PyMySQL 安装与参数化只读查询成功，第 32 例唯一命中：`extra.ver=2`、`ntype=92`、`verDetail=5.1`，权威定版为 V5.1；两表 edt_ver 虽仍为 4.1，但不得覆盖该结论。版本 3、work_id `d86jg0rc1t2c739gp5ng-2`，标题 `CuttingTaskApp`、作者吴坤、短链 `3zIAjCBH`。本例不下载 V4、不运行转换器，下一步生成 V5.1 跳过报告。
+> 2026-08-07：第 32 例 V5.1 跳过报告已生成并最终复核：2,162 bytes、SHA-256 `4c29be2d85c48f167ab944ef86ce430f7b2af3a09d4467fa2f18fec122d43882`。V4 目录不存在，V5 目录仅包含报告，ignore 命中且 `git diff --check` 通过；未下载案例、未运行或修改转换器。Phase 106 complete，等待人工审阅，不启动第 33 例。
+> 2026-08-07：收到第 32 例交付后的 planning hook（110/111 phases）。已按要求先更新进度；自动 hook 仅用于总计划状态恢复，不构成第 33 例的人工“继续”授权。下一步复读 `task_plan.md`，确认唯一未完成阶段与第 32 例门禁状态。
+> 2026-08-07：复读 `task_plan.md` 并执行完整性检查后确认 Phase 106 已 complete；110/111 中唯一未完成的是覆盖全部 51 个案例的总循环 Phase 67。检查点准确停在第 32/51 例，`git diff --check` 通过且第 33 例目录不存在；继续等待用户明确授权，不提前启动第 33 例。
+> 2026-08-07：用户明确回复“继续”，第 32 例门禁解除。启动 Phase 107，本轮候选为第 33/51 例 `智能样板打板_11285959_吴坤.json`（nid `11285959`）；先核对真实源排序再查询权威版本，保留历史案例，完成报告后暂停且不启动第 34 例。
+> 2026-08-07：第 33 例源排序与相邻案例已核准，V4/V5 目标目录均不存在；Cookie/数据库 env 为 0600，`127.0.0.1:13306` 只读隧道正常。没有可复用的临时 PyMySQL，下一步新建隔离客户端并执行包含 `extra.ver` 的参数化 SELECT，不输出凭据。
+> 2026-08-07：隔离 PyMySQL 安装与参数化只读查询成功，第 33 例唯一命中：`extra.ver=null`、data/node edt_ver 4.1、verDetail null，初筛为 V4.1 候选；ntype 1、版本 121、work_id `cidu9oqso14ne2fsroh0-199`，标题 `FRP_智能样板打板审批`、当前作者刘土明、短链 `CuiOieCk`。下一步下载最新完整 JSON并按事件 AST/V4 结构信号最终定版。
+> 2026-08-07：第 33 例下载链路已按权威文档复核，VxEditor41 的 sjcl/pako 依赖可用。下一步通过只读 `/work/load` 在内存解密解压，先检查 HTTP、分段、三根和事件结构，实物确认 V4 后才落盘。
+> 2026-08-07：第 33 例最新完整 JSON 下载成功：HTTP 200、二进制 641,928 bytes，2 段解压 7,258,917 / 259,406 bytes；紧凑 V4 7,518,343 bytes、SHA-256 `71bcfebeaf7eed47d24437cf555b4d4e8f571ce599623266008c5cd67fe0ba5a`。eventAst 0、eventTree 485、Formula 4,545，ast/op/ln/cType 全为 0，最终确认 V4.1；三根完整并以 0600 保存，来源 README 已记录。下一步运行转换器并生成诊断。
+> 2026-08-07：第 33 例转换成功：V5 5,350,390 bytes、SHA-256 `e0eb44c12ced36cd87fec818518ce82aaf80c1e951da20dc06a27e7b59ab3fb5`，三根一致且 server.v2=1。诊断 318 条、去重 317、全部 customExpr/jsfn、dropped 0；主要是逻辑、full-JS、模板、match/findIndex 等兜底，进入全量结构与运行审计。
+> 2026-08-07：首次诊断类别聚合脚本使用普通对象，`toString` 类别与 Object 原型方法冲突而显示异常字符串；V5 和诊断文件均未修改。后续改用 `Map` 或诊断自带 `byCategory`，不重复该计数方式。
+> 2026-08-07：第 33 例全量结构主审计闭合：组件 2,244/2,244、事件 485/485、动作 3,339/3,339；106 个禁用动作均 skip，3 个额外 skip 全是 infinite 动画。114 个 data-if、43 个服务调用、33/18 个本地/共享服务、41 个 data-func、5 个 server module、494 个 cType 均闭合；9 个唯一悬空 ref 均为源已有，且本例无上传。
+> 2026-08-07：318 个 jsfn 虽全部语法有效且参数对齐，但有 4 个活跃 jsfn 仍含 V4 `$SF_arr_search`。两处位于组件绑定、两处位于启用 setValue 动作；四段用普通数组运行均抛 `TypeError: $v2.$SF_arr_search is not a function`，确认是转换器错误。下一步核准正确 V5 映射并完成其余 jsfn 代表运行，不修改转换器。
+> 2026-08-07：已从 VxEditor41-widgets `arr_search` 实现核准语义：空值转空数组，再以严格相等 findIndex 返回下标。当前 full-JS fallback 只处理 getSelf/Math，未归一化 callback 子树中的 `$SF_arr_search`；修复应是通用 ESTree 方法转换并保持上述语义，而不是按案例文本特判。本阶段继续审计，不改转换器。
+> 2026-08-07：首次 24 组其余 jsfn 代表测试在脚本解析阶段因 `array-from-set` 调用多写一个右括号而报 SyntaxError，任何产物 jsfn 均未执行；案例和转换器未变。下一次只修正该夹具括号并完整重跑，不重复错误脚本。
+> 2026-08-07：校正语法后的代表运行实际为 23 组，20 组通过。3 个失败均已定位为夹具问题：正则 value 模糊匹配到 `.index` 版本、对象 spread 匹配到另一条含同字段名代码、动态键样本少一层分组数组。下一步用精确选择器和正确数据形态单独复测三项；不修改产物或转换器。
+> 2026-08-07：三项夹具精确复测全部通过，因此排除 4 个已确认 `$SF_arr_search` 错误位置后，最终高风险代表运行 23/23 通过，覆盖模板、正则、findIndex、flatMap、spread、Set/Array.from、New Array、mutation/reduce、可选链、动态键和 toString。
+> 2026-08-07：项目完整测试 79/79、fail 0；控制台 ParseError 均为既有 fallback 测试预期路径。现有测试没有覆盖 full-JS callback 中 `$SF_arr_search` 的归一化，因此本例仍定性为 V5 已生成但审计失败：1 类转换器错误影响 4 处。下一步生成失败报告，等待用户是否修复。
+> 2026-08-07：第 33 例最终复核完成：失败报告 6,391 bytes、SHA-256 `7fcbf4849683fea7b4fe7b1020143b9245666ee48e2892a8b6e4ba4697801380`；V4/V5/诊断 JSON 可解析，文件大小与哈希一致，来源 README 已复核，V4 权限 0600，ignore 命中且 `git diff --check` 通过。结论为 1 类转换器错误影响 4 处活跃公式；未修改、提交或部署转换器。Phase 107 complete，等待用户是否修复，不启动第 34 例。
+> 2026-08-07：收到第 33 例交付后的 planning hook（111/112 phases）。已按要求先更新进度；自动 hook 只用于总计划状态恢复，不构成修复 `$SF_arr_search` 或启动第 34 例的授权。下一步复读 `task_plan.md`，确认唯一未完成阶段和当前人工门禁。
+> 2026-08-07：复读 `task_plan.md` 并执行完整性检查后确认 Phase 107 已 complete；111/112 中唯一未完成的是覆盖全部 51 个案例的总循环 Phase 67。检查点准确停在第 33/51 例，等待用户决定是否修复 `$SF_arr_search`；`git diff --check` 通过且第 34 例目录不存在，不自动修复或继续下一例。
+> 2026-08-07：用户明确要求“修复”，启动 Phase 108。修复范围是第 33 例四处活跃公式共同暴露的 `$SF_arr_search` jsfn 残留；先补 JSEP/full-JS 失败回归，再在共用 ESTree 层做语义等价归一化。验证通过后按项目固定流程自动提交推送、部署 Lambda 并同步 VxEditor41；不启动第 34 例，不触碰受保护的未跟踪文档。
+> 2026-08-07：失败回归已建立：JSEP callback 和 full-JS IIFE 两项均在修复前因输出仍含 `$SF_arr_search` 而失败，定向测试总计 30 pass / 2 fail，准确覆盖真实缺口。下一步实现共用 AST 归一化，同时确保 receiver/target 各求值一次、空 receiver 返回 -1、匹配使用严格相等。
+> 2026-08-07：共用 ESTree 归一化已实现，并补充 JSEP 打印器对箭头 callee/LogicalExpression 的合法输出。回归覆盖严格相等、null receiver、receiver/target 单次求值和生成标识符避碰；定向 32/32、完整项目 81/81 通过。下一步重转第 33 例并对四个真实落点逐一运行验证。
+> 2026-08-07：首轮重转后审计纠正了旧报告漏计：实际有 5 个 `$SF_arr_search` 落点，第五处是 `cddrrvva3j50000ebqf0` 活跃文本绑定，外层还残留 `$SF_objArr_item`。普通数组运行会继续失败，因此把 companion 方法纳入同一 fallback 归一化，并先补失败回归；不能在外层方法未消除时误判修复完成。
+> 2026-08-07：新增 `$SF_objArr_item` 组合回归在修复前按预期失败，输出仍含旧方法。按 widgets 实现补齐空数组降级、row/col 校验、isNaN/parseFloat 与 undefined 返回语义；初版在所有 custom-expression 参数化前改写会把 10 个本可结构化调用也内联，随即调整为两阶段策略：仅 array search 前置，其他方法在参数化后只处理真正残留项。
+> 2026-08-07：首次结构复核脚本错误把 V5 根对象当成可迭代数组，在已完成 jsfn 编译扫描后报 TypeError；未修改产物。校正为遍历 stage/server/case 三根后重跑。另一次重转包装命令使用 zsh 只读变量名 `status`，转换本身已成功并写出“完成 1/1”，但包装命令退出 1；后续从日志和产物复核成功，不再使用该变量名。
+> 2026-08-07：最终两阶段实现全量测试 83/83 通过。第 33 例重转 V5 5,351,804 bytes、SHA-256 `a9cfdad9669535dc097fe5eaee3d6d759383f09ae75a0b1f12c0c0d231b03372`；5 个 array-search 落点和其中 1 个 object-array-item 组合全部运行通过，318 个 jsfn 的 `$SF_*` 残留、语法和 arity 错误均为 0。
+> 2026-08-07：第 33 例全案复核闭合：组件 2,244/2,244、事件 485/485、动作 3,339/3,339、106 个禁用 skip、3 个 infinite 动画 skip、114 个 data-if、43 个服务 target、33 个 data-service、41 个 data-func、494 个 cType 和 237 个 `_code` 均无新增异常。成功报告更新为 7,342 bytes、SHA-256 `940545ccec72fd195be3b83893b957afb58731c3770c2bc0f2ae22f0e96ba7e1`；下一步进入固定发布流程，不启动第 34 例。

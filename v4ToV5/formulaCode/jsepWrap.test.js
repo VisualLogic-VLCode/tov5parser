@@ -589,6 +589,100 @@ test('legacy runtime math methods normalize inside fallback without rewriting lo
   assert.match(shadowedJsfn.val[0], /\$sys\.util\.math_floor\(3\)/)
 })
 
+test('legacy array search normalizes inside JSEP custom-expression callbacks', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.filter(item => fParamgroup.ids.$SF_arr_search(item.id) != -1).length > 0 && true',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.doesNotMatch(jsfn.val[0], /\$SF_arr_search/)
+  assert.match(jsfn.val[0], /\.findIndex\(/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.equal(
+    evaluate([{ id: 1 }, { id: '1' }], [1]),
+    true,
+    'V4 arr_search uses strict equality'
+  )
+  assert.equal(evaluate([{ id: '1' }], [1]), false)
+  assert.equal(evaluate([{ id: 1 }], null), false)
+})
+
+test('legacy array search full-JS normalization evaluates receiver and target once', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: '(() => { const __v4ArrSearchValue1 = "kept"; let receiverCount = 0; let targetCount = 0; const source = () => { receiverCount += 1; return [1] }; const target = () => { targetCount += 1; return 1 }; const result = source().$SF_arr_search(target()); return [result, receiverCount, targetCount, __v4ArrSearchValue1] })()',
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.doesNotMatch(jsfn.val[0], /\$SF_arr_search/)
+  assert.match(jsfn.val[0], /\.findIndex\(/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.deepEqual(evaluate(), [0, 1, 1, 'kept'])
+})
+
+test('legacy object-array item composes with array search inside fallback', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.people.$SF_objArr_item(fParamgroup.ids.$SF_arr_search(fParamgroup.id), "name") || "-"',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.doesNotMatch(jsfn.val[0], /\$SF_/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.equal(evaluate([{ name: 'Alice' }], [7], 7), 'Alice')
+  assert.equal(evaluate([{ name: 'Alice' }], [7], 8), '-')
+  assert.equal(evaluate(null, [7], 7), '-')
+})
+
+test('legacy object-array item fallback preserves V4 row coercion', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.rows.map(row => fParamgroup.people.$SF_objArr_item(row, "name")) || []',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.doesNotMatch(jsfn.val[0], /\$SF_objArr_item/)
+  assertJsfnArgumentsComplete(ast)
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.deepEqual(
+    evaluate(['0x10', '01', '', null], [
+      { name: 'A' },
+      { name: 'B' }
+    ]),
+    ['A', 'B', undefined, undefined]
+  )
+})
+
 test('nested callback locals stay in the owning jsfn scope', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
