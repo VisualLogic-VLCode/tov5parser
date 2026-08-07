@@ -795,8 +795,36 @@ export default class V4FormulaCodeConverter {
     }
     return ast
   }
+  isSafeNativeFilterCall = ({ args }) => {
+    if (!Array.isArray(args) || args.length !== 1) return false
+    const callback = args[0]
+    if (
+      callback?.type !== 'ArrowFunctionExpression' ||
+      callback.body?.type === 'BlockStatement'
+    ) {
+      return false
+    }
+    const params = callback.params || []
+    return (
+      params.length <= 2 &&
+      params.every(param => param?.type === 'Identifier')
+    )
+  }
   processMemberExpression = ({ parsed, identity, args }) => {
     let { object, property, computed } = parsed || {}
+    if (
+      identity === 'callee' &&
+      !computed &&
+      property?.name === 'filter' &&
+      !this.isSafeNativeFilterCall({ args })
+    ) {
+      // V5 的 filter lambda 只声明 item/index。原生 filter 的第二实参
+      // thisArg 与第三个 callback 参数 array 都不能无损映射，交给 jsfn。
+      throw new ParseError({
+        message: 'not support native filter call shape',
+        type: 'NativeFilterCall'
+      })
+    }
     let ctx = this.getCtx(object?.name)
     let { varType: objectVarType, varCompId } = ctx || {}
     if (!objectVarType) {
@@ -986,6 +1014,8 @@ export default class V4FormulaCodeConverter {
       case '>=': // 大于等于
       case '<': // 小于
       case '<=': // 小于等于
+      case '&&': // 与
+      case '||': // 或
         ast = this.genConditonValAST({ parsed, gateway })
         break
       case '+': // 字符串拼接/加法
@@ -998,8 +1028,6 @@ export default class V4FormulaCodeConverter {
       case '//': // 整除
         ast = this.genBinaryExpressionAST({ parsed })
         break
-      case '&&': // 与
-      case '||': // 或
       default:
         throw new ParseError({
           message: `not support ${operator}`,
@@ -1658,7 +1686,7 @@ export default class V4FormulaCodeConverter {
   }
 
   getSysutilInfoFromFuncName = ({ funcName }) => {
-    let sysutilMap = MapCreator.genSysutilMap()
+    let sysutilMap = MapCreator.genSysutilMap() || {}
     // 反包函数的别名映射
     funcName = V4FormulaCodeConverter.sfutilAliasMap[funcName] || funcName
     let sysutilInfo =

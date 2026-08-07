@@ -363,7 +363,7 @@ test('nested array callbacks keep outer and inner item references distinct', () 
   assert.deepEqual(result, [{ id: 2, roleList: [20] }])
 })
 
-test('nested callback custom expressions keep their own jsfn arguments', () => {
+test('nested logical callbacks keep references in their owning scope', () => {
   loadRuntimeMaps()
   const formulas = [
     '!!fParamgroup.items.find(i => !!i.permission && !!i.permission.save && !!i.permission.save.enabled) && fParamgroup.status != "done"',
@@ -378,7 +378,27 @@ test('nested callback custom expressions keep their own jsfn arguments', () => {
       },
       scope: 'stage'
     }).exec()
-    assertJsfnArgumentsComplete(ast)
+    const jsfns = collectAst(ast, item => item.op === 'jsfn')
+    if (jsfns.length > 0) {
+      assertJsfnArgumentsComplete(ast)
+      continue
+    }
+    const declaredLocals = new Set(
+      collectAst(ast, item => item.op === 'lambda').flatMap(
+        lambda => lambda.val || []
+      )
+    )
+    const referencedLocals = collectAst(
+      ast,
+      item => item.op === 'ref' && item.val?.[0] === 'local'
+    )
+    assert.ok(referencedLocals.length > 0)
+    for (const ref of referencedLocals) {
+      assert.ok(
+        declaredLocals.has(ref.val[1]),
+        `未声明的 callback local: ${ref.val[1]}`
+      )
+    }
   }
 })
 
@@ -589,9 +609,106 @@ test('legacy runtime math methods normalize inside fallback without rewriting lo
   assert.match(shadowedJsfn.val[0], /\$sys\.util\.math_floor\(3\)/)
 })
 
-test('legacy array search normalizes inside JSEP custom-expression callbacks', () => {
+test('safe native filter and logical expressions become structured V5 sysutils', () => {
+  loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
-    str: 'fParamgroup.items.filter(item => fParamgroup.ids.$SF_arr_search(item.id) != -1).length > 0 && true',
+    str: 'fParamgroup.items.filter((item, index) => fParamgroup.ids.$SF_arr_search(item.id) != -1).length > 0 && fParamgroup.enabled ? 228 : 224',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  assert.equal(findAst(ast, item => item.op === 'jsfn'), undefined)
+  assert.ok(findAst(ast, item => item.op === 'switchexp'))
+  assert.ok(findAst(ast, item => item.op === 'and'))
+  const filter = findAst(
+    ast,
+    item => item.op === 'sysutil' && /(?:^|_)filter$/.test(item.val)
+  )
+  const search = findAst(
+    ast,
+    item => item.op === 'sysutil' && item.val === 'arr_search'
+  )
+  const lambda = findAst(filter, item => item.op === 'lambda')
+  assert.ok(filter)
+  assert.ok(search)
+  assert.equal(typeof filter._blockId, 'string')
+  assert.deepEqual(lambda.val, [
+    `item_${filter._blockId}`,
+    `index_${filter._blockId}`
+  ])
+  assert.match(
+    JSON.stringify(search),
+    new RegExp(`"local","item_${filter._blockId}"`)
+  )
+
+  // `ast2js` 的历史运行时映射不直接编译 stage `!=` 节点；另用等价的
+  // `>= 0` 公式执行 sysutil/lambda/逻辑/三元链路，目标式本身仍按上面
+  // 的 `!= -1` AST 断言。
+  const runtimeAst = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.filter((item, index) => fParamgroup.ids.$SF_arr_search(item.id) >= 0).length > 0 && fParamgroup.enabled ? 228 : 224',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+  const code = ast2js({
+    ast: runtimeAst,
+    eventNodeId: 'native-filter-test',
+    getNodeByIdFunc() {}
+  })
+  const evaluate = param =>
+    new Function('$sys', 'param', `return ${code}`)(
+      {
+        util: {
+          objArr_filter: (value, fn) => value.filter(fn),
+          arr_filter: (value, fn) => value.filter(fn),
+          arr_search: (value, target) =>
+            (value && value.length ? value : []).findIndex(
+              item => target === item
+            ),
+          obj_item: (value, key) => value[key]
+        }
+      },
+      param
+    )
+
+  assert.equal(evaluate({ items: [{ id: 1 }], ids: [1], enabled: true }), 228)
+  assert.equal(
+    evaluate({ items: [{ id: '1' }], ids: [1], enabled: true }),
+    224,
+    'V4 arr_search uses strict equality'
+  )
+  assert.equal(evaluate({ items: [{ id: 1 }], ids: [1], enabled: false }), 224)
+})
+
+test('unsafe native filter shapes stay in jsfn fallback', () => {
+  loadRuntimeMaps()
+  const formulas = [
+    'fParamgroup.items.filter((item, index, array) => array.length > index).length',
+    'fParamgroup.items.filter(item => item.active, fParamgroup.thisArg).length'
+  ]
+
+  for (const str of formulas) {
+    const ast = new V4FormulaCodeConverter({
+      str,
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    }).exec()
+    assert.equal(
+      findAst(ast, item => item.op === 'sysutil' && /(?:^|_)filter$/.test(item.val)),
+      undefined
+    )
+    assertJsfnArgumentsComplete(ast)
+  }
+})
+
+test('legacy array search normalizes when unsafe native filter falls back', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.items.filter((item, index, array) => fParamgroup.ids.$SF_arr_search(item.id) != -1 && array.length > index).length > 0 && true',
     getCtx(name) {
       if (name === 'fParamgroup') return { varType: 'param' }
     },
@@ -635,7 +752,8 @@ test('legacy array search full-JS normalization evaluates receiver and target on
   assert.deepEqual(evaluate(), [0, 1, 1, 'kept'])
 })
 
-test('legacy object-array item composes with array search inside fallback', () => {
+test('legacy object-array item composes with array search as structured sysutils', () => {
+  loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
     str: 'fParamgroup.people.$SF_objArr_item(fParamgroup.ids.$SF_arr_search(fParamgroup.id), "name") || "-"',
     getCtx(name) {
@@ -644,22 +762,44 @@ test('legacy object-array item composes with array search inside fallback', () =
     scope: 'stage'
   }).exec()
 
-  const jsfn = findAst(ast, item => item.op === 'jsfn')
-  assert.doesNotMatch(jsfn.val[0], /\$SF_/)
-  assertJsfnArgumentsComplete(ast)
-
-  const evaluate = new Function(
-    ...jsfn.val.slice(1),
-    `return (${jsfn.val[0]});`
+  assert.equal(findAst(ast, item => item.op === 'jsfn'), undefined)
+  assert.ok(findAst(ast, item => item.op === 'or'))
+  assert.ok(
+    findAst(ast, item => item.op === 'sysutil' && item.val === 'arr_search')
   )
-  assert.equal(evaluate([{ name: 'Alice' }], [7], 7), 'Alice')
-  assert.equal(evaluate([{ name: 'Alice' }], [7], 8), '-')
-  assert.equal(evaluate(null, [7], 7), '-')
+  assert.ok(
+    findAst(ast, item => item.op === 'sysutil' && item.val === 'objArr_item')
+  )
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'object-array-item-test',
+    getNodeByIdFunc() {}
+  })
+  const evaluate = param =>
+    new Function('$sys', 'param', `return ${code}`)(
+      {
+        util: {
+          arr_search: (value, target) =>
+            (value && value.length ? value : []).findIndex(
+              item => target === item
+            ),
+          objArr_item: (value, row, col) => value?.[row]?.[col]
+        }
+      },
+      param
+    )
+  assert.equal(
+    evaluate({ people: [{ name: 'Alice' }], ids: [7], id: 7 }),
+    'Alice'
+  )
+  assert.equal(evaluate({ people: [{ name: 'Alice' }], ids: [7], id: 8 }), '-')
+  assert.equal(evaluate({ people: null, ids: [7], id: 7 }), '-')
 })
 
 test('legacy object-array item fallback preserves V4 row coercion', () => {
   const ast = new V4FormulaCodeConverter({
-    str: 'fParamgroup.rows.map(row => fParamgroup.people.$SF_objArr_item(row, "name")) || []',
+    str: 'fParamgroup.rows.map(row => { return fParamgroup.people.$SF_objArr_item(row, "name") }) || []',
     getCtx(name) {
       if (name === 'fParamgroup') return { varType: 'param' }
     },

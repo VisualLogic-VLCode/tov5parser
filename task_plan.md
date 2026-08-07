@@ -1650,3 +1650,21 @@ Phase 67（clothing 案例逐例转换与人工审阅）— in progress
 **报告更新：** 第 33 例报告已由失败结论改为转换成功，纠正落点数并记录实现、运行与结构证据；报告 7,342 bytes、SHA-256 `940545ccec72fd195be3b83893b957afb58731c3770c2bc0f2ae22f0e96ba7e1`。第 34 例仍未启动。
 
 **发布结果：** tov5parser 修复提交 `af1fd41ec97b00ff9dfc2a681b5e44ed0d59ddc8` 已推送 `main`；生产 Lambda 发布版本 `25`，`prod` 别名与冒烟执行版本均为 25，CodeSha256 `H4NEleBxf77vWZIx/aVnGhRWHLhJ+HkHr4qdTaRGDEQ=`；VxEditor41 同步提交 `5a4847084e6c818e9b18893a74da802765e55eee` 已推送 `master`，完整生产构建成功（仅仓库既有告警），两个转换文件定向 ESLint 零告警。双仓库远程均与本地提交同步；受保护文档和 VxEditor41 用户原有修改均未纳入提交。
+
+**后续结构化可行性复核：** V5 AST 可以表达本例的 `arr_search` sysutil，并能把 `i.styleId` 作为 `lambda` 的 local ref 传入；本例现有 V5 中已有 24 个结构化 `arr_search`，包含同类 lambda-local 参数。只读内存原型为 `&&/||` 开启 `and/or` 转换、并将安全子集的原生 `.filter` 识别为 `arr_filter` 后，完整公式成功生成 `switchexp → and → arr_filter → lambda → arr_search`，不再产生 jsfn。首轮原型误改 prototype，但转换器这些处理器是实例字段，故仍走旧 fallback；改为只在临时实例上覆盖后验证成功，未修改项目文件。若正式采用，需要补充原生数组方法的安全边界与全量回归，不能只把当前 jsfn 中的 IIFE 文本替换为 `$sys.util`。
+
+### Phase 109：将安全原生 `.filter` 与逻辑表达式结构化为 V5 sysutil 并发布（2026-08-07）
+
+- [x] 用真实公式与内存原型确认 `arr_filter → lambda → arr_search` 的 V5 AST 可行性及安全边界
+- [x] 补充结构化回归与不安全调用 fallback 回归，覆盖 `&&/||`、局部参数和运行语义
+- [x] 实现安全原生 `.filter` 映射及逻辑运算结构化，保留复杂 JavaScript 的 jsfn fallback
+- [x] 运行定向/完整测试，重转第 33 例并复核目标公式与全案例结构
+- [ ] 更新报告和规划记录，仅提交并推送本次 tov5parser 相关变更
+- [ ] 发布生产 Lambda、完成 prod 冒烟并记录版本与代码摘要
+- [ ] 同步 VxEditor41 转换器，完成定向检查/构建后仅提交推送同步文件
+
+**Status:** in_progress
+
+**授权与范围：** 用户明确要求“修改”。本阶段只把已核准的安全原生 `.filter(callback)` 子集与 `&&/||` 转为 V5 结构 AST，使第 33 例目标公式使用 `arr_filter`、`lambda` 和 `arr_search`；带额外实参、第三个 callback 参数、块体或其他不受支持语法继续进入既有 jsfn fallback。不得按案例 ID 或公式文本特判，不启动第 34 例。验证通过后按项目固定流程自动完成双仓提交推送与 Lambda 生产发布；受保护的未跟踪文档不读取、不修改、不暂存。
+
+**实现与真实复核：** 运行时映射会把本例对象数组上的普通 `.filter` 解析为 `objArr_filter`，因此实现保留类型映射结果，只新增严格调用形态校验；逻辑运算直接复用既有 `genConditonValAST` 生成 `and/or`。项目测试 85/85 通过。第 33 例重转后 V5 为 5,374,350 bytes、SHA-256 `660e8ff18d7a2c5aa9135e987eec250eb0984a129ad9f1f6ab63223ed7eed2ba`；诊断 180/去重 179/dropped 0，较上一产物减少 138 条。目标 `ckp3kzqa3j500001xvf0.binds.height` 已成为 `switchexp → and → objArr_filter → lambda → arr_search`，jsfn/IIFE 为 0，search local 精确命中 filter 自己的 `item_<blockId>`。5 个原始落点中 3 个结构化，另 2 个因后续块体 map mutation 保留已验证 fallback；180 个 jsfn 的语法、arity 和旧 `$SF_*` 残留错误均为 0。组件 2,244、事件 485、动作 3,339、data-if 114、服务与 data-func 等结构审计继续闭合。更新报告 8,159 bytes、SHA-256 `d6608834cfb704e3359411821012e59956d98078168f16739c13f470e8417e77`。
