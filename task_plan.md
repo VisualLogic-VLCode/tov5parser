@@ -1785,10 +1785,10 @@ Phase 114（修复第 37 例两类 jsfn 运行错误并发布）— in progress�
 - [x] 实现通用转换规则，不按案例、组件、动作 ID 或完整公式文本特判
 - [x] 运行定向与完整测试，重转第 37 例并复核旧标记、自由变量、结构和运行语义
 - [x] 更新第 37 例报告，将修复结论与真实产物摘要写入规划记录
-- [ ] 仅提交并推送本次 tov5parser 相关修改，发布生产 Lambda 并完成 prod 冒烟
-- [ ] 同步 VxEditor41 对应转换器，完成定向检查/构建，仅提交并推送同步文件
+- [x] 仅提交并推送本次 tov5parser 相关修改，发布生产 Lambda 并完成 prod 冒烟
+- [x] 同步 VxEditor41 对应转换器，完成定向检查/构建，仅提交并推送同步文件
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求“修复”。本阶段只修复第 37 例已确认的两类通用转换缺口，不启动第 38 例：其一是 full-JS/jsfn 兜底仍保留 receiver 形式的 `$SF_arr_oneArrItem/$SF_getSelf`；其二是外层数组 callback 已结构化为 lambda 时，内部 jsfn 未把该 callback 局部变量作为显式参数。实现必须基于 V4 widgets 权威语义和 V5 ast2js 的独立函数执行方式，不得按真实案例 ID 或整段代码文本匹配。
 
@@ -1801,3 +1801,5 @@ Phase 114（修复第 37 例两类 jsfn 运行错误并发布）— in progress�
 **真实重转审计：** 项目测试 88/88 后重转第 37 例，新 V5 为 18,385,066 bytes、SHA-256 `475c0b4480136904b2e64ab6764c54a01f1a3f5f3cb77cc2ab609191d0a219f8`；诊断仍为 330/312、customExpr 330、dropped 0，诊断文件摘要不变。组件 6,841、事件 1,823、有效动作 9,553、data-if 676、服务/上传/后台/cType/ref 等结构指标与修复前完全一致。318 个 jsfn/131 种代码语法、arity、旧 `$SF_*` 和自由非全局标识符错误均为 0；10 个 oneArrItem 落点变为 2 种等价 IIFE，3 个原自由 x 落点均带外层 lambda local ref。真实目标代码 9 条运行断言通过：两种取项链返回索引 1，两个谓词版本按命中项返回正确 true/false。
 
 **报告更新：** 第 37 例报告已从“不通过”改为修复后转换成功，记录两类通用实现、全案结构/语法/自由变量审计、9 条目标运行对照和 88/88 回归结果；报告 9,619 bytes、SHA-256 `8535d6ced7326f1cfd59826e6be2ed5ed69fabdc4d1a81b7ad60055e17911fd7`。第 38 例仍未启动。
+
+**发布完成：** tov5parser 修复提交 `fd14716` 已推送 `main`；生产 Lambda 发布版本 `28`，`prod` 已切到 `28`，CodeSha256 `l/iPyc+QQlWdltbmVHm2OFiT+ZhJ/9n0DqtgCHjVPHs=`，部署内 88/88 测试和版本冒烟均通过。VxEditor41 只同步对应转换器文件，定向 ESLint 0 问题、production webpack 构建成功；提交 `7e6aa1f58` 已推送 `master`。两个仓库的用户无关修改均未混入提交；Phase 114 complete，保持第 37 例人工审阅门禁，不启动第 38 例。

@@ -8,6 +8,21 @@
 - 发布前代码 diff 再审完成：旧数组取项与 `getSelf` 的兼容归一化、词法作用域节点追踪及三条回归测试均在预期文件中，没有扩散到其他项目代码。
 - 发布前再次执行项目全量测试：88/88 通过、0 失败；控制台中的 ParseError 均来自既有“结构化失败后进入兼容回退”测试，测试进程正常退出 0。
 - 提交前远端核对：`main` 与 `origin/main` 均位于 `1b0c24f`、无分叉；敏感信息扫描无命中。已只暂存转换器、测试和三份规划记录，受保护的未跟踪文档仍未暂存。
+- tov5parser 修复已提交并推送：`fd14716 fix: normalize legacy array item fallbacks`（`main -> origin/main`）。
+- 已复核项目部署说明与脚本：生产部署使用 `deploy:lambda:prod`，需同时传 `--run-tests --smoke`；因受保护的用户文档必须保留为未跟踪状态，本次部署需加 `--allow-dirty`，不会把该文档打进运行时包。
+- 生产 Lambda 部署成功：打包前全量测试 88/88；发布版本 `28`，`prod` 已指向 `28`，CodeSha256=`l/iPyc+QQlWdltbmVHm2OFiT+ZhJ/9n0DqtgCHjVPHs=`；直接调用 `prod` 冒烟返回 HTTP 200、ExecutedVersion=`28`、FunctionError=null、业务 code=0。
+- VxEditor41 同步前核对：当前分支 `master`；既有 `.gitignore`、`src/stores/event.js`、`.claude/` 和多个组件目录修改均属于用户工作，不会触碰或暂存。对应转换器仅有一个文件。
+- 两仓转换器对比确认存在长期适配差异（jsep/MapCreator/genXid 导入、诊断上报、日志开关和格式化），因此不会整文件覆盖；只移植 `fd14716` 中本次的词法作用域追踪与旧数组取项/getSelf 归一化逻辑。
+- VxEditor41 定向移植完成，`git diff --check` 通过；本次新增/修改恰为转换器文件 206 行增、12 行删，原有用户文件变化未被改写。
+- VxEditor41 没有独立 test/lint 脚本；将按既定方式对转换器运行定向 ESLint，并执行 `npm run build` 做生产构建验证。
+- VxEditor41 首轮验证：生产构建成功（webpack 退出 0，34 条均为仓库既有警告）；转换器定向 ESLint 为 0 error、6 条仅格式警告。下一步只对该转换器执行自动格式修复并复检，不处理无关警告。
+- 已仅格式化 VxEditor41 转换器；定向 ESLint 现为 0 error/0 warning，`git diff --check` 通过。最终转换器 diff 为 192 行增、10 行删；用户的其他已修改/未跟踪文件仍保持原状态。
+- VxEditor41 语义验证沿用同源 tov5parser 的三条新增回归测试与真实案例审计；编辑器侧生产构建已验证模块解析/打包兼容，无需新增临时测试文件。
+- VxEditor41 提交前远端核对：`master` 与 `origin/master` 均位于 `3fec57866`、无分叉；目标 diff 敏感信息扫描无命中。
+- VxEditor41 已精确暂存并复核最终 diff：暂存区只有 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`；同步内容与 `fd14716` 的功能变化一致，编辑器专属导入、诊断和日志适配未被覆盖。
+- VxEditor41 同步提交 `7e6aa1f58 fix: normalize legacy array item fallbacks` 已推送 `origin/master`；提交仅含对应转换器文件，用户其他修改仍未暂存。
+- Phase 114 发布闭环完成：tov5parser `fd14716`、Lambda prod 版本 28、VxEditor41 `7e6aa1f58` 均已生效；第 38 例未启动，等待用户审阅第 37 例。
+- 发布后只读复核：Lambda `prod` 仍指向版本 28，版本状态 Active、更新状态 Successful、CodeSha256 与发布输出一致；VxEditor41 `master` 与 `origin/master` 为 0/0，用户既有工作区改动保持未暂存。
 
 ## Session: 2026-07-24（同步与提交）
 
