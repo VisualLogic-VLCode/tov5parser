@@ -2188,6 +2188,93 @@ test('block conditions treat a leading OR flag as the first branch', () => {
   }
 });
 
+test('block conditions recover from one unambiguous final runtime condition', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  const sourceNode = v4CaseJson.stage.children[0];
+  sourceNode.events.list = [
+    {
+      _code: 'if((($refs.txt1.p_value.edit!=3))==(true))',
+      tree: {
+        bid: 'runtime-condition-root',
+        type: 'root',
+        trigger: { name: 'tap' },
+        children: [
+          {
+            bid: 'runtime-condition-con',
+            type: 'con',
+            option: 'if',
+            enable: true,
+            children: [],
+            cons: [
+              {
+                enable: true,
+                flag: 'and',
+                operator: 'equal',
+                value1: {
+                  code: '$refs.txt1.p_value.edit!=3)',
+                  str: [
+                    {
+                      type: 'str',
+                      obj: '$refs.txt1.p_value.edit!=3',
+                    },
+                    { type: 'str', obj: ')' },
+                  ],
+                },
+                value2: { code: 'true' },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ];
+
+  const converted = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const conditionAst = converted.stage.children[0].events.list[0].ast.args[0]
+    .args[0];
+
+  assert.equal(conditionAst.op, '=');
+  assert.equal(conditionAst._blockType, undefined);
+  assert.equal(conditionAst.args[0].op, '!=');
+  assert.equal(conditionAst.args[0]._blockType, '$condVal');
+  assert.deepEqual(conditionAst.args[0].args[1], { op: 'val', val: 3 });
+  assert.deepEqual(conditionAst.args[1], { op: 'val', val: true });
+  assert.equal(
+    collectAstNodes(conditionAst, node => node.op === 'val' && !('val' in node))
+      .length,
+    0,
+  );
+});
+
+test('block conditions do not guess from ambiguous runtime if statements', () => {
+  const v4CaseJson = buildV4CaseJson();
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+  try {
+    const ast = convertBlockCons({
+      cons: [
+        {
+          enable: true,
+          flag: 'and',
+          operator: 'equal',
+          value1: { code: '$refs.txt1.p_value.edit!=3)' },
+          value2: { code: 'true' },
+        },
+      ],
+      scope: 'stage',
+      nodeId: 'txt1',
+      blockId: 'ambiguous-runtime-condition',
+      runtimeCode:
+        'if((($refs.txt1.p_value.edit!=3))==(true)){} if($refs.txt1.p_value){}',
+    });
+
+    assert.deepEqual(ast.args[0], { op: 'val' });
+    assert.deepEqual(ast.args[1], { op: 'val', val: true });
+  } finally {
+    clearActiveEnv();
+  }
+});
+
 test('legacy application system conditions keep the original receiver and method args', () => {
   const v4CaseJson = buildV4CaseJson();
   const systemNodeId = 'cbx1ewka3j50000c35vg';

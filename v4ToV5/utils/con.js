@@ -1,4 +1,4 @@
-import { parseExpressionAt } from 'acorn'
+import { parse, parseExpressionAt } from 'acorn'
 import { sysOpList } from '../editorConstants.js'
 import { convertEditorValue, convertRuntimeExpression } from './formula.js'
 import {
@@ -13,19 +13,37 @@ import {
   IF_CONDITION_OP_MAP
 } from './const.js'
 
-function genConObj({ conItem, scope, nodeId, blockId }) {
+function genConObj({
+  conItem,
+  scope,
+  nodeId,
+  blockId,
+  conversionState,
+  operandStates
+}) {
   let { value1, value2, operator } = conItem
+  const value1State = {}
+  const value2State = {}
   let valueAst1 = convertEditorValue({
     value: value1,
     nodeId,
-    blockId
+    blockId,
+    conversionState: value1State
   })
   let valueAst2 = convertEditorValue({
     value: value2,
     nodeId,
     blockId,
-    legacyFormulaType: 'conditionValue'
+    legacyFormulaType: 'conditionValue',
+    conversionState: value2State
   })
+  if (conversionState && (value1State.dropped || value2State.dropped)) {
+    conversionState.dropped = true
+  }
+  if (operandStates) {
+    operandStates.value1 = value1State
+    operandStates.value2 = value2State
+  }
   // v41的数据库返回结果.是否成功,值是"是"或"否"，转v5需要特殊处理成true或false
   let isDbSuccess = value1?.code === 'cbParams.$SF_db_isSuccess()'
   let isEqualityOperator = ['equal', 'notEqual'].includes(operator)
@@ -114,11 +132,10 @@ function genForEachConObj({ conItem, scope, loopVar, nodeId }) {
   return obj
 }
 
-function convertBlockCons({ cons, scope, nodeId, blockId }) {
+function groupBlockCons(cons) {
   cons = cons.filter(con => {
     return con.enable
   })
-  // 将cons数组转为ast格式
   let ors = []
   let ands = []
   cons.forEach((con, index) => {
@@ -133,27 +150,114 @@ function convertBlockCons({ cons, scope, nodeId, blockId }) {
       ors.push(ands)
     }
   })
+  return ors
+}
+
+function extractSingleRuntimeIfCondition(runtimeCode) {
+  if (typeof runtimeCode !== 'string' || runtimeCode.trim() === '') return
+  let runtimeAst
+  for (const candidate of [runtimeCode, `${runtimeCode}{}`]) {
+    try {
+      runtimeAst = parse(candidate, {
+        ecmaVersion: 'latest',
+        sourceType: 'script'
+      })
+      break
+    } catch {
+      runtimeAst = undefined
+    }
+  }
+  if (!runtimeAst) return
+
+  const ifStatements = []
+  const walk = value => {
+    if (!value || typeof value !== 'object') return
+    if (value.type === 'IfStatement') ifStatements.push(value)
+    for (const child of Array.isArray(value) ? value : Object.values(value)) {
+      walk(child)
+    }
+  }
+  walk(runtimeAst)
+  if (ifStatements.length !== 1) return
+
+  const test = ifStatements[0].test
+  if (!test || test.end > runtimeCode.length) return
+  return runtimeCode.slice(test.start, test.end)
+}
+
+function convertBlockCons({ cons, scope, nodeId, blockId, runtimeCode }) {
+  const ors = groupBlockCons(cons)
+  let runtimeSegments
+  let runtimeSegmentsResolved = false
+
+  const convertConItem = (conItem, groupIndex, itemIndex) => {
+    const checkpoint = createDiagCheckpoint()
+    const splitState = {}
+    const operandStates = {}
+    const splitAst = genConObj({
+      conItem,
+      scope,
+      nodeId,
+      blockId,
+      conversionState: splitState,
+      operandStates
+    })
+    if (!splitState.dropped) return splitAst
+
+    const splitDiagRecords = getDiagRecordsSince(checkpoint)
+    rollbackDiagCheckpoint(checkpoint)
+    if (!runtimeSegmentsResolved) {
+      const runtimeCondition = extractSingleRuntimeIfCondition(runtimeCode)
+      runtimeSegments = extractRuntimeConditionSegments({
+        runtimeCode: runtimeCondition,
+        groups: ors
+      })
+      runtimeSegmentsResolved = true
+    }
+    const segment = runtimeSegments?.[groupIndex]?.[itemIndex]
+    const runtimeState = {}
+    const runtimeAst = asConditionAst(
+      convertRuntimeExpression({
+        code: segment,
+        nodeId,
+        blockId,
+        conversionState: runtimeState
+      })
+    )
+    if (isUsableRuntimeConditionAst(runtimeAst, runtimeState)) {
+      const repairedSplitAst = repairDroppedConditionOperands({
+        splitAst,
+        runtimeAst,
+        operandStates
+      })
+      return repairedSplitAst || runtimeAst
+    }
+
+    rollbackDiagCheckpoint(checkpoint)
+    appendDiagRecords(splitDiagRecords)
+    return splitAst
+  }
 
   let conAst = {}
   if (ors.length > 1) {
     // 有or
     conAst.op = 'or'
     conAst.args = []
-    ors.forEach(orItem => {
+    ors.forEach((orItem, groupIndex) => {
       if (orItem.length > 1) {
         // 多个条件
         let andObj = {
           op: 'and',
           args: []
         }
-        orItem.forEach(conItem => {
-          let conObj = genConObj({ conItem, scope, nodeId, blockId })
+        orItem.forEach((conItem, itemIndex) => {
+          let conObj = convertConItem(conItem, groupIndex, itemIndex)
           andObj.args.push(conObj)
         })
         conAst.args.push(andObj)
       } else {
         // 单个条件
-        let conObj = genConObj({ conItem: orItem[0], scope, nodeId, blockId })
+        let conObj = convertConItem(orItem[0], groupIndex, 0)
         conAst.args.push(conObj)
       }
     })
@@ -164,13 +268,13 @@ function convertBlockCons({ cons, scope, nodeId, blockId }) {
     let andArray = ors[0]
     if (andArray.length > 1) {
       // 多个条件
-      andArray.forEach(conItem => {
-        let conObj = genConObj({ conItem, scope, nodeId, blockId })
+      andArray.forEach((conItem, itemIndex) => {
+        let conObj = convertConItem(conItem, 0, itemIndex)
         conAst.args.push(conObj)
       })
     } else {
       // 单个条件
-      conAst = genConObj({ conItem: andArray[0], scope, nodeId, blockId })
+      conAst = convertConItem(andArray[0], 0, 0)
     }
   }
 
@@ -323,6 +427,40 @@ function isUsableRuntimeConditionAst(ast, conversionState) {
   }
   walk(ast)
   return usable
+}
+
+function repairDroppedConditionOperands({
+  splitAst,
+  runtimeAst,
+  operandStates
+}) {
+  if (
+    !splitAst ||
+    !runtimeAst ||
+    splitAst.op !== runtimeAst.op ||
+    splitAst.val !== runtimeAst.val ||
+    !Array.isArray(splitAst.args) ||
+    !Array.isArray(runtimeAst.args) ||
+    splitAst.args.length !== runtimeAst.args.length
+  ) {
+    return
+  }
+
+  const droppedIndexes = [operandStates?.value1, operandStates?.value2]
+    .map((state, index) => state?.dropped ? index : -1)
+    .filter(index => index >= 0)
+  if (droppedIndexes.length === 0) return
+
+  const repaired = { ...splitAst, args: [...splitAst.args] }
+  for (const index of droppedIndexes) {
+    let replacement = runtimeAst.args[index]
+    if (!replacement || typeof replacement !== 'object') return
+    if (runtimeAst._blockType && replacement._blockType == null) {
+      replacement = { ...replacement, _blockType: runtimeAst._blockType }
+    }
+    repaired.args[index] = replacement
+  }
+  return repaired
 }
 
 function convertIfCons({ cons, nodeId, runtimeCode }) {

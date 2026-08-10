@@ -27,6 +27,17 @@ import { genDbServiceInfo, genDbServiceList } from './utils/dbService.js'
 import { nodeIsModuleInstance } from './utils/nodeType.js'
 import { genLoopCon, genShuffleAst, genLoopBody } from './utils/loop.js'
 
+function countConditionBlocks(block) {
+  if (!block || typeof block !== 'object') return 0
+  let count = Array.isArray(block.cons) && block.cons.some(con => con?.enable)
+    ? 1
+    : 0
+  for (const child of block.children || []) {
+    count += countConditionBlocks(child)
+  }
+  return count
+}
+
 export default class ConvertV4ToV5 {
   constructor() {
     this.caseData = {}
@@ -42,6 +53,7 @@ export default class ConvertV4ToV5 {
       'data-mqSvc'
     ] // 需要转换inParams和outParams的组件类型
     this.hasShuffleForEach = false // 画布下随机对象循环需要生额外randomArr和randomNum局部变量，放到事件块开头
+    this.currentEventRuntimeCode = undefined
   }
 
   // 小模块作用域与节点索引由 env.js 的活动环境承载（原为静态属性 classId + treeStores）
@@ -209,9 +221,18 @@ export default class ConvertV4ToV5 {
     if (events.list?.length > 0) {
       let _list = []
       for (let event of events.list) {
-        let _event = this.convertBlock({ block: event?.tree, node, scope })
-        if (_event) {
-          _list.push(..._event)
+        const previousRuntimeCode = this.currentEventRuntimeCode
+        this.currentEventRuntimeCode =
+          countConditionBlocks(event?.tree) === 1
+            ? event?._code || event?.code
+            : undefined
+        try {
+          let _event = this.convertBlock({ block: event?.tree, node, scope })
+          if (_event) {
+            _list.push(..._event)
+          }
+        } finally {
+          this.currentEventRuntimeCode = previousRuntimeCode
         }
       }
       events.list = _list
@@ -561,7 +582,8 @@ export default class ConvertV4ToV5 {
         cons: block.cons,
         scope,
         nodeId: node.id,
-        blockId: block.bid
+        blockId: block.bid,
+        runtimeCode: this.currentEventRuntimeCode
       })
       if (hasCon) {
         _block.ast.args[0].args[0] = {
@@ -680,7 +702,8 @@ export default class ConvertV4ToV5 {
             cons: block.cons,
             scope,
             nodeId: node.id,
-            blockId: block.bid
+            blockId: block.bid,
+            runtimeCode: this.currentEventRuntimeCode
           })
         } else {
           loopCon = {
@@ -783,7 +806,8 @@ export default class ConvertV4ToV5 {
           cons: blockItem.cons,
           scope,
           nodeId: node.id,
-          blockId: blockItem.bid
+          blockId: blockItem.bid,
+          runtimeCode: this.currentEventRuntimeCode
         })
       } else {
         conAst = {
