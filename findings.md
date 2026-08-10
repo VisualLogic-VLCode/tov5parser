@@ -2069,3 +2069,4 @@
 - Phase 116 修复后报告实物已核验：9,845 bytes，SHA-256 `2ef20304514e550067a8a781243f059963eadf1b6232ce40bb3b85ae11cc2159`。报告结论为转换成功，准确保留 4 个 V4 源尾随 `]` 缺陷，并记录 V5/诊断新摘要、dropped 7→4、8 条语义对照和 91/91 回归。
 - 第 38 例诊断实物沿用 `convert:local` 命名 `app.convert-errors.json/.md`，不是 `convert-diagnostics.*`；提交前首轮复解析因此只报告 ENOENT，V4/V5 摘要、临时文件清理、ignore 和 diff check 已正常完成。应以实物文件名复跑，不把路径错误误判为产物缺失。
 - 第 38 例最终产物复解析和摘要闭合；实现差异保持通用：只有拆分 Formula 真正 `didDrop` 才尝试完整 `_code`，只折叠精确的一参 `$sys.util.getSelf(value)`，未知 `$sys`/旧运行时标识符会拒绝回退，失败则恢复原 AST 与 dropped 诊断。
+- `scripts/deploy-lambda-prod.mjs` 默认 `requireClean:true`，生产闭环应显式带 `--run-tests --smoke`；提交后产生的规划记录需先入库，避免用 `--allow-dirty` 绕过门禁。
