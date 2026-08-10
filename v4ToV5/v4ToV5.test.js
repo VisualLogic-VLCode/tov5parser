@@ -1658,6 +1658,135 @@ test('file upload callbacks append missing V5 lambda parameters', () => {
   assert.match(JSON.stringify(uploadingCb), /uploading-action/);
 });
 
+test('callback results remain available to later sibling continuation blocks', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  const textNode = v4CaseJson.stage.children[0];
+  textNode.events = {
+    list: [
+      {
+        tree: {
+          bid: 'continuation-root',
+          type: 'root',
+          name: 'click',
+          children: [
+            {
+              bid: 'continuation-service-action',
+              type: 'action',
+              object: 'svc1',
+              action: {
+                name: 'fireService',
+                meth: 'invoke',
+                callback: true,
+                paramsAsObj: true,
+                params: [],
+              },
+              children: [],
+            },
+            {
+              bid: 'continuation-if',
+              type: 'con',
+              option: 'if',
+              cons: [
+                {
+                  enable: true,
+                  flag: 'and',
+                  value1: { code: '1', str: [{ type: 'str', obj: '1' }] },
+                  operator: 'equal',
+                  value2: { code: '1', str: [{ type: 'str', obj: '1' }] },
+                },
+              ],
+              children: [
+                {
+                  bid: 'continuation-group',
+                  type: 'group',
+                  children: [
+                    {
+                      bid: 'continuation-consumer-action',
+                      type: 'action',
+                      object: '$sobj_base',
+                      action: {
+                        name: 'consoleLog',
+                        params: [
+                          {
+                            name: 'info',
+                            type: 'Formula',
+                            value: {
+                              code: 'cbParams.data',
+                              str: [
+                                null,
+                                null,
+                                {
+                                  type: 'cbParams',
+                                  obj: '返回结果',
+                                  props: ['data'],
+                                },
+                              ],
+                            },
+                          },
+                          { name: 'detail', type: 'Formula', value: null },
+                        ],
+                      },
+                      children: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  let consumerAction;
+  const pending = [v5CaseJson];
+  while (pending.length && !consumerAction) {
+    const item = pending.pop();
+    if (!item || typeof item !== 'object') continue;
+    if (item.ln === 'continuation-consumer-action') {
+      consumerAction = item;
+      break;
+    }
+    pending.push(...(Array.isArray(item) ? item : Object.values(item)));
+  }
+
+  assert.ok(consumerAction);
+  let callbackResultGet;
+  const astPending = [consumerAction];
+  while (astPending.length && !callbackResultGet) {
+    const item = astPending.pop();
+    if (!item || typeof item !== 'object') continue;
+    if (item.op === 'get' && item._blockType === '$cbParams') {
+      callbackResultGet = item;
+      break;
+    }
+    astPending.push(...(Array.isArray(item) ? item : Object.values(item)));
+  }
+
+  assert.deepEqual(callbackResultGet, {
+    op: 'get',
+    args: [
+      {
+        op: 'ref',
+        val: ['local', 'continuation-service-actionRtn'],
+      },
+      {
+        op: 'field',
+        val: 'result',
+        _uiSkip: true,
+      },
+      {
+        op: 'field',
+        val: 'data',
+      },
+    ],
+    _blockType: '$cbParams',
+    _ver: 1,
+  });
+});
+
 test('legacy editor formulas repair only a tokenized surplus trailing parenthesis', () => {
   ensureIvxMapNodeEnv();
   setActiveEnv(createV4ConvertEnv({ v4CaseJson: buildV4CaseJson() }));

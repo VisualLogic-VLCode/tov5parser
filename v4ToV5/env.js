@@ -154,6 +154,31 @@ function createV4ConvertEnv({ v4CaseJson, ntype } = {}) {
     return mainNodeMap[nodeId];
   }
 
+  // V4 的 callback action 会把同一事件路径中位于它之后的 block 编译到
+  // callback continuation。目标 block 可能嵌套在后续 con/group 中，因此
+  // 需要逐层向外检查当前分支之前的 siblings，而不能只看直接父节点。
+  // 只接受直接位于该层 children 中的 callback action：条件分支内部的
+  // callback 并不支配分支外的后续 block，不能作为外部 continuation。
+  function getContinuationActionBlockByBid(bid) {
+    let branch = blockMap[bid];
+    while (branch?.parentBid) {
+      const parent = blockMap[branch.parentBid];
+      const siblings = Array.isArray(parent?.children) ? parent.children : [];
+      const branchIndex = siblings.findIndex((item) => item?.bid === branch.bid);
+      for (let index = branchIndex - 1; index >= 0; index -= 1) {
+        const sibling = siblings[index];
+        if (
+          sibling?.type === 'action' &&
+          sibling.action?.callback === true
+        ) {
+          return sibling;
+        }
+      }
+      branch = parent;
+    }
+    return undefined;
+  }
+
   // 等价于 4.1 methodUtils.isServerRootNode：
   // 原实现查根节点的 widget map isServer/isModServer 标志，
   // 这里建索引时已按所在树记录归属，直接查表。
@@ -208,6 +233,7 @@ function createV4ConvertEnv({ v4CaseJson, ntype } = {}) {
     getEventBlockByBid(bid) {
       return blockMap[bid];
     },
+    getContinuationActionBlockByBid,
     isServerRootNode,
     getNodeType,
     setClassId(classId) {
@@ -247,6 +273,8 @@ const getNodeById = (nodeId, classId) =>
     ? requireActiveEnv().getNodeById(nodeId)
     : requireActiveEnv().getNodeById(nodeId, classId);
 const getEventBlockByBid = (bid) => requireActiveEnv().getEventBlockByBid(bid);
+const getContinuationActionBlockByBid = (bid) =>
+  requireActiveEnv().getContinuationActionBlockByBid(bid);
 const isServerRootNode = (node) => requireActiveEnv().isServerRootNode(node);
 const getNodeType = (type) => requireActiveEnv().getNodeType(type);
 const setActiveClassId = (classId) => requireActiveEnv().setClassId(classId);
@@ -261,6 +289,7 @@ export {
   getVxJaMap,
   getNodeById,
   getEventBlockByBid,
+  getContinuationActionBlockByBid,
   isServerRootNode,
   getNodeType,
   setActiveClassId,

@@ -2,6 +2,7 @@ import V4FormulaCodeConverter from '../formulaCode/V4FormulaCodeConverter.js'
 import {
   getNodeById,
   getEventBlockByBid,
+  getContinuationActionBlockByBid,
   isServerRootNode,
   getNodeType
 } from '../env.js'
@@ -439,6 +440,10 @@ function getCtx(str, extra) {
         break
       }
     }
+    // V4 会把 callback action 后面的 siblings 继续编译进同一个 callback。
+    // 这些 block 不是 status 的后代，但 cbParams 仍指向前置动作结果。
+    // status 祖先始终优先，避免外层 continuation 抢占所属 action。
+    actionBlock ||= getContinuationActionBlockByBid(blockId)
     if (actionBlock) {
       let objNodeType
       let objNodeInServer
