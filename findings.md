@@ -2223,3 +2223,50 @@
 - 完整审计确认修复没有扩散：所有修复前结构计数保持不变，唯一预期变化是 diagnostics/jsfn 216→215、自由 cbParams 1→0、目标动作改为正式 get。服务目标、条件根、后台代码、cType 和节点/事件映射均无回归。
 - VxEditor41 运行态 `dealInitBlock` 会把 children 对象递归建入 caseBlockMap，然后把父 `children` 改成 BID 数组；所以编辑器版 resolver 必须把 sibling BID 经 `getEventBlockByBid` 解引用。tov5parser env 保留原始对象 children，两边应共享词法规则但采用各自数据访问方式。
 - Phase 128 最终发布证据：独立转换器以 env blockMap/object children 实现 resolver，编辑器以 caseBlockMap/BID children 适配同一规则；两边分别为 `34c6157` 与 `1bb416838`。Lambda v33 明确绑定 `34c6157`，prod 在线执行 33。该修复对第 44 例的唯一语义变化是把错误 fallback 恢复为 service result get，其他审计指标稳定。
+- 第 45 例开始门禁：本轮只处理 `装箱策略预设_11370978_温晓华.json`（nid `11370978`）。数据库版本字段只作初筛，必须下载当前 work 并扫描完整事件结构后最终判版；历史案例不删除，发现转换器错误时先停在审阅门禁，不自动进入修复或第 46 例。
+- 第 45/51 例在源目录 C 排序中确为第 45 项，前一项为 `花名册_11280925_温晓华.json`，后一项为 `规格表_11035010_吴坤.json`。源清单文件为 6,147,067 bytes / SHA-256 `b14b7668e48c6fad44aa3ea39a5a05170c233548542b5be846de85381c94fffc`；两侧尚无同名输出目录。
+- 第 45 例数据库唯一记录：标题 `FRP_装箱策略预设`、当前作者罗安琪（源文件名作者温晓华），uid/eid/gid `10000588/10000586/25391`，ntype 1、version 30、work_id `ckp2s1gmfeq7vfc7bv70-72`、短链 `MIIt1OlO`。`extra.ver`、`verDetail` 均为空，两表 edt_ver 均为 4.1，只能判为 V4.1 候选；必须下载最新 work 实物最终定版。
+- 第 45 例最新 work 明确为 V4.1：完整三根，596 个事件全部有 V4 tree、event AST 为 0，Formula 8,119，且全案 `op/ast/ln/cType` 键均为 0。紧凑 JSON 6,147,066 bytes / SHA-256 `ee66c35234fc26dc6ad0e09825b47ab8b2c457292ddf443e9a6a865fb91e2893`，权限 0600；可以运行当前转换器。
+- 第 45 例源清单与当前 work 并非只差末尾换行：去掉源换行后的摘要为 `5727f771...c0ad`，仍不同于当前 work `ee66c352...2893`。本轮必须继续以数据库当前 work 为转换输入。
+- 第 45 例转换器一次成功：V5 约 4,170.2 KB，诊断 33 条/去重 33，全部为 custom-expression/jsfn fallback，dropped 0。控制台的 eval/正则/hasOwnProperty 等 ParseError 是结构化尝试失败日志；是否正确必须从最终 jsfn 的语法、参数化和上下文，以及全案结构映射继续判断。
+- 第 45 例完整审计通过：2,184 个组件和 596 个事件完整保持；2,742 个有效动作全部映射，96 个禁用动作与 3 个无限动画 skip 均符合源/既有规则。209 个 data-if 中 208 个正式条件全部生成合法 `conditionVal.ast`，唯一源空条件保留兼容 bind；95 个服务调用目标逐 BID 全等。20 个后台服务事件均有 AST/_code，模块/函数数量、299 个 cType 和正式 paramFunc 均通过。
+- 本例 33 个 jsfn 共 13 种代码，全部语法有效、形参与 args 对齐、placeholder 闭合，无 `$refs/$SF_/$P_/_loop` 等可执行 legacy 残留；唯一自由名称是 JavaScript 内建 `eval`，与 V4 原公式相同。13/13 种代表运行通过，134/134 段非空 `_code` 可编译。唯一 32 位十六进制纯文本 session 已保留为普通字符串。
+- 第 45 例最终结论：V4.1 → V5 转换成功，未发现转换器错误。V5 4,270,298 bytes / SHA-256 `f3ddc021c860c7612c8579ee02ba093aa5d5bc04a991457dc48655fae5240f3e`；完整测试 94/94 通过。来源 README 与 conversion-report 已生成，历史案例继续保留，第 46 例未启动。
+- 第 46–51 例执行门禁已由用户更新：无转换器错误时不再逐例暂停，自动连续完成；一旦审计确认转换器错误，立即停止且不得进入下一例，等待用户审阅/修复授权。剩余文件按 C 排序为规格表、订单列表、订单详情、部门产能管理、钉钉后台、面料对应辅料预设。
+- 第 46/51 例源清单 `规格表_11035010_吴坤.json` 为 13,369,205 bytes / SHA-256 `f6efade325ad17074eeb5cc5b5f99fc85e07aab6b422a5b7881f391c2c6eb4c5`，两侧尚无同名输出目录。
+- 第 46 例数据库唯一记录：标题 `服装-规格表库`、当前作者王洋，ntype 1、version 94、work_id `cav96ql63m5fl8mqv08g-1145`、短链 `XaDu7wjL`。`extra.ver/verDetail` 为空、两表 edt_ver 4.1，只能初筛为 V4.1；最终以最新 work 事件结构判版。
+- 第 46 例最新 work 明确为 V4.1：完整三根，614 个事件全部有 V4 tree、event AST 0、Formula 5,763，`op/ast/ln/cType` 全为 0。V4 13,369,204 bytes / SHA-256 `4dd5a8b5f592a213dc933285ebd2a306f7eccb47300828a5a707c5cea24a703a`；源清单规范化后仍不同。
+## 第 46 例：自由标识符归因
+
+- `itemcolumeName`：V4 源公式第二个 `find` 分支已经缺少 `item.`，V5 未新增该错误。
+- `data.groupC`：V4 动作参数与最终事件代码均将其作为自由表达式使用，V5 未新增该错误。
+- 因此上述两类问题应在转换报告中列为“源案例问题”，不能据此判定转换器错误或中断批量转换。
+- 条件审计出现的 4 个 `{op:'val'}` 空节点分别位于两个 `switchexp` 的第三个参数中；源码 `processConditionalExpression` 主动插入 `{op:'=',args:[{op:'val'},{op:'val'}]}` 作为真假分支分隔，`ast2js` 也按偶数参数对读取，属于 V5 固定结构。
+
+## 第 47 例：版本判定
+
+- nid `11579336` 的数据库字段只能初筛为 V4.1；当前 work 完整 JSON 中 803 个事件全部有 V4 tree、event AST 为 0，Formula 7,823 且 `op/ast/ln/cType` 键均为 0，因此实物确认为 V4.1，应执行转换。
+
+## 第 48 例：版本判定
+
+- nid `11260428` 当前 work 完整实物含 1,644 个 V4 event tree、0 个 event AST、16,968 个 Formula 对象，且没有 `op/ast/ln/cType` 键；结合两表 edt_ver 4.1，确定为 V4.1。
+
+## 第 48 例：block con 缺少最终事件代码回退
+
+- BID `d00yt7ga3j50000020hg` 的拆分 `value1.code` 为 `$refs.d0t459na3j50000pn2y0.p_value.edit!=3)`，单独解析失败；同一 V4 事件 `_code` 为 `if((($refs.d0t459na3j50000pn2y0.p_value.edit!=3))==(true))`，补上空语句块后可由 JavaScript 解析器验证为有效。
+- V5 实际 switch 条件为 `=({op:'val'}, true)`；正确结构在同案其他相同表达式中已有样本，应为 `=(!=(ref.value.edit,3),true)`。
+- 数据节点条件 `convertIfCons` 已有“split dropped → 精确提取 runtime segment → 验证后回退”机制；事件块条件 `convertBlockCons` 没有 runtimeCode 输入，仍直接调用 `genConObj`，这是通用转换缺口。
+- 该错误会让 `businessAgent=null` 动作无法触发，属于确定性转换器错误，而不是仅有诊断噪声或源案例错误；依用户要求必须在第 48 例停止。
+- 修复设计收窄为结构唯一性门禁：只有一个 V4 事件树中恰好存在一个带 `cons` 的 block，且事件 `_code` 可解析出唯一一个 `IfStatement.test` 时，才把该 test 作为 block con 的运行态候选。随后仍按 and/or 分组与条件项数精确切片，仅对 dropped 的条件项回退；有多个 block 条件、多个 if 或无法一一对齐时保持原 dropped，避免把 action/status 内部 if 误配给业务条件。
+- `convertBlockCons` 将复用 `convertIfCons` 已有的诊断 checkpoint、runtime segment 提取与 AST 可用性验证；这不是删尾括号特判。真实事件恰好满足“一棵事件树一个 con + `_code` 一个 if”，运行态 test 为 `(($refs...edit!=3))==(true)`。
+- 初版实现验证通过：`convertEvents` 仅在 event tree 的启用 `cons` block 数量为 1 时暴露 `_code/code`；`convertBlockCons` 仅接受可解析出唯一 `IfStatement` 的运行态代码，再复用现有 logical segment 对齐。修复前失败用例精确复现 `{op:'val'}`，修复后恢复嵌套 `!=`。
+- 真实 AST 精比发现一个表示层差异：直接返回整个 runtime item AST 会把 `$condVal` 标在外层 con wrapper；正常 V5 样本是外层 `=` 无标记、内层左操作数 `!=` 带 `$condVal`。应在 runtime 根操作符与 split 根一致时只替换发生 dropped 的 operand，并把 runtime 根的 `$condVal` 元数据移到该 operand；这样同时保持 wrapper、未损坏的另一侧和编辑器可逆结构。
+- operand 级修复已验证：真实目标与同案正常样本的 AST 层级/元数据一致，诊断只减少原 dropped 1 条，其他结构计数完全不变。审计仍看到一条 `$$refs...` jsfn，这是修复前就存在的案例公式，需在发布前回溯 V4 源值确认它不是本次或其他转换器引入问题。
+
+## 第 51 例与 clothing 整批收尾
+
+- `面料对应辅料预设_11077441_温晓华` 最新 work 完整实物是 V4.1：1,084 个事件全部有 V4 tree、event AST 为 0，Formula 14,674，`op/ast/ln/cType` 均为 0。V4 为 15,180,451 bytes / `24d5bf9c...12f7`，V5 为 11,544,569 bytes / `ce995eb3...aef3`。
+- 第 51 例诊断 142/unique 142/custom 142/dropped 0。142 个 jsfn（72 种代码）全部通过语法、形参/args、placeholder 和 legacy 残留检查；297 段非空 `_code` 可编译。唯一非标准自由名称是源公式中未加引号的 `禁用失败/反禁用失败/反审核失败`，三者在 V4 最终事件 `_code` 中也原样存在，因此是源案例问题，不是转换器新增错误。
+- 第 51 例 data-if 正确结构为 `props.conditionVal.ast`：414 个节点中 412 个正式条件均使用合法条件根且 `binds={}`；只有 2 个 V4 `code/_code` 全空的源空条件保留 `{value:{op:'val'}}` 兼容 bind。旧审计按 `conditionVal.op` 取值才会将 414 个全部误报为缺失。
+- 第 51 例完整性闭合：节点 4,120→4,120，事件 1,084→1,084，有效动作 5,356 个全部映射，176 个 disabled 全部 skip，4 个额外 skip 均为 infinite animation；184 个 fireService 逐 BID/目标精确一致；51 个后台事件均有 AST/_code；756 个 cType 及 369 个 formal paramFunc 均正式有效。
+- clothing 源目录共 51 个 JSON，V5 侧现有且仅有 51 份与源文件同名的 `conversion-report.md`，缺失 0。其中 46 例产生 `app.v5.json`，5 例最终判为原生 V5/V5.1 后跳过转换：工艺制作说明书、快递公司配置前端、快递公司配置后端、新裁剪任务单、部门产能管理。
