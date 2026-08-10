@@ -2070,3 +2070,8 @@
 - 第 38 例诊断实物沿用 `convert:local` 命名 `app.convert-errors.json/.md`，不是 `convert-diagnostics.*`；提交前首轮复解析因此只报告 ENOENT，V4/V5 摘要、临时文件清理、ignore 和 diff check 已正常完成。应以实物文件名复跑，不把路径错误误判为产物缺失。
 - 第 38 例最终产物复解析和摘要闭合；实现差异保持通用：只有拆分 Formula 真正 `didDrop` 才尝试完整 `_code`，只折叠精确的一参 `$sys.util.getSelf(value)`，未知 `$sys`/旧运行时标识符会拒绝回退，失败则恢复原 AST 与 dropped 诊断。
 - `scripts/deploy-lambda-prod.mjs` 默认 `requireClean:true`，生产闭环应显式带 `--run-tests --smoke`；提交后产生的规划记录需先入库，避免用 `--allow-dirty` 绕过门禁。
+- Phase 116 生产 Lambda 已闭环：版本 29、`prod` 指向 29，CodeSha256 `ADaDGjN1rzsdhzpWWWWfIdNQLnsE8ajgJc9udp6ESsY=`；91/91 发布前测试和线上版本动作冒烟均通过。
+- VxEditor41 的转换器副本不包含 `utils/convertDiag.js`，`convertEditorValue` 也没有 CLI 诊断上下文；完整条件回退的功能核心仍可同步为 `didDrop + canParseRuntimeCode + 安全 AST 扫描`。诊断 checkpoint/rollback 只用于 CLI 报告统计，不应在编辑器中伪造空模块。
+- VxEditor41 同步验证通过：目标 ESLint 0 问题，生产 webpack 构建成功（33 条既有全仓 warning，0 error）。这四个同步文件没有出现在 warning 落点中。
+- Phase 116 VxEditor41 发布提交为 `5436d0db9`，已推送 `master`；同步实现不依赖 CLI 诊断模块，目标 ESLint 和生产 build 通过，用户工作区改动未混入提交。
+- Phase 116 最终只剩记录提交：远端核验确认 tov5parser `main=0e0b8ad`、VxEditor41 `master=5436d0db9`；Lambda 29 为 Active/Successful 且 `prod`→29。第 38 例修复闭环，无理由自动进入第 39 例。

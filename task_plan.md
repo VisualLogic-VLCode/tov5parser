@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 116（修复第 38 例 data-if 完整条件回退并发布）— in progress；第 39 例不启动
+Phase 67（逐例转换测试）— 第 38 例修复、发布与同步完成，等待人工审阅；第 39 例不启动
 
 ## Phases
 
@@ -1836,11 +1836,11 @@ Phase 116（修复第 38 例 data-if 完整条件回退并发布）— in progre
 - [x] 实施最小通用修复，不猜修无有效完整运行时条件的源坏公式
 - [x] 运行定向与完整测试，重转第 38 例并完成全案结构、条件、服务与运行审计
 - [x] 更新第 38 例报告，只暂存相关文件并提交、推送 tov5parser
-- [ ] 部署生产 Lambda，验证完整测试、版本、prod 别名和转换冒烟
-- [ ] 同步 VxEditor41 对应转换器，执行定向检查与生产构建，只提交相关文件并推送
-- [ ] 记录双仓提交、生产版本与终检结果，返回第 38 例人工审阅门禁
+- [x] 部署生产 Lambda，验证完整测试、版本、prod 别名和转换冒烟
+- [x] 同步 VxEditor41 对应转换器，执行定向检查与生产构建，只提交相关文件并推送
+- [x] 记录双仓提交、生产版本与终检结果，返回第 38 例人工审阅门禁
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求“修复”。根据项目 `AGENT.md`/`CLAUDE.md` 的固定发布流程，本阶段在修复与真实回归通过后无需再次询问，自动完成 tov5parser 提交推送、生产 Lambda 发布、VxEditor41 同步提交推送。只修复第 38 例的 3 个 data-if 通用转换缺口；4 个 V4 源公式多余 `]` 不做猜测性修补；不启动第 39 例。
 
@@ -1849,3 +1849,9 @@ Phase 116（修复第 38 例 data-if 完整条件回退并发布）— in progre
 **报告复核：** 修复成功报告为 9,845 bytes、SHA-256 `2ef20304514e550067a8a781243f059963eadf1b6232ce40bb3b85ae11cc2159`；旧失败措辞、旧 88/88 测试数、旧产物大小与摘要已清除。报告与实物一致记录 dropped 4、8/8 运行对照和 91/91 回归。提交发布前仅剩临时审计脚本清理与工作区终检。
 
 **tov5parser 提交：** 修复、3 个回归与规划记录已在提交 `02121cb`（`fix: recover data-if from complete v4 condition`）中精确提交并推送到 `origin/main`；受保护的未跟踪文档和本地案例产物未进入提交。下一步发布生产 Lambda。
+
+**Lambda 发布：** 从提交 `0e0b8ad` 打包，发布前 91/91 测试通过；AWS 账号 `587849590304` 校验通过，代码 CodeSha256 `ADaDGjN1rzsdhzpWWWWfIdNQLnsE8ajgJc9udp6ESsY=`，生产版本 29 已发布，`prod` 别名指向 29。版本动作冒烟返回 StatusCode 200、ExecutedVersion 29、FunctionError null。因受保护未跟踪文档无法移动或提交，仅对该已知文件使用 `--allow-dirty`；所有本轮代码和规划改动在部署前均已提交。
+
+**VxEditor41 同步：** 编辑器副本没有 CLI `convertDiag.js`，因此同步功能核心到 `index.js`、`V4FormulaCodeConverter.js`、`utils/con.js`、`utils/formula.js`，保留编辑器专属导入和风格。四个目标文件 ESLint 0 问题，生产 webpack 构建成功（仅 33 条既有全仓 warning，0 error）；提交 `5436d0db9`（`fix: recover converted data-if conditions`）已推送 `origin/master`，所有用户无关修改保持未暂存。
+
+**最终核验：** tov5parser 本地与 `origin/main` 同为 `0e0b8ad`，VxEditor41 本地与 `origin/master` 同为 `5436d0db9`；Lambda `prod` 再查询仍指向版本 29，版本状态 Active、更新状态 Successful、CodeSha256 与发布输出一致。临时审计脚本不存在，两个仓库 diff check 通过；仅保留受保护文档、VxEditor41 已知用户改动和被忽略的 Lambda 打包产物。Phase 116 complete，返回第 38 例人工审阅门禁，不启动第 39 例。

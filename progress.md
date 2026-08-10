@@ -2686,3 +2686,10 @@
 - 2026-08-10 Phase 116 正确路径终检：V4、V5、`app.convert-errors.json` 均可重新解析；V5 22,551,394 bytes / `c8f131...f9bb`，诊断 JSON 460,828 bytes / `401b2b...303a`，诊断 MD 159,677 bytes / `612685...16c3`，报告 9,845 bytes / `2ef203...159`，全部与报告和既有记录一致。代码 diff 复核确认修复只涉及完整条件回退、显式失败元数据、诊断事务和 3 个回归，无案例 ID/真实表达式硬编码。
 - 2026-08-10 Phase 116：tov5parser 修复提交 `02121cb` 已成功推送至 `origin/main`。提交仅含 6 个转换器/诊断实现文件、1 个测试文件和 3 个规划文件；受保护未跟踪文档与 ignore 案例产物未暂存。进入生产 Lambda 部署。
 - 2026-08-10 Phase 116：生产部署脚本默认强制干净工作区，并支持 `--run-tests --smoke`；当前唯一新改动是提交后补写的规划记录。为遵守干净发布门禁，先单独提交并推送该记录，再执行部署，不使用 `--allow-dirty`。
+- 2026-08-10 Phase 116 Lambda 发布完成：从 `0e0b8ad` 部署，发布内 91/91 测试通过；CodeSha256 `ADaDGjN1rzsdhzpWWWWfIdNQLnsE8ajgJc9udp6ESsY=`，版本 29，`prod`→29，冒烟 StatusCode 200 / ExecutedVersion 29 / FunctionError null。下一步同步 VxEditor41。
+- 2026-08-10 Phase 116 VxEditor41 预检：分支 `master`，已知无关改动与目录保持原状。编辑器副本入口为 `src/utils/convertV4ToV5/index.js`，没有 `convertDiag.js` 和 Node 测试副本；同步需移植 `didDrop`、运行态 getSelf 归一化、formula/con/index 回退逻辑，但省略仅 CLI 诊断事务与 Node 测试文件，保留编辑器绝对导入和无分号风格。
+- 2026-08-10 Phase 116 VxEditor41 同步进行中：`V4FormulaCodeConverter.js` 已同步精确运行态 getSelf AST 归一化和 `didDrop`；`utils/formula.js` 已同步 conversionState 与完整运行态表达式入口。未引入 CLI 诊断依赖。下一步移植 data-if 回退和 index 传参。
+- 2026-08-10 Phase 116 VxEditor41 功能同步完成到 4 个文件：`index.js`、`V4FormulaCodeConverter.js`、`utils/con.js`、`utils/formula.js`。差异复核和 `git diff --check` 通过，未修改任何已知用户文件；编辑器没有独立测试脚本，按既有流程执行目标 ESLint 与生产 webpack build。
+- 2026-08-10 Phase 116 VxEditor41 验证：四个目标转换器文件 ESLint 0 问题；`npm run build` 成功，webpack 5.108.3 在 70,061 ms 完成。构建输出仅有仓库既有的 Sass/Prettier/缺失导出等 33 条 warning，目标转换器未产生 error 或 warning。下一步复核工作区并精确提交四个文件。
+- 2026-08-10 Phase 116：VxEditor41 同步提交 `5436d0db9` 已推送到 `origin/master`，仅含四个转换器文件。目标 ESLint 与生产构建通过，既有用户修改全部保留未暂存。进入双仓远端、Lambda 别名和本地残留最终核验。
+- 2026-08-10 Phase 116 最终核验完成：双仓本地 HEAD 与远端分支一致（tov5parser `0e0b8ad`、VxEditor41 `5436d0db9`）；Lambda 29 为 Active/Successful，`prod`→29，CodeSha256 一致；临时审计脚本已清理，两个仓库 diff check 通过。Phase 116 完成，返回第 38 例审阅门禁，第 39 例未启动。
