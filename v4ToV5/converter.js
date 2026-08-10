@@ -148,7 +148,8 @@ export default class ConvertV4ToV5 {
         node.props.conditionVal = {
           ast: convertIfCons({
             cons: node.props.conditionVal,
-            nodeId: node.id
+            nodeId: node.id,
+            runtimeCode: node.binds?.value?._code
           })
         }
         node.uis.astCon = true

@@ -61,6 +61,25 @@ function getDiagRecords() {
   return records.slice()
 }
 
+function createDiagCheckpoint() {
+  return enabled ? records.length : null
+}
+
+function getDiagRecordsSince(checkpoint) {
+  if (!enabled || !Number.isInteger(checkpoint)) return []
+  return records.slice(checkpoint)
+}
+
+function rollbackDiagCheckpoint(checkpoint) {
+  if (!enabled || !Number.isInteger(checkpoint)) return
+  records.length = checkpoint
+}
+
+function appendDiagRecords(items) {
+  if (!enabled || !Array.isArray(items) || items.length === 0) return
+  records.push(...items)
+}
+
 export {
   enableConvertDiag,
   disableConvertDiag,
@@ -69,5 +88,9 @@ export {
   setDiagExtra,
   clearDiagExtra,
   reportDiagError,
-  getDiagRecords
+  getDiagRecords,
+  createDiagCheckpoint,
+  getDiagRecordsSince,
+  rollbackDiagCheckpoint,
+  appendDiagRecords
 }

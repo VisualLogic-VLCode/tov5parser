@@ -1,5 +1,11 @@
 import { sysOpList } from '../editorConstants.js'
-import { convertEditorValue } from './formula.js'
+import { convertEditorValue, convertRuntimeExpression } from './formula.js'
+import {
+  appendDiagRecords,
+  createDiagCheckpoint,
+  getDiagRecordsSince,
+  rollbackDiagCheckpoint
+} from './convertDiag.js'
 import {
   CONDITION_OP_MAP_STAGE,
   CONDITION_OP_MAP_SERVER,
@@ -171,15 +177,17 @@ function convertBlockCons({ cons, scope, nodeId, blockId }) {
 }
 
 // if容器的条件转ast
-function genIfConObj({ conItem, nodeId }) {
+function genIfConObj({ conItem, nodeId, conversionState }) {
   let valueAst1 = convertEditorValue({
     value: conItem[0],
-    nodeId
+    nodeId,
+    conversionState
   })
   let valueAst2 = convertEditorValue({
     value: conItem[2],
     nodeId,
-    legacyFormulaType: 'conditionValue'
+    legacyFormulaType: 'conditionValue',
+    conversionState
   })
   let operator = IF_CONDITION_OP_MAP[conItem[1]]
   let op = sysOpList.indexOf(operator) >= 0 ? 'sysop' : operator
@@ -192,7 +200,7 @@ function genIfConObj({ conItem, nodeId }) {
   }
   return obj
 }
-function convertIfCons({ cons, nodeId }) {
+function convertSplitIfCons({ cons, nodeId, conversionState }) {
   // 存在特殊情况，有的cons直接是个这样的数组['$refs.I_bmrwk9na3j50000nm140', 'notIn', '$refs.bmrwk9na3j50000nm1d0.p_value']，需特殊处理
   if (typeof cons[0] === 'string') {
     cons[0] = { code: cons[0] }
@@ -227,13 +235,17 @@ function convertIfCons({ cons, nodeId }) {
           args: []
         }
         orItem.forEach(conItem => {
-          let conObj = genIfConObj({ conItem, nodeId })
+          let conObj = genIfConObj({ conItem, nodeId, conversionState })
           andObj.args.push(conObj)
         })
         conAst.args.push(andObj)
       } else {
         // 单个条件
-        let conObj = genIfConObj({ conItem: orItem[0], nodeId })
+        let conObj = genIfConObj({
+          conItem: orItem[0],
+          nodeId,
+          conversionState
+        })
         conAst.args.push(conObj)
       }
     })
@@ -245,16 +257,74 @@ function convertIfCons({ cons, nodeId }) {
     if (andArray.length > 1) {
       // 多个条件
       andArray.forEach(conItem => {
-        let conObj = genIfConObj({ conItem, nodeId })
+        let conObj = genIfConObj({ conItem, nodeId, conversionState })
         conAst.args.push(conObj)
       })
     } else {
       // 单个条件
-      conAst = genIfConObj({ conItem: andArray[0], nodeId })
+      conAst = genIfConObj({
+        conItem: andArray[0],
+        nodeId,
+        conversionState
+      })
     }
   }
 
   return conAst
+}
+
+function isUsableRuntimeConditionAst(ast, conversionState) {
+  if (!ast || conversionState?.dropped) return false
+  if (ast.op === 'val' && !Object.prototype.hasOwnProperty.call(ast, 'val')) {
+    return false
+  }
+
+  let usable = true
+  const walk = value => {
+    if (!usable || !value || typeof value !== 'object') return
+    if (
+      value.op === 'jsfn' &&
+      /\$sys\b|\$refs\b|\$SF_|\$P_/.test(value.val?.[0] || '')
+    ) {
+      usable = false
+      return
+    }
+    for (const child of Array.isArray(value) ? value : Object.values(value)) {
+      walk(child)
+    }
+  }
+  walk(ast)
+  return usable
+}
+
+function convertIfCons({ cons, nodeId, runtimeCode }) {
+  const checkpoint = createDiagCheckpoint()
+  const splitState = {}
+  const splitAst = convertSplitIfCons({
+    cons,
+    nodeId,
+    conversionState: splitState
+  })
+  if (!splitState.dropped) return splitAst
+
+  const splitDiagRecords = getDiagRecordsSince(checkpoint)
+  rollbackDiagCheckpoint(checkpoint)
+
+  const runtimeState = {}
+  const runtimeAst = convertRuntimeExpression({
+    code: runtimeCode,
+    nodeId,
+    conversionState: runtimeState
+  })
+  if (isUsableRuntimeConditionAst(runtimeAst, runtimeState)) {
+    return runtimeAst
+  }
+
+  // 完整运行态条件无效或仍含未知运行时对象时，保留原拆分 AST 与原始
+  // dropped 诊断；不能为了清日志而猜测修补源数据。
+  rollbackDiagCheckpoint(checkpoint)
+  appendDiagRecords(splitDiagRecords)
+  return splitAst
 }
 
 export {

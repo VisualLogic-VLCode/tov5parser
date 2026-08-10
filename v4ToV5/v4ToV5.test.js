@@ -23,6 +23,11 @@ import {
 import { convertEditorValue } from './utils/formula.js';
 import { getLegacyV41FormulaString } from './utils/legacyFormulaValue.js';
 import {
+  disableConvertDiag,
+  enableConvertDiag,
+  getDiagRecords,
+} from './utils/convertDiag.js';
+import {
   compileV5ServerAst,
   normalizeServerMethodErrorCallbacks,
 } from './serverAstCompiler.js';
@@ -134,6 +139,18 @@ function buildV4CaseJson() {
       ],
     },
   };
+}
+
+function collectAstNodes(root, predicate) {
+  const found = [];
+  const pending = [root];
+  while (pending.length) {
+    const item = pending.pop();
+    if (!item || typeof item !== 'object') continue;
+    if (predicate(item)) found.push(item);
+    pending.push(...(Array.isArray(item) ? item : Object.values(item)));
+  }
+  return found;
 }
 
 test('createV4ConvertEnv indexes nodes across main and class scopes', () => {
@@ -276,6 +293,163 @@ test('data-if keeps the V5 condition AST without the legacy value bind', () => {
   assert.ok(dataIf.props.conditionVal.ast);
   assert.equal('value' in dataIf.binds, false);
   assert.deepEqual(dataIf.binds.other, { op: 'val', val: 2 });
+});
+
+test('data-if falls back to a valid complete V4 runtime condition when split operands are malformed', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push(
+    {
+      id: 'if-runtime-trailing',
+      type: 'data-if',
+      rootId: 'stage1',
+      uis: { name: '完整条件修复尾括号' },
+      props: {
+        conditionVal: [[
+          {
+            code: '$refs.txt1.p_value.$SF_getSelf().findIndex(x => x == 1))',
+          },
+          '!=',
+          { code: '-1' },
+        ]],
+      },
+      binds: {
+        value: {
+          code: '$refs.txt1.p_value.$SF_getSelf().findIndex(x => x == 1) != -1)',
+          _code: '$sys.util.getSelf($refs.txt1.p_value).findIndex(x => x == 1) != -1',
+        },
+      },
+      children: [],
+    },
+    {
+      id: 'if-runtime-balanced',
+      type: 'data-if',
+      rootId: 'stage1',
+      uis: { name: '完整条件补齐左括号' },
+      props: {
+        conditionVal: [
+          [{ code: '$refs.txt1.p_value' }, '==', { code: '0' }],
+          [
+            { code: '$refs.txt1.p_value).some(x => x == 1)' },
+            '==',
+            { code: 'true' },
+            '||',
+          ],
+        ],
+      },
+      binds: {
+        value: {
+          code: '($refs.txt1.p_value)==(0)||($refs.txt1.p_value).some(x => x == 1)==(true)',
+          _code: '($refs.txt1.p_value)==(0)||($refs.txt1.p_value).some(x => x == 1)==(true)',
+        },
+      },
+      children: [],
+    },
+  );
+
+  enableConvertDiag();
+  let v5CaseJson;
+  let diagRecords;
+  try {
+    v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+    diagRecords = getDiagRecords();
+  } finally {
+    disableConvertDiag();
+  }
+  for (const id of ['if-runtime-trailing', 'if-runtime-balanced']) {
+    const dataIf = v5CaseJson.stage.children.find((node) => node.id === id);
+    const ast = dataIf.props.conditionVal.ast;
+    const emptyVals = collectAstNodes(
+      ast,
+      item =>
+        item.op === 'val' &&
+        !Object.prototype.hasOwnProperty.call(item, 'val') &&
+        (!Array.isArray(item.args) || item.args.length === 0),
+    );
+
+    assert.equal(emptyVals.length, 0, `${id} should not drop a condition operand`);
+    assert.doesNotMatch(JSON.stringify(ast), /\$sys\b|\$SF_/);
+    assert.equal('value' in dataIf.binds, false);
+  }
+  assert.equal(
+    diagRecords.some(
+      record =>
+        ['if-runtime-trailing', 'if-runtime-balanced'].includes(record.nodeId) &&
+        record.phase !== 'custom-expr-fallback',
+    ),
+    false,
+    'recovered split errors must not remain classified as dropped diagnostics',
+  );
+});
+
+test('data-if does not guess when the complete V4 runtime condition is invalid', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push({
+    id: 'if-invalid-runtime',
+    type: 'data-if',
+    rootId: 'stage1',
+    uis: { name: '源坏条件' },
+    props: {
+      conditionVal: [[
+        { code: '$refs.txt1.p_value]' },
+        '==',
+        { code: '1' },
+      ]],
+    },
+    binds: {
+      value: {
+        code: '$refs.txt1.p_value] == 1',
+        _code: '$refs.txt1.p_value] == 1',
+      },
+    },
+    children: [],
+  });
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const dataIf = v5CaseJson.stage.children.find(
+    node => node.id === 'if-invalid-runtime',
+  );
+
+  assert.deepEqual(dataIf.props.conditionVal.ast.args[0], { op: 'val' });
+  assert.equal('value' in dataIf.binds, false);
+});
+
+test('data-if keeps an explicit undefined operand without invoking runtime fallback', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push({
+    id: 'if-explicit-undefined',
+    type: 'data-if',
+    rootId: 'stage1',
+    uis: { name: '显式未定义' },
+    props: {
+      conditionVal: [[
+        { code: '$refs.txt1.p_value' },
+        '!=',
+        { code: 'undefined' },
+      ]],
+    },
+    binds: {
+      value: {
+        code: '$refs.txt1.p_value != undefined',
+        _code: '$refs.txt1.p_value != undefined',
+      },
+    },
+    children: [],
+  });
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const dataIf = v5CaseJson.stage.children.find(
+    node => node.id === 'if-explicit-undefined',
+  );
+
+  assert.equal(dataIf.props.conditionVal.ast.op, '!=');
+  assert.deepEqual(dataIf.props.conditionVal.ast.args[1], {
+    op: 'val',
+    val: undefined,
+  });
+  assert.equal('value' in dataIf.binds, false);
 });
 
 test('service return keeps legacy reason text literal and empty values empty', () => {

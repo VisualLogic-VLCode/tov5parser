@@ -333,6 +333,41 @@ const unwrapLegacyGetSelfCalls = value => {
   return value
 }
 
+// V4 编辑器保存的运行态 `_code` 会把 receiver 形式的
+// `value.$SF_getSelf()` 编译为 `$sys.util.getSelf(value)`。两者都是恒等
+// 语义；只折叠这一种“非计算属性 + 单参数”的编译器调用，其他
+// `$sys.util.*` 保持原样并由调用方的安全检查拒绝，避免猜测未知工具。
+const unwrapLegacyRuntimeGetSelfCalls = value => {
+  if (Array.isArray(value)) {
+    return value.map(unwrapLegacyRuntimeGetSelfCalls)
+  }
+  if (!value || typeof value !== 'object') return value
+
+  for (const [key, child] of Object.entries(value)) {
+    if (['start', 'end', 'loc'].includes(key)) continue
+    value[key] = unwrapLegacyRuntimeGetSelfCalls(child)
+  }
+
+  if (
+    value.type === 'CallExpression' &&
+    value.arguments?.length === 1 &&
+    value.callee?.type === 'MemberExpression' &&
+    value.callee.computed === false &&
+    value.callee.property?.type === 'Identifier' &&
+    value.callee.property.name === 'getSelf' &&
+    value.callee.object?.type === 'MemberExpression' &&
+    value.callee.object.computed === false &&
+    value.callee.object.property?.type === 'Identifier' &&
+    value.callee.object.property.name === 'util' &&
+    value.callee.object.object?.type === 'Identifier' &&
+    value.callee.object.object.name === '$sys'
+  ) {
+    return value.arguments[0]
+  }
+
+  return value
+}
+
 const normalizeLegacyFallbackCalls = (
   parsed,
   {
@@ -613,6 +648,7 @@ export default class V4FormulaCodeConverter {
     this.str = props.str
     this.scope = props.scope || 'stage' // stage 或 server, 公式编辑器所处的位置
     this.innerGetCtxQueue = []
+    this.didDrop = false
   }
   // 静态属性
   static sfutilAliasMap = {
@@ -691,7 +727,9 @@ export default class V4FormulaCodeConverter {
         })
         return ast
       }
-      parsed = normalizeLegacyRuntimeIdentifiers(jsep(str))
+      parsed = unwrapLegacyRuntimeGetSelfCalls(
+        normalizeLegacyRuntimeIdentifiers(jsep(str))
+      )
     } catch (e) {
       // jsep 只解析表达式子集，块体箭头函数、IIFE 与赋值表达式交给
       // 完整 ESTree 解析器，再沿用 jsfn 的 v4 引用参数化逻辑。
@@ -700,6 +738,7 @@ export default class V4FormulaCodeConverter {
         reportDiagError({ phase: 'custom-expr-fallback', error: e })
         return ast
       } catch (fullJsError) {
+        this.didDrop = true
         console.log('parse error:', e)
         reportDiagError({ phase: 'jsep-parse', error: e })
       }
@@ -709,6 +748,7 @@ export default class V4FormulaCodeConverter {
     try {
       ast = this.processParsedTree({ parsed, gateway: true })
     } catch (e) {
+      this.didDrop = true
       ast = { op: 'val' }
       console.log(e)
       reportDiagError({ phase: 'ast-convert', error: e })
@@ -731,7 +771,9 @@ export default class V4FormulaCodeConverter {
     // V4 的 `$SF_getSelf()` 是 receiver identity。full-js fallback 会把源码原样
     // 放进 jsfn，V5 运行时却没有该原型方法，因此只在 ESTree 中折叠零参数成员调用。
     // 带参数或计算属性调用保持原样，避免把未知用户代码当作旧占位符处理。
-    parsed = normalizeLegacyRuntimeIdentifiers(unwrapLegacyGetSelfCalls(parsed))
+    parsed = normalizeLegacyRuntimeIdentifiers(
+      unwrapLegacyRuntimeGetSelfCalls(unwrapLegacyGetSelfCalls(parsed))
+    )
     const context = {
       num: 0,
       vList: [],

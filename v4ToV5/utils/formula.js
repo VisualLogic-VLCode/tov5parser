@@ -44,7 +44,8 @@ function convertEditorValue({
   blockId,
   paramName,
   cloneChildId,
-  legacyFormulaType
+  legacyFormulaType,
+  conversionState
 }) {
   if (!value) {
     return { op: 'val' }
@@ -83,14 +84,29 @@ function convertEditorValue({
   let scope = nodeInServer ? 'server' : 'stage'
   pushDiagContext({ nodeId, blockId, paramName, cloneChildId, scope, code: editorCode })
   try {
-    return new V4FormulaCodeConverter({
+    const converter = new V4FormulaCodeConverter({
       str: editorCode,
       getCtx: wrapCtx,
       scope
-    }).exec()
+    })
+    const ast = converter.exec()
+    if (converter.didDrop && conversionState) {
+      conversionState.dropped = true
+    }
+    return ast
   } finally {
     popDiagContext()
   }
+}
+
+function convertRuntimeExpression({ code, nodeId, blockId, conversionState }) {
+  if (!V4FormulaCodeConverter.canParseRuntimeCode({ str: code })) return
+  return convertEditorValue({
+    value: { code },
+    nodeId,
+    blockId,
+    conversionState
+  })
 }
 
 function getFuncGroupParamTokenNames(formulaValue) {
@@ -538,4 +554,4 @@ function getCtx(str, extra) {
   return null
 }
 
-export { convertEditorValue }
+export { convertEditorValue, convertRuntimeExpression }
