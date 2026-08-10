@@ -184,9 +184,12 @@ function genStageCompActionMap(VxWidgetMap) {
       } = callback || {};
       if (Array.isArray(params)) {
         rtnPropLocMap = params.reduce((prev2, item) => {
-          let { name, locale } = item || {};
+          let { name, locale, func } = item || {};
           let { en: nameEN } = locale || {};
-          prev2[`${name}`] = { name, nameEN };
+          let propInfo = { name, nameEN };
+          if (func) propInfo.func = func;
+          prev2[`${name}`] = propInfo;
+          if (func) prev2[`${func}`] = propInfo;
           return prev2;
         }, {});
       }

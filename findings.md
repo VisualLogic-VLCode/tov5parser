@@ -1,7 +1,31 @@
 # Findings & Decisions
 
+## callback paramFunc 通用修复
+
+- 全案审计确认新增元数据未改变组件、事件、事件块、data-if、jsfn、持久化代码或 cType 不变量；V4 root 通过 eventId 保留，所有非 root BID 均有 V5 ln。
+- 真实案例验证符合用户手工 AST：BID `cjk76jaa3j50000sdws0` 和 `cjhwqm6a3j500007z6kg` 都同时具备 `paramFunc/transValue`，且旧 block shape、`$SF_obj_translateData` 残留和相关诊断全部为 0。该修复只增加编辑器可逆元数据，不改变 `val/args` 运行语义。
+- 实现严格复用编辑器序列化规则：去掉 `$SF_` 前缀得到 `val`，默认 `_blockType:'paramFunc'`，仅当展示名与 `val` 不同才写 `_alias`。普通 callback field 与 singleParam 分支不变，legacySysutilMap 也未扩大。
+- 失败回归使用真实组件/动作契约而非案例 ID：修复前 chooseAddress 完整 AST只在 sysutil 元数据处失败，uploadFiles 同类断言因首个 deepEqual 已中止尚未执行；修复后必须两者同时通过。
+- 修复边界已授权：从 callback param 契约读取 `name/func`，同时生成名称键和函数键；命中 func 时输出正式 V5 `sysutil + _blockType:paramFunc + 条件性_alias`。legacy sysutil 表仅保留无动作契约时的运行兜底。
+
+## 第 43 例手工 AST 与转换 AST 元数据核对
+
+- 最终修复方案：① 在 Node 版 `utils/MapCreator.js` 与 VxEditor41 的 `formulaCode/MapCreator.js` 中保留 callback param 的 `func`，按 `name` 和 `func` 双键索引同一 info；② 两仓 `getStageCompActionRtnPropAST` 的 func 分支生成正式 V5 `{op:'sysutil',val,_blockType:'paramFunc',_alias}`；③ 保留 legacy sysutil 表作为无 action contract 时的执行兜底，不向其中硬编码 alias；④ 回归覆盖 `chooseAddress/transValue` 与 `uploadFiles/objData`，并验证 ast2js 语义不变和真实案例目标 BID 与手工 AST一致。
+- 全量数据没有发现同一组件动作内同一 `func` 对应多个 `name`，所以 `rtnPropLocMap[name]` 与 `rtnPropLocMap[func]` 双索引在当前资产上无歧义；仍应在单测中断言两个键指向同一契约信息。
+- 组件契约中存在 579 个 callback func 落点、16 种唯一 display/function 配对，表明应修“组件动作返回参数契约→V5 paramFunc AST”的通用链路。若只在 `legacySysutilMap.$SF_obj_translateData` 写 `_alias:'transValue'`，会漏掉其余配对，并可能把脱离 callback 上下文的普通 sysutil 误标成 paramFunc。
+- `genStageCompActionMap` 与 `getStageCompActionRtnPropAST` 必须成对修改：前者保存并双键索引 `{name,nameEN,func}`；后者把 contract 记录转换成真正的 V5 sysutil AST。只做前者会暴露后者现存的旧 block shape，产生含 `type/name/val` 而没有 `op` 的无效节点。
+- 用 `loadRuntimeMaps()` 实测 `ih5-wechat$chooseAddress` 证明当前 map 生成结果只认识显示名 `transValue`，而 V4 公式保存的是函数名 `$SF_obj_translateData`。这不是案例数据异常，而是 `genStageCompActionMap` 丢弃 `func` 后造成的系统性不可逆映射。
+- ast2js 的 sysutil 编译只基于 `op/val/args`，不读取 `_blockType/_alias`，故两份 AST 的运行代码完全等价；不能把当前结果称为运行错误，但它不是编辑器手工开发的规范、可逆 AST。
+- 现有 `$SF_obj_translateData` 回归仅验证普通参数对象上的结构化 sysutil和执行结果，缺少 actionResult/组件方法契约，因此即使 `_blockType` 错成 `sysutil` 仍会通过。应新增契约驱动的 callback paramFunc 回归，而不是只修改现有运行语义断言。
+- 推荐修复不应把 `transValue` 硬编码进全局 legacy sysutil 映射。应让 `genStageCompActionMap` 保留 callback param 的 `{name,nameEN,func}`，同时按 `name` 和 `func` 建索引；然后让 `getStageCompActionRtnPropAST` 根据该契约直接生成 `{op:'sysutil',val:去掉$SF_的func,_blockType:'paramFunc',_alias:name}`。这样别名来自具体组件动作元数据，同类 `objData/$SF_sys_multiObjListToObjArr` 也能统一正确转换。
+- 当前 `getSysutilInfoFromFuncName` 返回完整映射对象，但 `genSysutilMethodAST` 仅解构 `name`，其返回值固定 `_blockType:'sysutil'`。因此缺口不是 AST 调用解析失败，而是生成器没有表达“同一个 sysutil 函数在当前 V4 公式中属于 callback paramFunc 且显示别名为 transValue”的元数据。
+- VxEditor41-widgets 的 `chooseAddress` callback map 是权威契约：显示名 `transValue`，实际函数 `$SF_obj_translateData`。VxEditor41 `blockProcessor` 对 `type:'paramFunc'` 正向写为 `{op:'sysutil', val:'obj_translateData', _blockType:'paramFunc', _alias:'transValue'}`，反向又用这两个字段恢复参数函数块；这解释了手工 AST 的精确来源。
+- 已确认运行结构和引用完全相同，差异不是 ref/field/get/var 或调用语义，而只在 sysutil 节点 UI 元数据：转换器 `{op:'sysutil',val:'obj_translateData',_blockType:'sysutil'}`；手工编辑器 `{op:'sysutil',val:'obj_translateData',_blockType:'paramFunc',_alias:'transValue'}`。因此当前产物编译执行语义应正确，但编辑器里的参数函数识别、别名显示或再次编辑体验可能不一致。
+- 待核对重点：用户手工 AST 的 sysutil 节点含 `_blockType:'paramFunc'`、`_alias:'transValue'`，外层 get 含 `_blockType:'$cbParams'`、`_ver:1`，field 含 `_uiSkip:true`。需要从真实转换产物确认转换器是否只保留了运行语义却遗漏编辑器重开/渲染所需元数据。
+
 ## clothing 第 43 例：移动选款H5（nid 11271414）
 
+- Phase 124 已完整发布：tov5parser `9c5e6ae`、生产 Lambda 版本 31（`prod`、冒烟成功）和 VxEditor41 `26a9b0421` 三端一致。修复后真实案例两个落点均为正式 `obj_translateData` sysutil AST，最终 `$SF_obj_translateData` 残留 0；第 44 例未启动。
 - Phase 124 实现边界：现有 `legacySysutilMap` 已为同类 callback-only 工具 `$SF_sys_multiObjListToObjArr` 提供 `{name:'$SF_...'}`，对应测试同时断言结构化 `op:sysutil`、无 jsfn 残留、ast2js 输出 `$sys.util...` 和运行语义。`$SF_obj_translateData` 应沿用该通路，新增 `{name:'$SF_obj_translateData'}`，不能改 full-JS 字符串或按 BID 特判。
 - 最小修复验证成立：新增 legacy 条目后 `genSysutilMethodAST` 自动生成 `op:'sysutil', val:'obj_translateData'`，ast2js 输出 `$sys.util.obj_translateData(receiver)`；mapping 对象会保留原键并补翻译键，无 mapping 时返回原对象。无需新增 fallback 字符串归一化或改动运行时。
 - 真实重转闭环：两个目标 BID 都从 `jsfn("$v1.$SF_obj_translateData()")` 变为 callback result 的正式 get 链，尾节点为 `{op:'sysutil',val:'obj_translateData'}`，且各自 jsfn 数为 0。全案 `$SF_obj_translateData` 残留和相关诊断均为 0；最终 jsfn 64→62、诊断 66→64，dropped 保持 0。

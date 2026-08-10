@@ -2457,11 +2457,13 @@ export default class V4FormulaCodeConverter {
     let { name, func } = propInfo || {}
     let ast
     if (func) {
+      let val = func.replace(/^\$SF_/, '')
       ast = {
-        type: 'paramFunc',
-        name
+        op: 'sysutil',
+        val,
+        _blockType: 'paramFunc'
       }
-      if (func !== name) ast.val = func
+      if (val !== name) ast._alias = name
     } else {
       ast = {
         op: 'field',

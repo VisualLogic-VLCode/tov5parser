@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 124（修复第 43 例 `$SF_obj_translateData` 残留并完成固定发布流程）— in progress
+Phase 126（修复 callback paramFunc 元数据并完成固定发布流程）— in progress
 
 ## Phases
 
@@ -1973,10 +1973,38 @@ Phase 124（修复第 43 例 `$SF_obj_translateData` 残留并完成固定发布
 - [x] 核对双仓工作区和转换链，补充 `$SF_obj_translateData` 的失败回归测试
 - [x] 实施通用 legacy sysutil 映射修复并通过定向/完整测试
 - [x] 重转第 43 例，复核两个 BID、全案 jsfn 与结构审计并更新报告
-- [ ] 精确提交并推送 tov5parser，部署生产 Lambda 并完成 prod 冒烟
-- [ ] 同步 VxEditor41 对应转换器，完成定向检查/构建、精确提交并推送
-- [ ] 记录双仓提交、Lambda 版本和最终门禁，不启动第 44 例
+- [x] 精确提交并推送 tov5parser，部署生产 Lambda 并完成 prod 冒烟
+- [x] 同步 VxEditor41 对应转换器，完成定向检查/构建、精确提交并推送
+- [x] 记录双仓提交、Lambda 版本和最终门禁，不启动第 44 例
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求“修复”。根据本项目 `AGENT.md`/`CLAUDE.md` 固定流程，修复与回归通过后无需再次询问，自动完成 tov5parser 提交推送、生产 Lambda 部署、VxEditor41 同步提交推送。只修复 `$SF_obj_translateData` 通用映射缺口，不处理其他未证实问题，不触碰受保护未跟踪文档，不启动第 44 例。
+
+**发布结论：** tov5parser `9c5e6ae` 已推送，生产 Lambda `prod` 已发布到版本 31并通过冒烟；VxEditor41 `26a9b0421` 已推送。第 43 例重转与全案审计通过，第 44 例目录仍不存在，返回 Phase 67 人工审阅门禁。
+
+### Phase 125：核对第 43 例手工 AST 与转换 AST 的元数据差异（2026-08-10）
+
+- [x] 从真实 V5 产物精确提取 BID `cjk76jaa3j50000sdws0` 的转换 AST
+- [x] 对照用户提供的手工 AST，区分运行语义差异与编辑器元数据差异
+- [x] 追踪转换器和 VxEditor41 生成路径，确定通用修复点与回归范围
+- [x] 汇报差异和修复方案；本轮仅诊断，不修改转换器、不启动第 44 例
+
+**Status:** complete
+
+**授权与范围：** 用户要求对比检查并说明如何修复。按“诊断不自动实施”的边界，本阶段只形成证据和修复方案；若确认需改代码，等待用户明确要求修复后再进入固定发布流程。
+
+**结论：** 当前转换 AST 与手工 AST 的执行语义相同，唯一差异是转换器把 callback 参数函数节点写成普通 `_blockType:'sysutil'`，缺少 `_blockType:'paramFunc'/_alias:'transValue'`，导致编辑器表示不可逆。根因是 stage action map 丢弃 callback `func`，而 property 转换器的 func 分支仍返回旧 block shape。应通用修复 map 双索引和正式 V5 paramFunc AST 构造，并以真实 actionResult 契约补回归；本轮未修改代码。
+
+### Phase 126：修复 callback paramFunc 元数据并发布（2026-08-10）
+
+- [x] 核对双仓基线，新增 actionResult callback paramFunc 失败回归
+- [x] 通用修复 stage callback `func` 双索引与正式 V5 paramFunc AST 构造
+- [x] 通过定向/完整测试，重转第 43 例并验证目标 BID 与全案不变量
+- [ ] 精确提交推送 tov5parser，部署生产 Lambda 并完成 prod 冒烟
+- [ ] 同步 VxEditor41 的 MapCreator/转换器，检查构建后精确提交推送
+- [ ] 记录最终版本并返回第 43 例审阅门禁，不启动第 44 例
 
 **Status:** in progress
 
-**授权与范围：** 用户明确要求“修复”。根据本项目 `AGENT.md`/`CLAUDE.md` 固定流程，修复与回归通过后无需再次询问，自动完成 tov5parser 提交推送、生产 Lambda 部署、VxEditor41 同步提交推送。只修复 `$SF_obj_translateData` 通用映射缺口，不处理其他未证实问题，不触碰受保护未跟踪文档，不启动第 44 例。
+**授权与范围：** 用户明确要求“修复”。按 `AGENT.md`/`CLAUDE.md` 固定流程，验证通过后自动完成双仓提交推送与生产 Lambda 部署。实现必须由组件动作 callback 契约驱动，覆盖通用 paramFunc，不按案例 BID 或 transValue 特判；保留历史案例产物，不启动第 44 例。

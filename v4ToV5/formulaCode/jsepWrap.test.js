@@ -356,6 +356,73 @@ test('legacy callback translation becomes a structured V5 sysutil call', () => {
   assert.equal(evaluate(plain), plain)
 })
 
+test('stage callback param funcs preserve their editor metadata from the action contract', () => {
+  loadRuntimeMaps()
+  const convertActionResult = ({ str, actionBlockId, varCompName, action }) =>
+    new V4FormulaCodeConverter({
+      str,
+      getCtx(name) {
+        if (name === 'cbParams') {
+          return {
+            varType: 'actionResult',
+            actionBlockId,
+            varCompName,
+            varCompScope: 'stage',
+            action
+          }
+        }
+      },
+      scope: 'stage'
+    }).exec()
+
+  const translateAst = convertActionResult({
+    str: 'cbParams.$SF_obj_translateData()',
+    actionBlockId: 'choose-address',
+    varCompName: 'ih5-wechat',
+    action: 'chooseAddress'
+  })
+  assert.deepEqual(translateAst, {
+    op: 'var',
+    args: [
+      {
+        op: 'get',
+        args: [
+          {
+            op: 'ref',
+            val: ['local', 'choose-addressRtn']
+          },
+          {
+            op: 'field',
+            val: 'result',
+            _uiSkip: true
+          },
+          {
+            op: 'sysutil',
+            val: 'obj_translateData',
+            _blockType: 'paramFunc',
+            _alias: 'transValue'
+          }
+        ],
+        _blockType: '$cbParams',
+        _ver: 1
+      }
+    ]
+  })
+
+  const uploadAst = convertActionResult({
+    str: 'cbParams.$SF_sys_multiObjListToObjArr()',
+    actionBlockId: 'upload-files',
+    varCompName: 'ih5-sys-file',
+    action: 'uploadFiles'
+  })
+  assert.deepEqual(findAst(uploadAst, item => item.op === 'sysutil'), {
+    op: 'sysutil',
+    val: 'sys_multiObjListToObjArr',
+    _blockType: 'paramFunc',
+    _alias: 'objData'
+  })
+})
+
 test('nested array callbacks keep outer and inner item references distinct', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({

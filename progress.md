@@ -1,7 +1,53 @@
 # Progress Log
 
+## Phase 126：修复 callback paramFunc 元数据并发布（2026-08-10）
+
+- tov5parser 提交前范围复核通过：刷新远端后 ahead/behind 0/0；预期提交恰为三份规划记录、`utils/MapCreator.js`、公式转换器和目标测试，共 6 文件。代码差异仅是 callback func 双索引、V5 paramFunc 构造和回归；敏感模式扫描及 `git diff --check` 通过，受保护未跟踪文档和忽略的案例产物不进入提交。
+- 第 43 例报告已更新并终检：7,271 bytes、SHA-256 `c9f2780b...fc2a`；已写入规范 paramFunc AST、通用双索引根因/修复、93/93 与新 V5 摘要，旧 92/92、旧大小/摘要和旧根因文本均清除。V5/诊断 JSON 可解析，`git diff --check` 通过。
+- 新 V5 为 1,903,617 bytes、SHA-256 `aa3e33ef...df4a`；诊断 JSON/Markdown 摘要与上一轮相同，权威汇总为 total64 / unique64 / customExpr64 / dropped0。
+- 全案结构/公式审计复核通过：组件 1,088→1,088（唯一 ID 1,087）、事件 244→244 且全部有 AST；V4 非 root 事件块缺失 0，972 action/395 con/120 status/33 loop/36 comment/4 group 不变量保持。99 个 data-if 全有正式 AST且无旧 bind；62 个 jsfn、52 段 `_code` 语法/参数错误均为 0；cType 仍为 String61/JsonVal1/long4。
+- 首轮临时审计把诊断 record 的不存在 `category` 字段当成分类，误算 dropped=64；实际诊断顶层直接提供 `customExprTotal/droppedTotal`，后续改读权威汇总。事件块首轮 missing=244 也精确等于 244 个 root BID，因为 root 由 `eventId` 表示而非 `ln`；排除 root 后非 root 缺失为 0。两处均为审计器假设错误，不是转换产物问题。
+- 既有第 43 例报告仍记录上一轮“仅补 legacy sysutil 映射”、92/92 与旧产物摘要，需要在本轮全案审计后更新为 callback 契约双索引、规范 paramFunc 元数据及 93/93。项目没有持久化审计脚本，仅有转换/部署/打包脚本；将用只读内存审计重新计算，不把临时脚本留在仓库。
+- 第 43 例真实重转 1/1 成功，诊断仍为 64 customExpr / 0 dropped。两个目标 BID 均精确生成手工规范节点 `{op:'sysutil',val:'obj_translateData',_blockType:'paramFunc',_alias:'transValue'}`，外层 ref/field/get 元数据完全保持；相关旧函数残留和诊断均为 0。全案 paramFunc 分布为 getSelf/value 56、obj_translateData/transValue 2，旧 `{type:'paramFunc'}` block shape 为 0。
+- 回归门禁通过：三个相关用例 3/3，完整项目 93/93、0 fail（较上一版新增 1 项）。控制台 ParseError 仍是既有失败试探/兜底测试输出，进程 exit 0。下一步重转第 43 例并核对两个目标 BID、全案 paramFunc 分布与既有结构不变量。
+- 通用实现完成：Node 版 MapCreator 现保留 callback param 的 `func` 并按 `name/func` 双键指向同一 info；stage actionResult 的 func 分支按 CodeEditor 规则生成正式 `{op:'sysutil',val,_blockType:'paramFunc',条件性_alias}`。定向回归修复后 1/1 通过，diff 无案例 ID、无 transValue 特判，`git diff --check` 通过。
+- 红色回归已固定：新增同一测试覆盖 `ih5-wechat.chooseAddress → transValue/$SF_obj_translateData` 的完整手工 AST，以及 `ih5-sys-file.uploadFiles → objData/$SF_sys_multiObjListToObjArr`。修复前定向运行 0/1，精确差异为实际 `_blockType:'sysutil'`、缺少 `_alias:'transValue'`，证明命中本次缺口。
+- 固定发布规则与双仓基线已复核：tov5parser `main/origin/main=9c5e6ae`、VxEditor41 `master/origin/master=26a9b0421`，两仓 ahead/behind 均 0/0。主仓仅三份规划记录和受保护未跟踪文档；编辑器仍只有既有 `.gitignore`、`src/stores/event.js`、`.claude/` 与组件目录改动。后续只暂存本轮明确文件。
+- 用户明确要求“修复”，Phase 126 启动。将按 Phase 125 证据通用修改 MapCreator 和 actionResult 属性 AST 构造，先补失败回归，再重转第 43 例；成功后自动提交推送、部署 Lambda 并同步 VxEditor41。第 44 例保持关闭。
+- session catchup 的 5 条未同步内容仅包含 Phase 125 完成汇报、用户修复授权和本次技能恢复动作；没有遗留代码改动或未完成部署。
+
+## Phase 125：核对第 43 例手工 AST 与转换 AST 的元数据差异（2026-08-10）
+
+- stop hook 129/130 恢复核对：Phase 125 已 4/4 完成并已向用户汇报，session catchup 的 6 条未同步内容仅是完成汇报、自动钩子和本次恢复动作；没有遗漏的诊断或代码变更。唯一未完成的是长期 Phase 67；当前等待用户决定是否实施元数据修复，hook 不构成修复授权，也不构成启动第 44 例的“继续”。
+- Phase 125 诊断完成：确认当前 AST 运行正确但编辑器元数据不规范；形成“两处通用代码修复 + actionResult/双 callback func 回归 + 第 43 例重转审计”的方案。本轮未修改转换器、未提交部署，也未启动第 44 例；等待用户是否明确要求修复。
+- 正确的 AST 构造细节应复用 CodeEditor 规则：`const val=func.replace(/^\$SF_/,'')`，节点为 `{op:'sysutil',val,_blockType:'paramFunc'}`，仅当 `val!==name` 时写 `_alias:name`。现有两个 legacy sysutil 条目可保留为脱离组件动作契约时的运行兜底，但不能在该全局表硬编码 callback alias。
+- 回归位置核对：项目没有独立 MapCreator 测试，现有入口是 `v4ToV5/formulaCode/jsepWrap.test.js` 和 `v4ToV5/v4ToV5.test.js`。一次搜索再次把不存在的 `utils/*.test.js` 裸 glob 交给 zsh，第二段命令在搜索前报 `no matches found`；已明确不再用 shell glob，后续直接使用这两个真实文件。
+- callback 契约冲突扫描确认同一“组件+动作+func”没有多个显示名，按 func 建第二索引不会在单动作内产生覆盖歧义。该脚本的 sysutil 覆盖统计错误地用最后一个 `$` 切割键，导致函数名前导 `$` 被去掉、全部显示 false；冲突结论不受影响，覆盖统计作废，后续改为直接维护 func Set。
+- 全量组件契约扫描发现这不是单一函数特例：当前 VxWidgetMap 中 callback `func` 共 579 个落点、16 种唯一“显示名→函数名”组合，包括 `isSuccess/$SF_db_isSuccess`、`objData/$SF_sys_multiObjListToObjArr`、`transValue/$SF_obj_translateData` 等。通用修复应覆盖全部契约函数，不能只为 transValue 增加 alias。
+- 只读原型验证了两段修复缺一不可：当前真实 actionResult 转换复现 `_blockType:'sysutil'`；仅在 map 中补 `$SF_obj_translateData` 索引后，现有 `getStageCompActionRtnPropAST` 会把旧描述 `{type:'paramFunc',name:'transValue',val:'$SF_obj_translateData'}` 直接塞进 V5 AST，仍不合法。因此必须同时修 map 生成和 V5 AST 构造。
+- 实际 runtime map 复核：`ih5-wechat$chooseAddress.rtnPropLocMap` 当前只有 `transValue` 键，值也只有 `{name:'transValue',nameEN:'value'}`，没有 `$SF_obj_translateData` 键和 `func` 字段。真实 V4 父动作 BID `cjk767ra3j50000sdwq0` 正是 `chooseAddress`，其 callback 子动作 `cjk76jaa...` 使用 `cbParams.$SF_obj_translateData()`；因此无法命中契约的因果链已用真实数据闭合。
+- 运行语义已由编译器源码闭合：tov5parser 与 VxEditor41 的 ast2js 在 `op:'sysutil'` 分支只读取 `val/args`，完全不读取 `_blockType/_alias`；所以当前转换 AST 与手工 AST都编译为同一个 `$sys.util.obj_translateData(result)`。差异确定只影响编辑器块类型、显示名和反向编辑。
+- 现有新增回归只用普通 `fParamgroup.result.$SF_obj_translateData()` 验证 sysutil 运行语义，没有组件动作 callback 上下文，也未断言 `_blockType/_alias`，因此无法发现这次元数据缺口。修复回归应以 `cbParams` 的 actionResult ctx 和真实动作 map为输入，精确断言手工 AST 的 paramFunc 形态；同时覆盖 `objData/$SF_sys_multiObjListToObjArr`，证明方案通用。
+- 更通用的修复点已浮现：`genStageCompActionMap` 当前只把 callback param 的 `name/locale` 放入 `rtnPropLocMap`，既不保留 `func`，也不以 `$SF_*` 函数名建立索引；所以 V4 的 `cbParams.$SF_obj_translateData()` 无法命中组件动作契约，才退到普通 sysutil。`getStageCompActionRtnPropAST` 虽写了 `func` 分支，却返回旧 block 描述 `{type:'paramFunc',name,val}` 而非 V5 AST，需一并纠正。VxEditor41 的公式转换器有同样逻辑。
+- 对照编辑器 MapCreator 时首次假设路径为 `src/utils/convertV4ToV5/utils/MapCreator.js`，该文件不存在，`sed` 和随后 `cmp` 分别返回 ENOENT/2；其余公式转换器读取正常。后续先用文件清单定位真实路径，不重复猜测。
+- 转换器根因已定位到 `genSysutilMethodAST`：它从映射对象只读取 `name`，然后无条件写 `_blockType:'sysutil'`。本轮新增的 legacy 条目也只有 `name`，所以虽然恢复了正确执行函数，却必然丢失 callback 参数函数的 `paramFunc/alias` 元数据。一次检索还包含不存在的 `vendor` 路径，`rg` 单独报告该路径 ENOENT，但其他明确路径结果正常；后续不再搜索该路径。
+- 编辑器证据显示 `chooseAddress.callback.params` 本来就声明 `{name:'transValue', func:'$SF_obj_translateData'}`。CodeEditor 的 `paramFunc` 序列化会生成 `op:'sysutil'`、`_blockType:'paramFunc'`，并在显示名与实际函数名不同时写 `_alias`；逆向读取也用 `_blockType/_alias` 恢复参数函数块。因此这两项是编辑器可逆编辑元数据，不影响 ast2js 的运行调用，但不应由转换器统一降成普通 `sysutil`。
+- 路径检索第一次在 zsh 中使用未匹配的裸 `test*`，shell 在执行主仓搜索前报 `no matches found`；第二个以分号分隔的 VxEditor41/VxEditor41-widgets 搜索仍完成。后续已改用明确文件路径。随后一次规划补丁因上下文少了 `AST 在` 中的空格而校验失败；两次均无文件副作用，本条用实际上下文完成记录，不重复错误写法。
+- 真实产物精确对照完成：BID `cjk76jaa3j50000sdws0` 的动作外层是变量 `setValue`；其 value AST 与用户手工 AST 在 `var → get → ref(local,cjk767...Rtn) → field(result,_uiSkip:true)`、get 的 `_blockType:'$cbParams'/_ver:1` 以及 `sysutil.val:'obj_translateData'` 上完全一致。唯一差异是 sysutil 元数据：转换产物为 `_blockType:'sysutil'`，手工 AST 为 `_blockType:'paramFunc', _alias:'transValue'`。
+- 用户提供了在编辑器中手动添加同一逻辑得到的 AST，要求与 BID `cjk76jaa3j50000sdws0` 的转换产物比较并判断修复方式。本轮只做诊断：核对真实 AST、V4 来源、转换器构造路径及编辑器元数据约定，不改代码、不启动第 44 例。
+
 ## Phase 124：修复第 43 例 `$SF_obj_translateData` 残留并发布（2026-08-10）
 
+- stop hook 128/129 恢复核对：Phase 124 已 6/6 完成并已向用户汇报；session catchup 的 6 条未同步内容仅是该完成汇报、自动钩子与本次恢复动作，没有遗漏的代码、部署或同步步骤。唯一未完成的是长期 Phase 67 的 51 例总流程；当前停在第 43 例审阅门禁，hook 不构成启动第 44 例的授权。
+- Phase 124 最终门禁通过：tov5parser 本地/远端均为 `9c5e6ae`（0/0），VxEditor41 本地/远端均为 `26a9b0421`（0/0）；Lambda 实时查询确认 `prod→31`、版本 31 `Active/Successful` 且 CodeSha256 一致。第 43 例 V5/报告摘要分别为 `763cae48...9fbf`、`a88841c5...f72f`；第 44 例 V4/V5 目录均不存在。返回 Phase 67 人工审阅门禁，等待明确“继续”。
+- VxEditor41 发布完成：仅暂存并提交目标公式转换器，提交 `26a9b0421 fix: convert legacy callback translation sysutil` 已推送到 `origin/master`。提交为 1 file changed / 4 insertions / 1 deletion；用户既有修改全部保留未暂存。
+- VxEditor41 提交前复核：刷新远端后 `master...origin/master` ahead/behind 0/0；本次目标差异仍严格只有 legacy 映射和注释。工作树的另外两个 tracked 修改及所有 untracked 组件目录均是用户既有内容，后续只暂存目标转换器文件。
+- VxEditor41 生产构建成功：webpack 5.108.3 在 74,925 ms 完成、exit 0。输出中的 33 类 warning 来自仓库既有 Sass 弃用、用户未提交组件及其他文件格式/导出问题；本次目标转换器的独立 ESLint 仍为 0 error / 0 warning。
+- VxEditor41 已仅同步公式转换器中的通用 legacy sysutil 映射与注释，差异和 tov5parser 修复一致；目标文件 ESLint 0 error / 0 warning，目标 diff check 通过。下一步运行编辑器生产构建。
+- VxEditor41 同步预检完成：`master` 与 `origin/master` 均为 `be3ae0b51`；目标公式转换器仍只有既有 `$SF_sys_multiObjListToObjArr` legacy 映射，确需同步新条目。编辑器的 `.gitignore`、`src/stores/event.js`、`.claude/` 和多个组件目录是既有用户改动，将全部保持未暂存；编辑器目录未发现额外 AGENT/CLAUDE 规则。
+- 生产 Lambda 发布成功：部署内完整回归 92/92，发布版本 `31`，`prod` 已切换到 31；直调冒烟 `StatusCode=200`、`ExecutedVersion=31`、`FunctionError=null`，响应 `code=0`。归档包为 `archive-9c5e6ae-20260810T082833Z.zip`，CodeSha256 `QuJ8OsUNSkODSXDdhT9WQGhIz95vpTSfO1vRCIY3h08=`。下一步同步 VxEditor41。
+- 部署入口复核完成：生产目标固定为账号 `587849590304`、`cn-northwest-1`、函数 `vl-case-json-converter`、别名 `prod`，默认通过 S3 中转。因发布后规划记录和受保护文档使工作树非空，本次使用 `--run-tests --smoke --allow-dirty --keep-history`，并以提交 `9c5e6ae` 写入版本描述；部署脚本会再次全量测试、校验账号、发布版本、切别名并直调冒烟。
+- tov5parser 已精确提交并推送：`9c5e6ae fix: convert legacy callback translation sysutil`（`main → origin/main`）。提交仅含转换器、回归测试和三份规划记录；受保护文档未暂存。下一步按固定流程部署生产 Lambda。
 - 提交前远端与范围核对：`main` 和 `origin/main` 均为 `084ac41`、ahead/behind 0/0；待提交恰为转换器、回归测试和三份规划记录，AGENT/CLAUDE 无变化，敏感模式扫描与 `git diff --check` 均通过。受保护未跟踪文档不进入暂存。
 - 修复后转换报告已更新并终检：6,869 bytes、SHA-256 `a88841c5...f72f`；未残留“不能判定/等待修复/91 项”等旧结论，明确记录诊断 64、jsfn 62、测试 92/92 和两个 BID 的正式 sysutil AST。V4/V5/诊断 JSON 解析与诊断类别求和均通过。
 - 第一次同步规划记录时，补丁把 `task_plan.md` 的清单上下文误放在 `progress.md` 更新块中，因找不到预期行而失败；未写入任何文件，已改为两个独立文件更新块。
