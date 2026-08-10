@@ -2195,3 +2195,4 @@
 - 第 40 例最新 `/work/load` 实物明确为 V4.1：完整三根，130 个事件全部有 V4 tree、event AST 为 0，Formula 1,559，且全案 op/ast/ln/cType 键均为 0。紧凑 JSON 1,271,379 bytes / SHA-256 `6f9c970e7a142d8c536daa4360edc93db6b8251bd4bd461f030c6d5d6cce1406`，权限 0600；可以进入转换器。
 - 第 40 例源清单为 1,271,380 bytes / `7f5f703f...07fb`，与最新 work 摘要不同，去掉尾随空白后仍不一致；转换必须使用当前 work 实物。
 - 第 40 例当前转换器 1/1 成功，V5 约 874.6 KB；诊断 14 条、去重 14，全部为 custom-expression/jsfn fallback，dropped 0。13 条是权限可见性/日志中的 `findIndex`，1 条是新增行序号的 `toString().padStart`，落点为 12 个 bind + 2 个动作参数；需验证最终 14 个 jsfn 的语法、参数与引用安全。
+- 第 43 例 callback 参数函数修复已闭环：V4 action callback 契约中的 `func` 必须同时进入 stage property map 的显示名索引与 `$SF_*` 索引；命中时生成正式 V5 `{op:'sysutil', val:<去掉 $SF_ 前缀>, _blockType:'paramFunc'}`，名称不同时以 `_alias` 保留编辑器显示名。该规则通用于全部 callback paramFunc，不依赖案例 BID 或 `transValue` 枚举。真实案例两处 `obj_translateData/transValue` 与手工 AST 精确一致，93/93 回归通过；tov5parser `30a0707`、Lambda v32、VxEditor41 `2b184e84e` 均已发布。

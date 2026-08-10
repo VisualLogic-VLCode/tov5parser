@@ -2,6 +2,10 @@
 
 ## Phase 126：修复 callback paramFunc 元数据并发布（2026-08-10）
 
+- VxEditor41 两处逻辑同步完成：只修改 `formulaCode/MapCreator.js` 与 `V4FormulaCodeConverter.js`，保留编辑器 window 依赖和代码风格。两目标文件 ESLint 0 error / 0 warning，目标 diff check 通过；差异与主仓语义一致。下一步执行生产构建。
+- VxEditor41 同步预检完成：刷新后 `master...origin/master` 0/0，目标 `formulaCode/MapCreator.js` 仍丢弃 callback func，公式转换器仍返回旧 paramFunc block shape，恰需同步主仓两处逻辑。目标文件当前无用户差异；既有 `.gitignore`、`src/stores/event.js` 和组件目录继续保留未暂存。
+- 生产 Lambda 发布成功：部署内 93/93 测试通过，CodeSha256 `ivh5wfDJw+CCs+bnE7LG+R1P0eyTCe3AdJ3Z00Vqobo=`，发布版本 32，`prod→32`；直调冒烟 StatusCode 200 / ExecutedVersion 32 / FunctionError null，响应 code 0。归档包为 `archive-30a0707-20260810T093508Z.zip`。进入 VxEditor41 同步。
+- tov5parser 修复提交 `30a0707 fix: preserve callback param function metadata` 已成功推送到 `origin/main`。提交只含核准的 6 个文件；受保护文档与案例产物未暂存。下一步使用该提交描述发布生产 Lambda。
 - tov5parser 提交前范围复核通过：刷新远端后 ahead/behind 0/0；预期提交恰为三份规划记录、`utils/MapCreator.js`、公式转换器和目标测试，共 6 文件。代码差异仅是 callback func 双索引、V5 paramFunc 构造和回归；敏感模式扫描及 `git diff --check` 通过，受保护未跟踪文档和忽略的案例产物不进入提交。
 - 第 43 例报告已更新并终检：7,271 bytes、SHA-256 `c9f2780b...fc2a`；已写入规范 paramFunc AST、通用双索引根因/修复、93/93 与新 V5 摘要，旧 92/92、旧大小/摘要和旧根因文本均清除。V5/诊断 JSON 可解析，`git diff --check` 通过。
 - 新 V5 为 1,903,617 bytes、SHA-256 `aa3e33ef...df4a`；诊断 JSON/Markdown 摘要与上一轮相同，权威汇总为 total64 / unique64 / customExpr64 / dropped0。
@@ -2952,3 +2956,6 @@
 - 2026-08-10 Phase 120 规划更新首次补丁因上下文中的 `venv并` 与文件实际 `venv 并` 空格不一致而校验失败，未修改任何文件；已读取实际末尾并以精确上下文重新应用，不重复错误文本。
 - 2026-08-10 Phase 120 转换完成：`convert:local --ntype 1 --diag` 1/1 成功，生成约 874.6 KB V5 与诊断；14 条均为 custom fallback、dropped 0，其中 findIndex 13、toString 1。控制台 ParseError 是结构化尝试后 jsfn 保真路径。下一步执行节点/事件/动作/data-if/jsfn/服务/后台/cType/引用全案审计，不能仅凭 dropped 0 下结论。
 - 2026-08-10 Phase 121 最终产物核验首轮使用了预期名称 `conversion-diagnostics.json`，实际转换脚本生成的是 `app.convert-errors.json` / `app.convert-errors.md`，因此 `jq` 在校验前即报 ENOENT；案例产物未被修改，后续改用实际文件名，不重复错误路径。
+- 2026-08-10 Phase 126 VxEditor41 同步验证完成：仅同步 `src/utils/convertV4ToV5/formulaCode/MapCreator.js` 与 `V4FormulaCodeConverter.js`；两个目标文件定向 ESLint 均为 0 error / 0 warning，`git diff --check` 通过，生产 webpack 5.108.3 构建成功（79,540 ms、0 error）。构建显示 33 条仓库既有/用户工作区 warning，均未指向本轮转换器文件。下一步只暂存这两个目标文件并提交推送，其他用户改动保持原样。
+- 2026-08-10 Phase 126 VxEditor41 发布完成：精确提交 `2b184e84e`（`fix: preserve callback param function metadata`）已推送至 `origin/master`，提交仅含上述两个转换器文件；用户既有 `.gitignore`、`src/stores/event.js`、`.claude/` 与组件目录改动均保留未暂存。进入双仓、Lambda、真实案例与第 44 例门禁的最终只读核验。
+- 2026-08-10 Phase 126 发布链终检通过：tov5parser 功能提交 `30a0707488ac6916c45cafd425bc4ce4cea9e654` 与 `origin/main` 一致；VxEditor41 `2b184e84e5b9c249bbae6f8434d85c406ea182f0` 与 `origin/master` 一致。Lambda `prod` 精确指向版本 32、无流量分配，版本状态 Active/Successful，CodeSha256 `ivh5wfDJw+CCs+bnE7LG+R1P0eyTCe3AdJ3Z00Vqobo=`。真实第 43 例 V5 SHA-256 为 `aa3e33ef888fed85a30b496b8f6f7b725f62a5196e032176797dff00d868df4a`；两处 `obj_translateData` 节点均为正式 `{op:'sysutil', val:'obj_translateData', _blockType:'paramFunc', _alias:'transValue'}`。首次按 action `ln` 直接读取 `.ast` 得到 null，是因为动作 AST 位于所属事件树内而不是该包装对象的直接字段；随后按 sysutil 节点路径复核得到上述两个精确节点。源目录第 44 项是 `花名册_11280925_温晓华.json`，本地 V4/V5 均无对应目录，确认未启动。Phase 126 complete，返回第 43 例人工审阅门禁。

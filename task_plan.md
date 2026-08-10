@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 126（修复 callback paramFunc 元数据并完成固定发布流程）— in progress
+Phase 67（clothing 51 例逐例转换）— 第 43 例修复完成，等待用户审阅；第 44 例未授权
 
 ## Phases
 
@@ -2001,10 +2001,10 @@ Phase 126（修复 callback paramFunc 元数据并完成固定发布流程）—
 - [x] 核对双仓基线，新增 actionResult callback paramFunc 失败回归
 - [x] 通用修复 stage callback `func` 双索引与正式 V5 paramFunc AST 构造
 - [x] 通过定向/完整测试，重转第 43 例并验证目标 BID 与全案不变量
-- [ ] 精确提交推送 tov5parser，部署生产 Lambda 并完成 prod 冒烟
-- [ ] 同步 VxEditor41 的 MapCreator/转换器，检查构建后精确提交推送
-- [ ] 记录最终版本并返回第 43 例审阅门禁，不启动第 44 例
+- [x] 精确提交推送 tov5parser，部署生产 Lambda 并完成 prod 冒烟
+- [x] 同步 VxEditor41 的 MapCreator/转换器，检查构建后精确提交推送
+- [x] 记录最终版本并返回第 43 例审阅门禁，不启动第 44 例
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求“修复”。按 `AGENT.md`/`CLAUDE.md` 固定流程，验证通过后自动完成双仓提交推送与生产 Lambda 部署。实现必须由组件动作 callback 契约驱动，覆盖通用 paramFunc，不按案例 BID 或 transValue 特判；保留历史案例产物，不启动第 44 例。
