@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 118（修复第 38 例 data-if 整式 jsfn 结构退化并发布）— in progress；第 39 例不启动
+Phase 67（clothing 51 个案例逐例转换测试）— 第 38 例修复发布完成，等待用户审阅；第 39 例不启动
 
 ## Phases
 
@@ -1878,13 +1878,17 @@ Phase 118（修复第 38 例 data-if 整式 jsfn 结构退化并发布）— in 
 - [x] 验证失败分支无空值、其余成功分支 AST 不变，且整式 fallback 不再静默造成结构退化
 - [x] 运行定向与完整测试，重转第 38 例并复核两个同型节点、第三个受影响条件及全案关键不变量
 - [x] 更新第 38 例转换报告与规划记录，只提交并推送本次 tov5parser 相关文件
-- [ ] 发布生产 Lambda，完成完整测试、版本、prod 别名与冒烟验证
-- [ ] 同步 VxEditor41 转换器，完成定向检查/生产构建，只提交并推送同步文件
+- [x] 发布生产 Lambda，完成完整测试、版本、prod 别名与冒烟验证
+- [x] 同步 VxEditor41 转换器，完成定向检查/生产构建，只提交并推送同步文件
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求“修复”。只修复 Phase 116 引入的 data-if 整体 custom-jsfn 结构退化，不启动第 39 例。目标是保留 V4 条件数组形成的 AND/OR 条件树，只局部恢复真正 `didDrop` 的条件值或分支；不得用整式 `isTruthy` 冒充结构保持，不得按真实节点 ID、完整业务表达式或“第三分支”硬编码。
 
 **发布门禁：** 本项目 `AGENT.md`/`CLAUDE.md` 已记录用户既有固定授权：代码修复和真实回归全部通过后自动提交、推送、部署 Lambda，并同步 VxEditor41 后提交推送。只暂存本次相关文件；受保护未跟踪文档不读取、不修改、不暂存；VxEditor41 用户已有无关改动保持原状。任何测试、构建、推送或部署失败都停止后续发布，不 rebase、不强推、不覆盖用户修改。
 
 **tov5parser 发布准备：** 通用逐 item 恢复、三 OR/AND/错配安全回归和三份规划记录已提交为 `41b0135`（`fix: preserve data-if condition groups`）并推送 `origin/main`。真实第 38 例与报告产物按 ignore 规则保留在本地，没有进入 Git；受保护未跟踪文档未暂存。进入 Lambda 发布前需先提交本条发布记录，保持部署脚本的干净工作区门禁。
+
+**Lambda 发布：** 从提交 `1c8dee7` 打包，发布脚本内 91/91 测试通过；CodeSha256 `JWM+IG5KkDuTHgenrIworz42u+7SUma+TOFHq9lwfDE=`，生产版本 30 已发布，`prod` 指向 30。版本动作冒烟返回 StatusCode 200、ExecutedVersion 30、FunctionError null。仅对已知受保护未跟踪文档使用 `--allow-dirty`，提交内代码与规划记录均已推送。
+
+**VxEditor41 同步：** 仅同步 `src/utils/convertV4ToV5/utils/con.js`，目标 ESLint 0 error / 0 warning，生产 webpack 构建成功；提交 `be3ae0b51`（`fix: preserve converted data-if groups`）已推送到 `origin/master`。编辑器既有用户修改全部保留未暂存。Phase 118 发布链完成，返回第 38 例人工审阅门禁；第 39 例未启动。
