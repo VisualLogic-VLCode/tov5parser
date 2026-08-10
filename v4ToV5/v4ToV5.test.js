@@ -335,12 +335,38 @@ test('data-if falls back to a valid complete V4 runtime condition when split ope
             { code: 'true' },
             '||',
           ],
+          [{ code: '2' }, '==', { code: '2' }, '||'],
         ],
       },
       binds: {
         value: {
-          code: '($refs.txt1.p_value)==(0)||($refs.txt1.p_value).some(x => x == 1)==(true)',
-          _code: '($refs.txt1.p_value)==(0)||($refs.txt1.p_value).some(x => x == 1)==(true)',
+          code: '($refs.txt1.p_value)==(0)||($refs.txt1.p_value).some(x => x == 1)==(true)||(2)==(2)',
+          _code: '($refs.txt1.p_value)==(0)||($refs.txt1.p_value).some(x => x == 1)==(true)||(2)==(2)',
+        },
+      },
+      children: [],
+    },
+    {
+      id: 'if-runtime-and',
+      type: 'data-if',
+      rootId: 'stage1',
+      uis: { name: '局部恢复并保留与条件' },
+      props: {
+        conditionVal: [
+          [{ code: '1' }, '==', { code: '1' }],
+          [
+            {
+              code: '$refs.txt1.p_value.$SF_getSelf().findIndex(x => x == 1))',
+            },
+            '!=',
+            { code: '-1' },
+          ],
+        ],
+      },
+      binds: {
+        value: {
+          code: '(1)==(1)&&$refs.txt1.p_value.$SF_getSelf().findIndex(x => x == 1) != -1)',
+          _code: '(1)==(1)&&$sys.util.getSelf($refs.txt1.p_value).findIndex(x => x == 1) != -1',
         },
       },
       children: [],
@@ -356,7 +382,11 @@ test('data-if falls back to a valid complete V4 runtime condition when split ope
   } finally {
     disableConvertDiag();
   }
-  for (const id of ['if-runtime-trailing', 'if-runtime-balanced']) {
+  for (const id of [
+    'if-runtime-trailing',
+    'if-runtime-balanced',
+    'if-runtime-and',
+  ]) {
     const dataIf = v5CaseJson.stage.children.find((node) => node.id === id);
     const ast = dataIf.props.conditionVal.ast;
     const emptyVals = collectAstNodes(
@@ -371,10 +401,38 @@ test('data-if falls back to a valid complete V4 runtime condition when split ope
     assert.doesNotMatch(JSON.stringify(ast), /\$sys\b|\$SF_/);
     assert.equal('value' in dataIf.binds, false);
   }
+  const trailingAst = v5CaseJson.stage.children.find(
+    node => node.id === 'if-runtime-trailing',
+  ).props.conditionVal.ast;
+  assert.equal(trailingAst.op, 'sysop');
+  assert.equal(trailingAst.val, 'isTruthy');
+  assert.equal(trailingAst.args.length, 1);
+
+  const balancedAst = v5CaseJson.stage.children.find(
+    node => node.id === 'if-runtime-balanced',
+  ).props.conditionVal.ast;
+  assert.equal(balancedAst.op, 'or');
+  assert.equal(balancedAst.args.length, 3);
+  assert.equal(balancedAst.args[0].op, '=');
+  assert.equal(balancedAst.args[1].op, '=');
+  assert.equal(balancedAst.args[2].op, '=');
+
+  const andAst = v5CaseJson.stage.children.find(
+    node => node.id === 'if-runtime-and',
+  ).props.conditionVal.ast;
+  assert.equal(andAst.op, 'and');
+  assert.equal(andAst.args.length, 2);
+  assert.equal(andAst.args[0].op, '=');
+  assert.equal(andAst.args[1].op, 'sysop');
+  assert.equal(andAst.args[1].val, 'isTruthy');
   assert.equal(
     diagRecords.some(
       record =>
-        ['if-runtime-trailing', 'if-runtime-balanced'].includes(record.nodeId) &&
+        [
+          'if-runtime-trailing',
+          'if-runtime-balanced',
+          'if-runtime-and',
+        ].includes(record.nodeId) &&
         record.phase !== 'custom-expr-fallback',
     ),
     false,
@@ -382,29 +440,50 @@ test('data-if falls back to a valid complete V4 runtime condition when split ope
   );
 });
 
-test('data-if does not guess when the complete V4 runtime condition is invalid', () => {
+test('data-if does not guess when the complete V4 runtime condition cannot be aligned', () => {
   ensureIvxMapNodeEnv();
   const v4CaseJson = buildV4CaseJson();
-  v4CaseJson.stage.children.push({
-    id: 'if-invalid-runtime',
-    type: 'data-if',
-    rootId: 'stage1',
-    uis: { name: '源坏条件' },
-    props: {
-      conditionVal: [[
-        { code: '$refs.txt1.p_value]' },
-        '==',
-        { code: '1' },
-      ]],
-    },
-    binds: {
-      value: {
-        code: '$refs.txt1.p_value] == 1',
-        _code: '$refs.txt1.p_value] == 1',
+  v4CaseJson.stage.children.push(
+    {
+      id: 'if-invalid-runtime',
+      type: 'data-if',
+      rootId: 'stage1',
+      uis: { name: '源坏条件' },
+      props: {
+        conditionVal: [[
+          { code: '$refs.txt1.p_value]' },
+          '==',
+          { code: '1' },
+        ]],
       },
+      binds: {
+        value: {
+          code: '$refs.txt1.p_value] == 1',
+          _code: '$refs.txt1.p_value] == 1',
+        },
+      },
+      children: [],
     },
-    children: [],
-  });
+    {
+      id: 'if-misaligned-runtime',
+      type: 'data-if',
+      rootId: 'stage1',
+      uis: { name: '运行态分段无法对齐' },
+      props: {
+        conditionVal: [
+          [{ code: '1' }, '==', { code: '1' }],
+          [{ code: '$refs.txt1.p_value]' }, '==', { code: '1' }, '||'],
+        ],
+      },
+      binds: {
+        value: {
+          code: '(1)==(1)||($refs.txt1.p_value])==(1)',
+          _code: '(1)==(1)||(2)==(2)||(3)==(3)',
+        },
+      },
+      children: [],
+    },
+  );
 
   const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
   const dataIf = v5CaseJson.stage.children.find(
@@ -413,6 +492,16 @@ test('data-if does not guess when the complete V4 runtime condition is invalid',
 
   assert.deepEqual(dataIf.props.conditionVal.ast.args[0], { op: 'val' });
   assert.equal('value' in dataIf.binds, false);
+
+  const misaligned = v5CaseJson.stage.children.find(
+    node => node.id === 'if-misaligned-runtime',
+  );
+  assert.equal(misaligned.props.conditionVal.ast.op, 'or');
+  assert.equal(misaligned.props.conditionVal.ast.args.length, 2);
+  assert.deepEqual(misaligned.props.conditionVal.ast.args[1].args[0], {
+    op: 'val',
+  });
+  assert.equal('value' in misaligned.binds, false);
 });
 
 test('data-if keeps an explicit undefined operand without invoking runtime fallback', () => {

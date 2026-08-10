@@ -1,3 +1,4 @@
+import { parseExpressionAt } from 'acorn'
 import { sysOpList } from '../editorConstants.js'
 import { convertEditorValue, convertRuntimeExpression } from './formula.js'
 import {
@@ -200,16 +201,15 @@ function genIfConObj({ conItem, nodeId, conversionState }) {
   }
   return obj
 }
-function convertSplitIfCons({ cons, nodeId, conversionState }) {
+function groupIfCons(cons) {
   // 存在特殊情况，有的cons直接是个这样的数组['$refs.I_bmrwk9na3j50000nm140', 'notIn', '$refs.bmrwk9na3j50000nm1d0.p_value']，需特殊处理
-  if (typeof cons[0] === 'string') {
-    cons[0] = { code: cons[0] }
-    cons[2] = { code: cons[2] }
-    cons = [cons]
+  if (typeof cons?.[0] === 'string') {
+    cons = [[{ code: cons[0] }, cons[1], { code: cons[2] }, cons[3]]]
   }
   let ors = []
   let ands = []
-  cons.forEach((con, index) => {
+  const conList = cons || []
+  conList.forEach((con, index) => {
     if (con[3] !== '||' || index === 0) {
       ands.push(con)
     } else {
@@ -221,60 +221,88 @@ function convertSplitIfCons({ cons, nodeId, conversionState }) {
       ors.push(ands)
     }
   })
+  return ors
+}
 
-  let conAst = {}
-  if (ors.length > 1) {
-    // 有or
-    conAst.op = 'or'
-    conAst.args = []
-    ors.forEach(orItem => {
-      if (orItem.length > 1) {
-        // 多个条件
-        let andObj = {
-          op: 'and',
-          args: []
-        }
-        orItem.forEach(conItem => {
-          let conObj = genIfConObj({ conItem, nodeId, conversionState })
-          andObj.args.push(conObj)
-        })
-        conAst.args.push(andObj)
-      } else {
-        // 单个条件
-        let conObj = genIfConObj({
-          conItem: orItem[0],
-          nodeId,
-          conversionState
-        })
-        conAst.args.push(conObj)
-      }
-    })
-  } else {
-    // 没有or
-    conAst.op = 'and'
-    conAst.args = []
-    let andArray = ors[0]
-    if (andArray.length > 1) {
-      // 多个条件
-      andArray.forEach(conItem => {
-        let conObj = genIfConObj({ conItem, nodeId, conversionState })
-        conAst.args.push(conObj)
-      })
-    } else {
-      // 单个条件
-      conAst = genIfConObj({
-        conItem: andArray[0],
-        nodeId,
-        conversionState
-      })
+function composeIfConditionAst(groupAsts) {
+  if (groupAsts.length > 1) {
+    return {
+      op: 'or',
+      args: groupAsts.map(items =>
+        items.length > 1 ? { op: 'and', args: items } : items[0]
+      )
     }
   }
+  const items = groupAsts[0] || []
+  if (items.length > 1) return { op: 'and', args: items }
+  return items[0] || { op: 'val' }
+}
 
-  return conAst
+function flattenLogicalExpression(ast, operator) {
+  if (ast?.type === 'LogicalExpression' && ast.operator === operator) {
+    return [
+      ...flattenLogicalExpression(ast.left, operator),
+      ...flattenLogicalExpression(ast.right, operator)
+    ]
+  }
+  return [ast]
+}
+
+function extractRuntimeConditionSegments({ runtimeCode, groups }) {
+  if (typeof runtimeCode !== 'string' || runtimeCode.trim() === '') return
+  try {
+    const runtimeAst = parseExpressionAt(runtimeCode, 0, {
+      ecmaVersion: 'latest'
+    })
+    if (runtimeCode.slice(runtimeAst.end).trim() !== '') return
+
+    const groupNodes =
+      groups.length > 1
+        ? flattenLogicalExpression(runtimeAst, '||')
+        : [runtimeAst]
+    if (groupNodes.length !== groups.length) return
+
+    return groupNodes.map((groupNode, groupIndex) => {
+      const group = groups[groupIndex]
+      const itemNodes =
+        group.length > 1
+          ? flattenLogicalExpression(groupNode, '&&')
+          : [groupNode]
+      if (itemNodes.length !== group.length) return
+      return itemNodes.map(itemNode =>
+        runtimeCode.slice(itemNode.start, itemNode.end)
+      )
+    })
+  } catch {
+    return
+  }
+}
+
+function isConditionAst(ast) {
+  return [
+    'and',
+    'or',
+    'sysop',
+    '=',
+    '!=',
+    '>',
+    '<',
+    '>=',
+    '<='
+  ].includes(ast?.op)
+}
+
+function asConditionAst(ast) {
+  if (!ast || isConditionAst(ast)) return ast
+  return {
+    op: 'sysop',
+    val: 'isTruthy',
+    args: [ast]
+  }
 }
 
 function isUsableRuntimeConditionAst(ast, conversionState) {
-  if (!ast || conversionState?.dropped) return false
+  if (!ast || conversionState?.dropped || !isConditionAst(ast)) return false
   if (ast.op === 'val' && !Object.prototype.hasOwnProperty.call(ast, 'val')) {
     return false
   }
@@ -298,33 +326,46 @@ function isUsableRuntimeConditionAst(ast, conversionState) {
 }
 
 function convertIfCons({ cons, nodeId, runtimeCode }) {
-  const checkpoint = createDiagCheckpoint()
-  const splitState = {}
-  const splitAst = convertSplitIfCons({
-    cons,
-    nodeId,
-    conversionState: splitState
+  const groups = groupIfCons(cons)
+  const runtimeSegments = extractRuntimeConditionSegments({
+    runtimeCode,
+    groups
   })
-  if (!splitState.dropped) return splitAst
+  const groupAsts = groups.map((group, groupIndex) =>
+    group.map((conItem, itemIndex) => {
+      const checkpoint = createDiagCheckpoint()
+      const splitState = {}
+      const splitAst = genIfConObj({
+        conItem,
+        nodeId,
+        conversionState: splitState
+      })
+      if (!splitState.dropped) return splitAst
 
-  const splitDiagRecords = getDiagRecordsSince(checkpoint)
-  rollbackDiagCheckpoint(checkpoint)
+      const splitDiagRecords = getDiagRecordsSince(checkpoint)
+      rollbackDiagCheckpoint(checkpoint)
+      const segment = runtimeSegments?.[groupIndex]?.[itemIndex]
+      const runtimeState = {}
+      const runtimeAst = asConditionAst(
+        convertRuntimeExpression({
+          code: segment,
+          nodeId,
+          conversionState: runtimeState
+        })
+      )
+      if (isUsableRuntimeConditionAst(runtimeAst, runtimeState)) {
+        return runtimeAst
+      }
 
-  const runtimeState = {}
-  const runtimeAst = convertRuntimeExpression({
-    code: runtimeCode,
-    nodeId,
-    conversionState: runtimeState
-  })
-  if (isUsableRuntimeConditionAst(runtimeAst, runtimeState)) {
-    return runtimeAst
-  }
+      // 当前 item 没有可验证的一一对应运行态片段时，只恢复该 item 的
+      // 原 AST 与 dropped 诊断；已成功转换的兄弟条件保持原样。
+      rollbackDiagCheckpoint(checkpoint)
+      appendDiagRecords(splitDiagRecords)
+      return splitAst
+    })
+  )
 
-  // 完整运行态条件无效或仍含未知运行时对象时，保留原拆分 AST 与原始
-  // dropped 诊断；不能为了清日志而猜测修补源数据。
-  rollbackDiagCheckpoint(checkpoint)
-  appendDiagRecords(splitDiagRecords)
-  return splitAst
+  return composeIfConditionAst(groupAsts)
 }
 
 export {
