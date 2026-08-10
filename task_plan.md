@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 128（修复第 44 例异步 continuation 回调上下文并自动发布）— in progress
+Phase 67（clothing 全案例逐例测试）— 第 44 例修复发布完成，等待审阅
 
 ## Phases
 
@@ -714,7 +714,7 @@ Phase 128（修复第 44 例异步 continuation 回调上下文并自动发布�
 
 **执行约束：** 保留全部已测试案例的 V4/V5 数据与报告；每例汇报后必须暂停等待用户确认。后续数据库查询必须同时读取 `extra.ver`、两表 `edt_ver`、`verDetail` 与 `ntype`：`extra.ver == 2` 优先判 V5，`ntype ∈ {91,92}` 只在此前提下细分 V5.1；`edt_ver`/`verDetail` 仅作辅助。下载后必须扫描完整 JSON：任一事件条目存在 op-AST `ast` 即判 V5；只有 V4 结构信号且无事件 AST 才进入转换器；无信号或矛盾时留档人工判断。
 
-**当前检查点：** 第 44/51 例 `花名册_11280925_温晓华.json`（nid `11280925`）已完成数据库查询、最新 work 下载、V4.1 实物判定、V5 转换、诊断、全案审计和报告。转换文件已生成，但确认 BID `d34d0zba3j500005z6kg` 存在 1 处通用异步 continuation 上下文传播错误：有效的 `cbParams.data` 被转成无参数自由 jsfn；其余结构审计通过，项目 93/93 测试通过。当前等待用户审阅并决定是否授权修复；历史案例继续保留，第 45 例 `装箱策略预设_11370978_温晓华.json` 未启动。
+**当前检查点：** 第 44/51 例 `花名册_11280925_温晓华.json`（nid `11280925`）已完成 V4.1 判版、转换、错误修复、重转、全案审计和自动发布。BID `d34d0zba3j500005z6kg` 现从 `d34d9mya...Rtn.result.data` 读取正式 `$cbParams` AST，自由 cbParams 1→0；94/94 测试通过。tov5parser `34c6157`、Lambda v33 和 VxEditor41 `1bb416838` 均已发布并核验。当前等待用户审阅第 44 例，历史案例继续保留；第 45 例 `装箱策略预设_11370978_温晓华.json` 未启动。
 
 **架构讨论记录：** VxEditor41 的 V4.1 事件生成链路已确认直接读取完整 `value.code`，经上下文替换后调用通用 `formulaStr(code)`，第 13 例事件因此把 session 明确编译为双引号字符串。统一 resolver 应复用该同源 formulaStr 作为 V4 语义分类层，再交给现有结构化公式转换；`str` token、作用域符号、契约/默认值和事件最终 `code/_code` 用于消歧及回证。事件代码覆盖约 97.8%，但 292 个无代码事件仍含 800 个动作块，且整段代码无 BID、难以稳定回映嵌套/重复动作，因此不能作为唯一主输入。该方案已在 Phase 81 完成并发布。第 14 例进一步证明：当 `code` 中的 `fParam<旧ID>` 已失效时，事件最终代码也会继承该失效标识符；但 Formula token 的 `funcGroupParam` 类型、参数名与当前函数组 `inParams` 三方仍可提供安全恢复证据。
 
@@ -2029,11 +2029,13 @@ Phase 128（修复第 44 例异步 continuation 回调上下文并自动发布�
 - [x] 追踪事件块顺序转换和 action-result context 生命周期，建立失败回归
 - [x] 实施通用 continuation 上下文传播修复，不按 BID/字段/源码枚举
 - [x] 运行定向与完整测试，重转第 44 例并复核完整审计和报告
-- [ ] 精确提交并推送 tov5parser，部署生产 Lambda并完成别名/冒烟核验
-- [ ] 同步 VxEditor41 转换器，完成定向检查与生产构建
-- [ ] 精确提交并推送 VxEditor41，记录双仓提交与 Lambda 版本
-- [ ] 返回第 44 例人工审阅门禁，不启动第 45 例
+- [x] 精确提交并推送 tov5parser，部署生产 Lambda并完成别名/冒烟核验
+- [x] 同步 VxEditor41 转换器，完成定向检查与生产构建
+- [x] 精确提交并推送 VxEditor41，记录双仓提交与 Lambda 版本
+- [x] 返回第 44 例人工审阅门禁，不启动第 45 例
 
-**Status:** in progress
+**Status:** complete
 
-**授权与范围：** 用户明确要求“修复”。按 `AGENT.md`/`CLAUDE.md` 固定流程，验证通过后自动完成双仓提交推送与生产 Lambda 部署。修复必须由异步动作的 callback continuation 契约驱动，覆盖后续 sibling 对 `cbParams/cbStatus` 的通用引用，不按本案 BID、`data` 字段或 `cbParams.data` 源码特判；保留全部历史案例，第 45 例仍关闭。
+**授权与范围：** 用户明确要求“修复”。按 `AGENT.md`/`CLAUDE.md` 固定流程，验证通过后自动完成双仓提交推送与生产 Lambda 部署。修复必须由异步动作的 callback continuation 契约驱动，覆盖后续 sibling 对动作返回结果（本例 `cbParams`）的通用引用，不按本案 BID、`data` 字段或 `cbParams.data` 源码特判；保留全部历史案例，第 45 例仍关闭。
+
+**结果：** 新增词法 continuation resolver，从当前 block 路径逐层查找此前最近的 `action.callback=true` sibling；status 祖先保持优先。新增端到端失败回归，最终 94/94 通过。第 44 例重转后诊断 215、dropped 0、自由 cbParams 0，目标 AST 与 service status 模板一致，全案结构审计通过。tov5parser `34c6157` 已推送；生产 Lambda 版本 33（`prod→33`，CodeSha256 `mpWkjV...Els=`）Active/Successful 且在线冒烟通过；VxEditor41 `1bb416838` 已推送。第 45 例未启动。

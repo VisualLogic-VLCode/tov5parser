@@ -2221,3 +2221,5 @@
 - 实现没有在线性 sibling 遍历中维护可变全局状态，而是基于 env 中不可变的 V4 blockMap 按 blockId 解析词法 continuation。这样条件/循环/动作组公式入口无需新增参数，所有既有调用 `convertEditorValue` 的路径都能统一获得上下文，也便于原样同步编辑器转换器。
 - 真实重转的最关键差分已闭合：错误动作从零参数 `jsfn(cbParams.data)` 变为与同事件 status 模板完全一致的 actionResult get；诊断和 jsfn 各减少 1，说明没有把该表达式留在 fallback。最终 V5 SHA-256 暂为 `fdbc95d2...42cf`，待完整审计和报告更新后作为发布前案例摘要记录。
 - 完整审计确认修复没有扩散：所有修复前结构计数保持不变，唯一预期变化是 diagnostics/jsfn 216→215、自由 cbParams 1→0、目标动作改为正式 get。服务目标、条件根、后台代码、cType 和节点/事件映射均无回归。
+- VxEditor41 运行态 `dealInitBlock` 会把 children 对象递归建入 caseBlockMap，然后把父 `children` 改成 BID 数组；所以编辑器版 resolver 必须把 sibling BID 经 `getEventBlockByBid` 解引用。tov5parser env 保留原始对象 children，两边应共享词法规则但采用各自数据访问方式。
+- Phase 128 最终发布证据：独立转换器以 env blockMap/object children 实现 resolver，编辑器以 caseBlockMap/BID children 适配同一规则；两边分别为 `34c6157` 与 `1bb416838`。Lambda v33 明确绑定 `34c6157`，prod 在线执行 33。该修复对第 44 例的唯一语义变化是把错误 fallback 恢复为 service result get，其他审计指标稳定。
