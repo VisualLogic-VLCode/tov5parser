@@ -1,5 +1,58 @@
 # Findings & Decisions
 
+## clothing 第 43 例：移动选款H5（nid 11271414）
+
+- Phase 124 实现边界：现有 `legacySysutilMap` 已为同类 callback-only 工具 `$SF_sys_multiObjListToObjArr` 提供 `{name:'$SF_...'}`，对应测试同时断言结构化 `op:sysutil`、无 jsfn 残留、ast2js 输出 `$sys.util...` 和运行语义。`$SF_obj_translateData` 应沿用该通路，新增 `{name:'$SF_obj_translateData'}`，不能改 full-JS 字符串或按 BID 特判。
+- 最小修复验证成立：新增 legacy 条目后 `genSysutilMethodAST` 自动生成 `op:'sysutil', val:'obj_translateData'`，ast2js 输出 `$sys.util.obj_translateData(receiver)`；mapping 对象会保留原键并补翻译键，无 mapping 时返回原对象。无需新增 fallback 字符串归一化或改动运行时。
+- 真实重转闭环：两个目标 BID 都从 `jsfn("$v1.$SF_obj_translateData()")` 变为 callback result 的正式 get 链，尾节点为 `{op:'sysutil',val:'obj_translateData'}`，且各自 jsfn 数为 0。全案 `$SF_obj_translateData` 残留和相关诊断均为 0；最终 jsfn 64→62、诊断 66→64，dropped 保持 0。
+- 源目录 C locale 排序为第 43/51 例，文件名 `移动选款H5_11271414_温晓华.json`；相邻第 42 例为用料组合预设，第 44 例为花名册。
+- 本例开始前 V4/V5 目标目录均不存在；按用户要求保留此前全部案例，且未经再次授权不启动第 44 例。
+- 数据库唯一记录：`extra.ver=null`、`verDetail=null`、两表 `edt_ver=4.1`，只能初筛为 V4.1 候选；ntype 1、version 101、work_id `chvvkjslc7li32pn6v20-696`、标题 `移动端选款H5`、当前作者温晓华、短链 `DCjLYgVr`。必须下载最新 `/work/load` 实物扫描事件 AST 后最终判版。
+- 当前 work 完整 JSON 为 2,595,216 bytes、SHA-256 `cbd1e360...2bb8`；241 个事件容器含 244 个事件，244/244 全部为旧 tree、event AST 0、Formula 1,118，全案 `ast/op/ln/cType` 键均为 0，最终确认 V4.1。源清单正文与当前 work 不同，转换必须使用下载实物。
+- 当前转换器以 `ntype=1 --diag` 转换 1/1 成功，生成约 1,858.9 KB V5；66 条诊断全部进入 jsfn/custom-expression 兜底，dropped 0、去重 66。控制台 ParseError 主要涉及字符串方法、正则、getNormal/getChildMeshes/findIndex、TemplateLiteral 等，必须审计最终 jsfn、动作/条件/服务、3D 回调引用与模块结构后才能判断是否有真实转换错误。
+- 全案结构主链闭合：组件 1,088→1,088（唯一 ID 1,087→1,087）、事件 244→244 且全部有 AST；972 个 action 中 19 个禁用动作均保留 `skip:true`，2 个未落 ln 的 action 是 V4 原生 `action:null` 空占位。99 个 data-if 全部生成正式 `props.conditionVal.ast`，31 个 fireService 目标一致，后台 service 的 AST/_code、模块、函数、cType 和引用来源均通过；52 个非空 `_code` 语法正确，项目测试 91/91。
+- 唯一确定性转换器错误是两处启用动作仍生成 `jsfn("$v1.$SF_obj_translateData()")`：`cjk76jaa3j50000sdws0`（微信 chooseAddress 回调结果写入地址变量）和 `cjhwqm6a3j500007z6kg`（同回调结果 consoleLog）。普通对象没有该 V4 原型方法，运行时会 TypeError。
+- V4 同事件 `_code` 已给出权威目标：`$sys.util.obj_translateData(cbParams)`；VxEditor41 `ast2js` 会把 `{op:'sysutil',val:'obj_translateData'}` 正确编译为该调用，VxEditor41-widgets 也导出 `obj_translateData(result)`。根因是 `$SF_obj_translateData` 只登记在微信 callback 元数据，未进入通用 sysutil map，也未列入转换器的 `legacySysutilMap`，结构化试探失败后被 fallback 原样保留。
+
+## clothing 第 42 例：用料组合预设（nid 11079651）
+
+- 源目录 C locale 排序为第 42/51 例，文件名 `用料组合预设_11079651_温晓华.json`；相邻第 41 例为用料组合详情，第 43 例为移动选款H5。
+- 本例开始前 V4/V5 目标目录均不存在；按用户要求保留此前全部案例，且未经再次授权不启动第 43 例。
+- 数据库唯一记录：`extra.ver=null`、`verDetail=null`、两表 `edt_ver=4.1`，只能初筛为 V4.1 候选；ntype 1、version 33、work_id `ccfv2tterj4vif1ckb5g-256`、标题 `FRP_用料组合预设`、当前作者李小燚、短链 `X67zDn90`。源文件名作者温晓华与当前作者不同，必须下载最新 `/work/load` 实物扫描事件 AST 后最终判版。
+- 当前 work 完整 JSON 为 7,464,591 bytes、SHA-256 `13fc85f6...843e`；491 个事件容器含 605 个事件，605/605 全部为旧 tree、event AST 0、Formula 7,397，全案 `ast/op/ln/cType` 键均为 0，最终确认 V4.1。源清单正文与当前 work 不同，转换必须使用下载实物。
+- 当前转换器以 `ntype=1 --diag` 转换 1/1 成功，生成约 5,250.4 KB V5；65 条诊断全部进入 jsfn/custom-expression 兜底，dropped 0、去重 65。控制台 ParseError 主要涉及 findIndex、NewExpression、Spread、unknown global、callee、`in` 与 TemplateLiteral，必须审计最终 jsfn、动作/条件/服务与引用后才能判断是否有真实转换错误。
+- V5 实物为 5,376,444 bytes、SHA-256 `88c82c15...16ff`；诊断 JSON/Markdown 分别为 44,519/18,069 bytes。组件选择器以带 `field` 的真实节点为准，V4/V5 初步均为 2,654 个；事件仍保存在同节点 `events.list` 中，V4 root `tree.bid` 对应 V5 `eventId`，可按该映射做全量审计。
+- 首轮全案审计主链通过：节点 2,654→2,654、事件 605→605、动作 3,060 全部按 BID→ln 映射；65 个 jsfn（36 种代码）和 172 段持久化 `_code` 均无语法、参数、占位符或旧运行时标识问题，338 个 cType 均为既有类型。待闭合项为两个未独立映射 status、两个无正式 condition AST 的 data-if、8 个条件空 val、12 个引用来源判定，以及 fireService 检查器没有识别 V5 的直接 `runsvc/runsrv` op 形态。
+- 两个未落 ln 的 status 是同一上传事件的 `uploading` / `beforeUpload` 包装，子动作均已映射；属于已知包装折叠。两个无 condition AST 的 data-if 在 V4 原本就是 `_code/code` 均为空，并正确保留兼容 `binds.value={op:'val'}`。8 个条件空 val 中 4 个对应 V4 列表内明确的 `undefined`，另 4 个是三元 `switchexp` 的默认比较哨兵；均非 dropped。`$valid_Null` 两处仍是上例已验证的规范 typeIsNot 结构。
+- V5 服务调用不是 `method:runsvc`，而是在对应 action ln 下生成 `let(args:[{op:'runsvc',val:<服务ID>}])`；首轮 service 假阳性来自检查器形态假设错误，需改为直接识别 `op=runsvc/runsrv` 并比较 `val`。
+- 修正服务检查器后 89/89 个 fireService 目标完全匹配，21 个后台 data-service 均有 AST 与 `_code`，server.v2=1；模块/函数/共享服务计数与 V4 一致。109 个 skip 中 105 个对应禁用动作，另 4 个是启用的 animate.play，需再核对目标 infinite 属性。首轮“新增 12 个悬空引用”比较只从 V4 `$refs.*` 文本取来源，遗漏 Formula `nodeId`、动作 `object` 等引用形态；12 个 ID 在 V4/V5 都没有 id/bid/ln 定义，不能据此判为转换新增，需按全量字符串引用来源复核。
+- 4 个启用 play 的目标均是 V4/V5 保持 `props.infinite=true` 的 data-animate，skip 符合无限动画规则；其余 105 个 skip 与 105 个禁用动作一一对应。V5 的 29 个未解析 var ref 全部能在 V4 `$refs`、Formula `nodeId` 或 action `object` 来源中找到，新增悬空引用为 0；其中首轮多出的 12 个精确来自 V4 action.object 并原样保留，不是转换器制造。
+- data-if 根分布为 `=` 177、`!=` 18、sysop 54、`>` 11、or 19、and 33，另 2 个是已确认 V4 原生空条件；所有非空根均为有效 V5 op。3 个 V4 空 action 均保留对应 ln 占位，没有动作 BID 丢失。
+- 65 条诊断落点为 actionParam 40、bind 19、条件块 6，全部位于 stage；对应 blockType 为 action 40、con 6、无 block 19。完整项目回归 91/91 通过，至此没有待解释审计缺口，可按第 41 例模板生成单例报告。
+
+## clothing 第 41 例：用料组合详情（nid 11134755）
+
+- 源目录 C locale 排序为第 41/51 例，文件名 `用料组合详情_11134755_温晓华.json`；第 42 例是 `用料组合预设_11079651_温晓华.json`。
+- 本例开始前 V4/V5 目标目录均不存在；按用户要求保留此前全部案例，且未经再次授权不启动第 42 例。
+- 数据库唯一记录：`extra.ver=null`、`verDetail=null`、两表 `edt_ver=4.1`，是 V4.1 候选；ntype 1、version 34、work_id `cduvkt9f0jnb793upkrg-415`、标题 `FRP_用料组合详情页`、当前作者罗安琪、短链 `cxmqo8A9`。必须用最新 `/work/load` 实物最终判版。
+- 当前 work 完整 JSON 为 4,649,566 bytes、SHA-256 `38a3bafd...742d`；379 个事件全部为旧 tree、event AST 0、Formula 3,435，且 `ast/op/ln/cType` 均为 0，最终确认 V4.1。源清单正文与当前 work 不同，转换必须使用下载实物。
+- 转换生成 3,498,182-byte V5（SHA-256 `4bb2e6b5...bdb8`）；49 条诊断全部是 customExpr/jsfn，dropped 0。高频类别包含 findIndex/callee/full-JS/unknown varType/native filter，必须在最终 AST 中验证参数、占位符、语法和旧运行时标识符后才能定性。
+- 首轮结构审计除节点选择器假差异外均闭合；节点选择器必须排除带 `bid` 的 V4 事件块和无 `field` 的工作流图元。
+- data-if `cre9wxba3j50000nq420`、`crmwv4ca3j50000g6f50` 使用 V4 `notMatch $valid_Null`。V5 根为 `sysop/typeIsNot`，但右参数是 `ref(local, \"$valid_Null\")`；需对照转换器和 V5 执行契约判断，不能仅凭空 val 哨兵判错。
+- 代码与编辑器均确认 `$valid_Null` 是 typeIs/typeIsNot 的专用条件值，不是普通字符串；现有测试只断言“不是普通 val”，尚未证明当前带双引号的 local ref 正确。
+- VxEditor41 VLang `isValidNull()` 精确要求 `get(ref(['local','\"$valid_Null\"']))`，并将 `typeIsNot` 编译为双重布尔转换；当前 V5 AST 正是该规范形态。三个 data-if 的空 val 均位于 switchexp 默认分支哨兵，可排除转换错误。
+- 修正审计选择器后组件 1,637→1,637、事件 379→379、动作 1,826→1,826，所有事件块、服务目标、后台代码、模块、cType 与引用来源闭合。目前未发现转换器错误，但仍需检查 49 条诊断落点与完整项目回归后定论。
+- 49 条诊断与最终 49 个 jsfn 一一闭合；32 种代码均可编译且参数/占位符完整。unknown varType 仅涉及 `window.line` 和 `Date.now()` 这类合法 JS 全局，没有发现转换器新增自由变量或逻辑丢失。
+
+## clothing 第 40 例：生产设置（nid 11385575）结构审计
+
+- V4 当前工作 JSON 共 536 个节点、130 棵事件树；转换后节点和事件数量一致，所有事件均有 V5 AST。
+- 块映射完整：130 root、647 action、187 con、10 loop、3 group 全部映射。66 个 status 中仅 2 个 `uploadPic/uploading` 包装状态未生成独立 AST 节点，但其子动作均已映射，符合包装状态折叠规则。
+- 45 个 `data-if` 全部生成有效 AST；14 个自定义表达式回退为 `jsfn`，0 个表达式被丢弃，全部通过语法、参数和占位符检查。
+- 28 个服务调用目标完全一致；未发现本例触发新的转换器缺陷。
+- 诊断总数/去重数均为 14：13 条是不支持结构化 `findIndex`，1 条是不支持结构化 `toString`；全部进入可执行 jsfn，0 dropped。落点为 12 个节点 bind、2 个动作参数。
+- 最终 V5 为 895,612 bytes、SHA-256 `ebf4cd73bb4b9bbc2f33d913743dc7d2ede84e2fc4034e766eb84ec37a0d3e46`；项目完整测试 91/91 通过。
+
 ## 2026-07-31 提交、Lambda 部署与 VxEditor41 同步
 
 - 用户已明确授权两个仓库的提交和推送，以及生产 Lambda 更新。
@@ -2095,3 +2148,26 @@
 - 局部 runtime segment 的转换结果证明需要两种处理：包含 unsupported `findIndex` 的完整布尔段会可靠降为 `var/jsfn` 值 AST，必须仅在该条件项外包 `sysop:isTruthy`；简单比较和 `条件容器1` 的完整 `.some(...)==true` 段可直接得到正式 `=` 条件 AST。统一规则应按 AST 类别提升，不能固定所有恢复项都包 truthiness。
 - 真实重转证明局部策略达到结构目标：两个“非一对一”最终均为 `or[=, =, sysop:isTruthy]`，第三分支内部才含恢复后的 jsfn；第一分支原有 jsfn 仍留在自己的 `=` 条件左值中，第二分支完全结构化。`条件容器1` 保持原生 `or[=, =]`。因此“允许分支公式内部用 jsfn”与“整棵 conditionVal 退化为 jsfn”必须在审计中明确区分。
 - 全案终审显示局部恢复只带来预期诊断/公式形态变化：customExpr 631→633、jsfn 615→617，原因是两个目标节点不再各用一条整式 jsfn，而是分别保留第一分支 jsfn并新增第三分支 jsfn；这四个分支 jsfn 均语法有效、参数对齐、无 `$sys/$refs/$SF_/$P_` 残留。业务结构数量全部不变，12 条目标运行对照通过。
+- 第 39/51 例按与前序一致的源目录 C 排序确认为 `物料预设库_11360385_温晓华.json`，nid `11360385`；前一项是已完成的 `款式设计_11036309_吴坤.json`，后一项是 `生产设置_11385575_温晓华.json`。本地 v4/clothing 尚无第 39 例目录，历史案例仍全部保留。
+- 项目 `scripts/`、`docs/`、README 与 package scripts 中没有直接命中数据库字段/隧道/`work/load` 的可复用命令说明；第 39 例需复用已验证的本地 13306 只读隧道和受限凭证流程，从现有环境配置或历史 shell 记录定位实际查询入口，不能猜表名。
+- 中文服只读流程已从 `raw/lianghuang-cn-db-20260630/README.md` 与 `raw/中文服完整案例JSON导出.md` 恢复：使用 `lianghuang_ro.mysql.env` 的只读账号查询 `vxshow.node_vx_data` + `vxshow.node_vx` + `users`，下载走 `https://editor.ivx.cn/work/load/{workId}?nid={nid}`，并复用 VxEditor41 的 sjcl/pako 解码。数据库 env 权限为 0600；版本查询需在既有 SQL 上补读 `JSON_EXTRACT(n.extra,'$.ver')`。
+- 本机当前无 mysql/mariadb CLI，默认 Python 无 pymysql；隧道脚本本身只负责 SSH 转发，不携带查询工具。查询实现必须复用已有 Node/Python MySQL 客户端或安装一个最小依赖，不能退回写操作能力更大的平台接口。
+- 第 39 例数据库唯一记录：nid 11360385，标题 `FRP_物料预设库`，当前作者罗安琪（源文件名作者温晓华），`extra.ver=null`、`verDetail=null`、两表 `edt_ver=4.1`，因此为 V4.1 候选；`ntype=1`、version 64、当前 work_id `ckggd70en97b4pugbo20-111`。最终版本仍须下载实物扫描事件 AST 后确认。
+- 第 39 例最新 `/work/load` 实物明确为 V4.1：完整三根 `case/server/stage`，705 个事件全部有 V4 `tree`、事件 op-AST 为 0，Formula 9,399，且全案 `op/ast/ln/cType` 键均为 0。紧凑 JSON 7,153,738 bytes、SHA-256 `66d6600c11a13ae44f23a6f137b929a4a2344714273819b804fc3e350b210404`，权限 0600。可以进入当前转换器。
+- 第 39 例当前转换器一次成功：V5 约 4,803.1 KB，诊断总计 48、去重 48，全部为 custom-expression/jsfn 兜底，dropped 0。控制台所见代表性不支持结构化项为字符串 `.match(regex)` 与正则 Literal，但均已进入 jsfn 保留逻辑，不能仅凭 ParseError 栈判为错误；需从诊断实物、最终 jsfn 语法/参数及动作映射判断。
+- 第 39 例 48 条诊断均为 `custom-expr-fallback`：37 条动作参数、9 条 bind、2 条无参数名事件子块；主因是正则 Literal 28 条（其中 `/['%]/g` 21）、`.match` 5、整段 full-JS 4、若干 `.toFixed` callee/hasOwnProperty/findIndex 等。没有任何 jsep/AST dropped 记录。最终需要验证这 48 个对应 jsfn 均能解析且没有旧运行时自由标识符。
+- 第 39 例事件迁移契约与既有基线一致：三根 ID/type 不变；V4 `events.list[*].tree.bid` 迁到 V5 `eventId`，动作 BID 成为 AST `ln`，示例 disabled 动作 `csbg1jpa3j500003mhe0` 在 V5 保留 `skip:true`。转换器会在延时变量动作旁插入随机 ln 的 delaysMethod，因此动作数量审计必须区分源 BID 映射与合法新增行。
+- 第 39 例首轮全案审计通过主要不变量：节点 2,321→2,321（2,313 unique，ID/type 集合相同）；事件 705→705 且全部有 V5 AST；3,203 个 V4 action（enabled 3,104 / disabled 99）全部按 BID 映射到 ln，99 个 disabled 均 `skip:true`。另有 3 个 enabled play 被 skip，需核对其动画 infinite 属性后归类。
+- 214 个 data-if 中 212 个有正式 `props.conditionVal.ast` 且根操作符全部合法；两个无 AST 节点在 V4 原本就是 `binds.value={_code:'',code:''}` + `conditionVal:null`，V5 保留兼容空 bind，属于原生空条件。5 个含空 val 的 AST 中 4 个明确来自 V4 `[null,'',undefined]`/`['',null,undefined]` 列表，另一个 `bodySize` 的 V4 条件本身就是 `['','==','']`，均不是转换丢失。
+- 最终 V5 有 48 个 jsfn / 18 个唯一代码，全部语法有效、placeholder 与 args 对齐、无 `$sys/$refs/$SF_/$P_` 或 `[object Object]`；184 条非空持久化 `_code` 也全部可编译。cType 444 个（String 287、JsonVal 138、boolean 18、long 1）无空值；19 个悬空 ref target 全在 V4 源中已有，没有转换器新增悬空引用。
+- 3 个 enabled-but-skip 动作全部是 `data-animate.play`，目标“顺时针旋转”均 `props.infinite=true`，符合已发布的无限动画自动跳过规则，不是丢动作。
+- 服务/后台定向审计通过：125 个 V4 `fireService` 均各自映射为一个 `runsvc`，且 `runsvc.val` 与原 object ID 精确一致；V5 全案 `runsvc=125`。42 个 data-service ID/事件数不变，全部有 AST 和非空 `_code`；server `props.v2=1`。sharedService 23、data-func 22、module defs 21、前台实例 12、后台实例 7 的数量与 ID 均保持，24 个模块实例事件全部有 AST。
+- V4 事件块进一步按类型核对：705 root、3,203 action、1,141 con、99 group、100 loop、19 comment 均完整映射；416 个 status 中 410 个有同 BID ln，剩余 6 个 status wrapper 尚需检查其状态类型和子动作是否属于转换器约定的无 ln 包装。3 个 `action:null` 源占位也都保留了对应 ln，不是动作缺失。
+- 6 个无直接 ln 的 status 已全部解释：2 个 `uploadFile.uploading`、`uploadPics` 的 uploading/beforeUpload 各 1、`uploadVideos` 的 uploading/beforeUpload 各 1。六个 wrapper 的每个子动作 BID 都进入对应 V5 回调 AST；缺少的只是包装 status 自身 ln，符合上传动作转换约定，不是逻辑遗漏。其余 410 status 均直接映射。
+- 第 39 例源清单 JSON 为 7,153,739 bytes / SHA-256 `8e28b668...90ed`，最新 work 为 7,153,738 bytes / `66d6600c...0404`；两者不完全相等，去掉源文件尾随空白后仍不同。本轮必须继续以数据库当前 work 下载实物为准，不能用源清单文件覆盖。
+- 第 39 例最终结论：V4.1 → V5 转换成功，未发现转换器错误。V5 4,918,374 bytes / SHA-256 `00bda44f77b6259aa45cc82d898c603a20bbf5fa919439bbb482fffb2bd536fa`；诊断 JSON 31,824 bytes / `e2bc322e...00cf`，Markdown 13,927 bytes / `ae86d72a...fe3b`。来源 README 与转换报告均已生成并受 localCases ignore 保护；第 40 例目录不存在。
+- 第 40/51 例按源目录 C 排序确认为 `生产设置_11385575_温晓华.json`，nid `11385575`；前一项为已完成的物料预设库，后一项为用料组合详情。本地 v4/v5 目标目录均不存在，历史案例保持原状。
+- 第 40 例数据库唯一记录：标题/当前作者与源文件一致（生产设置 / 温晓华），uid/eid/gid `10000608/10000586/25391`，ntype 1、version 27、work_id `cl4ar70hhv94vjdoo620-353`。`extra.ver=null`、`verDetail=null`、两表 `edt_ver=4.1`，仅能判为 V4.1 候选；需下载实物最终判版。
+- 第 40 例最新 `/work/load` 实物明确为 V4.1：完整三根，130 个事件全部有 V4 tree、event AST 为 0，Formula 1,559，且全案 op/ast/ln/cType 键均为 0。紧凑 JSON 1,271,379 bytes / SHA-256 `6f9c970e7a142d8c536daa4360edc93db6b8251bd4bd461f030c6d5d6cce1406`，权限 0600；可以进入转换器。
+- 第 40 例源清单为 1,271,380 bytes / `7f5f703f...07fb`，与最新 work 摘要不同，去掉尾随空白后仍不一致；转换必须使用当前 work 实物。
+- 第 40 例当前转换器 1/1 成功，V5 约 874.6 KB；诊断 14 条、去重 14，全部为 custom-expression/jsfn fallback，dropped 0。13 条是权限可见性/日志中的 `findIndex`，1 条是新增行序号的 `toString().padStart`，落点为 12 个 bind + 2 个动作参数；需验证最终 14 个 jsfn 的语法、参数与引用安全。

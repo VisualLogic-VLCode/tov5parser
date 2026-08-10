@@ -301,6 +301,61 @@ test('legacy multi-object-list conversion becomes a structured V5 sysutil call',
   assert.deepEqual(result, ['first', 'second'])
 })
 
+test('legacy callback translation becomes a structured V5 sysutil call', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str: 'fParamgroup.result.$SF_obj_translateData()',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const translateData = findAst(
+    ast,
+    item => item.op === 'sysutil' && item.val === 'obj_translateData'
+  )
+  assert.ok(translateData)
+  assert.equal(collectAst(ast, item => item.op === 'jsfn').length, 0)
+  assert.doesNotMatch(JSON.stringify(ast), /\$SF_obj_translateData/)
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'test-node',
+    getNodeByIdFunc() {}
+  })
+  assert.match(code, /\$sys\.util\.obj_translateData\(/)
+  const objTranslateData = value => {
+    if (!value.mapping) return value
+    const result = {}
+    Object.keys(value).forEach(key => {
+      const translatedKey = value.mapping[key]
+      result[key] = value[key]
+      if (translatedKey) result[translatedKey] = value[key]
+    })
+    return result
+  }
+  const evaluate = result =>
+    new Function('$sys', 'param', `return ${code}`)(
+      { util: { obj_translateData: objTranslateData } },
+      { result }
+    )
+
+  const mapped = {
+    mapping: { cityName: 'city' },
+    cityName: '杭州',
+    untouched: 'kept'
+  }
+  assert.deepEqual(evaluate(mapped), {
+    mapping: mapped.mapping,
+    cityName: '杭州',
+    city: '杭州',
+    untouched: 'kept'
+  })
+  const plain = { cityName: '杭州' }
+  assert.equal(evaluate(plain), plain)
+})
+
 test('nested array callbacks keep outer and inner item references distinct', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({

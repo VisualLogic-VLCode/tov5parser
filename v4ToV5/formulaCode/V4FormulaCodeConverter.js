@@ -660,9 +660,12 @@ export default class V4FormulaCodeConverter {
     $SF_db_getDbObjArrRow: '$SF_arr2d_aArrRow', // 对象数组的某一行
     $SF_db_getDbObjArrItem: '$SF_objArr_item' // 对象数组的某个值
   }
-  // 文件上传回调中的旧运行时工具存在于 widgets，但未进入通用公式 map。
+  // 组件回调中的旧运行时工具存在于 widgets，但未进入通用公式 map。
   // 显式保留其 V5 sysutil 名称，避免未知方法退化为带 `$SF_*` 的 jsfn。
   static legacySysutilMap = {
+    $SF_obj_translateData: {
+      name: '$SF_obj_translateData'
+    },
     $SF_sys_multiObjListToObjArr: {
       name: '$SF_sys_multiObjListToObjArr'
     }
