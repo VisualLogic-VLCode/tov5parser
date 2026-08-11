@@ -26,6 +26,10 @@ function disableConvertDiag() {
   extraContext = null
 }
 
+function isConvertDiagEnabled() {
+  return enabled
+}
+
 function pushDiagContext(ctx) {
   if (enabled) contextStack.push(ctx)
 }
@@ -45,7 +49,7 @@ function clearDiagExtra() {
 }
 
 function reportDiagError({ phase, error }) {
-  if (!enabled) return
+  if (!enabled) return false
   let context = contextStack[contextStack.length - 1] || {}
   records.push({
     ...(extraContext || {}),
@@ -55,6 +59,7 @@ function reportDiagError({ phase, error }) {
     errorType: error?.type,
     message: error?.message || String(error)
   })
+  return true
 }
 
 function getDiagRecords() {
@@ -83,6 +88,7 @@ function appendDiagRecords(items) {
 export {
   enableConvertDiag,
   disableConvertDiag,
+  isConvertDiagEnabled,
   pushDiagContext,
   popDiagContext,
   setDiagExtra,

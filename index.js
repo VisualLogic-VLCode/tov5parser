@@ -8,7 +8,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
 
-export { convertV4CaseJsonToV5CaseJson } from './v4ToV5/index.js';
+export {
+  convertV4CaseJsonToV5CaseJson,
+  convertV4CaseJsonToV5CaseJsonDetailed,
+} from './v4ToV5/index.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 

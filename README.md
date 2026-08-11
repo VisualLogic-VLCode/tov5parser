@@ -23,6 +23,28 @@ const v5CaseJson = convertV4CaseJsonToV5CaseJson({
 });
 ```
 
+需要获取结构化转换诊断时，使用详细接口；旧接口保持兼容：
+
+```js
+import {
+  convertV4CaseJsonToV5CaseJsonDetailed,
+  loadRuntimeMaps,
+} from '@visuallogic-vlcode/tov5parser';
+
+loadRuntimeMaps();
+const { v5CaseJson, diagnostics } =
+  convertV4CaseJsonToV5CaseJsonDetailed({ v4CaseJson, ntype });
+```
+
+`diagnostics` 是 `schemaVersion: 1` 的有界报告：
+
+- `summary.droppedTotal`：公式降级为无值 AST，存在逻辑丢失，需要归因；
+- `summary.customExprTotal`：公式保留为 `jsfn` 自定义表达式兜底，不单独等同于转换错误；
+- `summary.truncated/categoryTruncated/phaseTruncated`：报告是否因安全上限而截断；
+- `records`：按节点、事件块、属性、源码、阶段和错误分组后的定位信息。
+
+详细接口只管理一次同步转换的诊断生命周期，不接收用户 token，也不改变转换规则。
+
 ## Lambda
 
 入口 `lambdaIndex.handler`，事件协议与 vlparser-parser lambda 一致（API Gateway proxy）：

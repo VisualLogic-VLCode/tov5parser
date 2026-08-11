@@ -6,7 +6,10 @@ import {
   getWidgetMethodMap,
   setActiveEnv,
 } from './env.js';
-import { convertV4CaseJsonToV5CaseJson } from './index.js';
+import {
+  convertV4CaseJsonToV5CaseJson,
+  convertV4CaseJsonToV5CaseJsonDetailed,
+} from './index.js';
 import { loadRuntimeMaps } from '../index.js';
 import {
   convertActionParamValue,
@@ -265,6 +268,54 @@ test('convertV4CaseJsonToV5CaseJson converts structure without touching input', 
   assert.deepEqual(svcNode.props.outParams, [{ name: 'q1', type: 'JsonVal' }]);
   // 小模块类完成转换
   assert.equal(v5CaseJson.stage.classes.length, 1);
+});
+
+test('detailed conversion returns invocation-scoped structured diagnostics', () => {
+  ensureIvxMapNodeEnv();
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.stage.children.push({
+    id: 'diag-value',
+    type: 'data-var',
+    rootId: 'stage1',
+    uis: { name: 'Diagnostic value' },
+    props: {},
+    binds: {
+      value: {
+        code: 'typeof $refs.txt1.p_value.$SF_getSelf()',
+        _code: 'typeof $sys.util.getSelf($refs.txt1.p_value)',
+      },
+    },
+    children: [],
+  });
+
+  const originalConsoleLog = console.log;
+  const logged = [];
+  console.log = (...args) => logged.push(args);
+  let result;
+  try {
+    result = convertV4CaseJsonToV5CaseJsonDetailed({ v4CaseJson });
+  } finally {
+    console.log = originalConsoleLog;
+  }
+
+  assert.ok(result.v5CaseJson);
+  assert.equal(result.diagnostics.schemaVersion, 1);
+  assert.equal(result.diagnostics.kind, 'tov5parser-conversion-diagnostics');
+  assert.equal(result.diagnostics.summary.droppedTotal, 0);
+  assert.equal(result.diagnostics.summary.customExprTotal, 1);
+  assert.equal(result.diagnostics.records[0].outcome, 'custom-expr');
+  assert.equal(result.diagnostics.records[0].nodeId, 'diag-value');
+  assert.equal(result.diagnostics.records[0].prop, 'value');
+  assert.equal(logged.length, 0, 'collected fallback diagnostics should not also flood stdout');
+
+  assert.throws(
+    () => convertV4CaseJsonToV5CaseJsonDetailed({ v4CaseJson: null }),
+    /v4CaseJson must be a non-null object/,
+  );
+  const cleanResult = convertV4CaseJsonToV5CaseJsonDetailed({
+    v4CaseJson: buildV4CaseJson(),
+  });
+  assert.equal(cleanResult.diagnostics.summary.total, 0);
 });
 
 test('data-if keeps the V5 condition AST without the legacy value bind', () => {

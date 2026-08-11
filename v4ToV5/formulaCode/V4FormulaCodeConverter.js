@@ -742,8 +742,9 @@ export default class V4FormulaCodeConverter {
         return ast
       } catch (fullJsError) {
         this.didDrop = true
-        console.log('parse error:', e)
-        reportDiagError({ phase: 'jsep-parse', error: e })
+        if (!reportDiagError({ phase: 'jsep-parse', error: e })) {
+          console.log('parse error:', e)
+        }
       }
     }
     this.log('parsed:', JSON.stringify(parsed, null, 2))
@@ -753,8 +754,9 @@ export default class V4FormulaCodeConverter {
     } catch (e) {
       this.didDrop = true
       ast = { op: 'val' }
-      console.log(e)
-      reportDiagError({ phase: 'ast-convert', error: e })
+      if (!reportDiagError({ phase: 'ast-convert', error: e })) {
+        console.log(e)
+      }
     }
     return ast
   }
@@ -924,8 +926,9 @@ export default class V4FormulaCodeConverter {
               break
           }
           e.source = parsed.exprStr
-          console.log(e)
-          reportDiagError({ phase: 'custom-expr-fallback', error: e })
+          if (!reportDiagError({ phase: 'custom-expr-fallback', error: e })) {
+            console.log(e)
+          }
           return this.processCustomExpr({ parsed })
         } else if (customExprContext) {
           // custom-expression walker 的调用方会负责继续递归。这里若再次递归，

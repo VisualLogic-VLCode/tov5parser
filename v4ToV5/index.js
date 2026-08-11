@@ -11,6 +11,15 @@ import {
 } from './env.js';
 import { installLegacyVxWidgetMapOverlay } from '../legacyMaps/legacyVxWidgetMapOverlayInstaller.js';
 import { compileV5ServerAst } from './serverAstCompiler.js';
+import {
+  disableConvertDiag,
+  enableConvertDiag,
+  getDiagRecords,
+  isConvertDiagEnabled,
+} from './utils/convertDiag.js';
+import { buildConversionDiagnostics } from './diagnostics.js';
+
+let detailedConversionActive = false;
 
 // 4.x 案例 JSON（{ case, stage, server } 结构，即 4.1 编辑器 saveDealCase 的产物）
 // 转 5.x 案例 JSON。ntype 为 4.x 平台案例记录上的案例类型，未传时从
@@ -37,4 +46,30 @@ function convertV4CaseJsonToV5CaseJson({ v4CaseJson, ntype } = {}) {
   }
 }
 
-export { convertV4CaseJsonToV5CaseJson };
+function convertV4CaseJsonToV5CaseJsonDetailed({ v4CaseJson, ntype } = {}) {
+  if (detailedConversionActive || isConvertDiagEnabled()) {
+    throw new Error(
+      'convertV4CaseJsonToV5CaseJsonDetailed: diagnostics collection is already active.',
+    );
+  }
+  detailedConversionActive = true;
+  enableConvertDiag();
+  try {
+    const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson, ntype });
+    return {
+      v5CaseJson,
+      diagnostics: buildConversionDiagnostics({
+        v4CaseJson,
+        records: getDiagRecords(),
+      }),
+    };
+  } finally {
+    disableConvertDiag();
+    detailedConversionActive = false;
+  }
+}
+
+export {
+  convertV4CaseJsonToV5CaseJson,
+  convertV4CaseJsonToV5CaseJsonDetailed,
+};
