@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 139（发布 Converter 1.2.2 稳定版）— in progress
+Phase 139（发布 Converter 1.2.2 稳定版）— complete
 
 ## Phases
 
@@ -2206,11 +2206,15 @@ Phase 139（发布 Converter 1.2.2 稳定版）— in progress
 
 - [x] 核对 v1.2.1 不含修复、兼容范围、远端基线、签名密钥权限与发布脚本
 - [x] 将 Converter 版本提升到 1.2.2，运行完整测试、打包内容和敏感信息门禁
-- [ ] 提交并推送版本变更，生成签名 tgz/manifest 与不可变发布计划
-- [ ] 创建 v1.2.2 标签和草稿 Release，上传资产并校验摘要后公开发布
-- [ ] 最后更新 release-channel，验证公开检查、全新安装/激活、受管转换和回滚链
-- [ ] 记录 Release URL、提交、标签、资产摘要及最终状态并推送发布记录
+- [x] 提交并推送版本变更，生成签名 tgz/manifest 与不可变发布计划
+- [x] 创建 v1.2.2 标签和草稿 Release，上传资产并校验摘要后公开发布
+- [x] 最后更新 release-channel，验证公开检查、全新安装/激活、受管转换和回滚链
+- [x] 记录 Release URL、提交、标签、资产摘要及最终状态并推送发布记录
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户在确认 v1.2.1 不含 `c83c698` 修复并收到 v1.2.2 发布建议后回复“好”，授权执行该发布链。只发布 Converter 1.2.2；不重复部署 Lambda 35、不再次同步 VxEditor41、不修改或另存平台案例。现有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 继续排除。发布必须保留 v1.2.1 不可变资产，stable 渠道最后更新，并验证 Workflow 0.4.3 与 Knowledge 0.1.2 的既有兼容范围。
+
+**本阶段错误记录：** 首次组合资产校验命令包含对新建临时目录的 `rm -rf` 清理，执行前被安全策略拒绝；命令未运行、无文件被删。改为分步校验并保留临时验收目录，不重复该命令。验收中尝试读取尚不存在的 `issue-classification.json`，因为 Job 的 `ISSUES_CLASSIFIED` 此时实际表示“等待本地 Agent 分类”；该子命令只读失败，验证/diagnostics 已成功读取，后续改为直接比较 1.2.1 与 1.2.2 validation，不重复缺失路径。
+
+**结论：** Converter 1.2.2 已作为公开、不可变、Latest GitHub Release 发布：tag/source `v1.2.2` → `55724159e8192be4435dac12cf57320ad671447a`，tgz SHA-256 `64631093ef4c735411386697281b8879a8b3a621e2152775ad917efbc9bfb058`，signed manifest SHA-256 `b197d7d912152fd8118e460a877db900cedd85125af1031f94f2ad4f26bbb501`，stable channel commit `224b79e3f694805dc879159e473df3b70c07e11d`。公开下载、验签、离线安装、production audit、受管 1.2.1→1.2.2 更新、真实 V4 dry-run、目标 `$evc`/类型断言、回滚与重新升级均通过；本机最终 runtime 为 Workflow 0.4.3 / Converter 1.2.2 / Knowledge 0.1.2。Lambda 35 与 VxEditor41 未重复发布。

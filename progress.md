@@ -3202,4 +3202,14 @@
 - 已读取并复核维护者 prepare/publish 脚本及 Release 运维文档：发布器会先验 GitHub 加固、源码提交、签名和摘要，并保证 stable channel 最后更新。发现 Converter 包仍标为 ISC，与用户先前确认的 UNLICENSED 分发策略不一致；计划随 1.2.2 版本元数据一并纠正。
 - 发布安全预检通过：仓库 PUBLIC、immutable releases enabled；main/release-channel 与 v* 两套 ruleset active 且 bypass 为空；v1.2.2 标签和 Release 均不存在；Ed25519 私钥存在且权限为 0600。已把 package/package-lock 版本升至 1.2.2，并将包 license 元数据从 ISC 纠正为 UNLICENSED。
 - Converter 1.2.2 完整回归 101/101 通过；测试中的 ParseError 输出均为既有 fallback 断言路径，最终 0 fail。npm dry-run 产物 164 files / 1,787,467 bytes，9 个运行依赖均内置，index/map/converter/README/package 必需文件齐全；`git diff --check` 通过。
+- 版本提交 `5572415 chore: prepare converter 1.2.2 release` 已创建并推送到 origin/main；精确包含 package/package-lock 与三份规划记录，敏感信息扫描和 cached diff check 通过，未跟踪 VxServer 文档未暂存。后续从该提交建立临时干净 worktree 生成和发布资产。
+- 已从 `5572415` 的 detached 干净 worktree 成功生成签名发布计划：tgz SHA-256 `64631093...bfb058`，payload `7a4657f9...8f9779`，manifest `b197d7d9...bbb501`，计划记录 source dirty=false。首次组合资产验收因包含递归临时目录清理而在执行前被安全策略拒绝；改为不删除临时目录的分步验收。
+- 生成资产验收通过：三个 SHA-256 与计划完全一致；Ed25519 签名有效，payload latest=1.2.2、minimum=1.2.0、保留 1.2.0/1.2.1、无 revoked、compatibleWorkflow `>=0.3.1 <1.0.0`。tgz 164 entries 无敏感路径；实际 tgz 离线安装成功并导出 basic/detailed 转换接口，版本/License 为 1.2.2/UNLICENSED；production npm audit 0 vulnerabilities。
+- GitHub Converter 1.2.2 已成功公开发布并自动设为 Latest；Release 为 immutable、非草稿、非 prerelease，tag 精确指向 `55724159e8192be4435dac12cf57320ad671447a`。远端下载的 tgz/manifest 摘要与本地产物完全一致；release-channel commit `224b79e3f694805dc879159e473df3b70c07e11d` 的 manifest 逐字节一致，stable 已最后提升。
+- 开始设计隔离的受管用户验收：CLI 支持 `IVX_MIGRATION_HOME`，setup 可在无 Token 情况下完成运行时安装；release install 支持从旧签名 manifest 安装并激活指定 1.2.1，再由 stable update check/apply 升到 1.2.2。下一步先确认 Agent 同步路径可完全隔离，避免改动真实用户的 Codex/Claude 配置。
+- 全新 tgz 已在隔离目录完成离线安装；受管升级改在维护者现有 1.2.1 环境验证，避免隔离 setup 触及真实 Agent 路径。`update check` 正确报告 converter UPDATE_AVAILABLE 1.2.1→1.2.2，Workflow/Knowledge 为 CURRENT；`update apply --kind converter` 成功安装并激活 1.2.2，摘要精确为 `64631093...bfb058`，无需重启，Agent 仍 current。
+- 受管 Converter 1.2.2 已对 nid 11023063 的既有 V4 快照完成 local-file dry-run，Job `mig_20260813100208_2566eb114f` 固定 Workflow 0.4.3 / Converter 1.2.2 / Knowledge 0.1.2，转换完成并生成完整 diagnostics。两个目标 ln 的 execSql 首参均为 String/String、唯一 `$evc` fallback `ASC`、0 个错误 `op:or`，第二参 JsonArr、错误回调占位存在。
+- 回滚验收通过：rollback 精确激活 1.2.1，stable 随即报告 UPDATE_AVAILABLE 1.2.2；重新 apply 后恢复 1.2.2 且无需重启，最终 doctor/update check 显示三运行时全部 CURRENT、Agent current。临时 worktree 与三个验收目录均已按精确路径清理。
+- dry-run 的 1 blocker/1 warning 与同输入的旧 1.2.1 Job 完全同基线：29 组 TARGET_NODE_ID_DUPLICATE、554 条 custom-expression fallback，source SHA-256 相同，不是 1.2.2 新回归。一次读取未生成 issue-classification.json 的只读子命令失败，已改用两版 validation 直接比较并记录。
+- Phase 139 完成，准备提交并推送最终发布记录；产品/tag/Release/channel/运行时均已处于目标状态，不重复 Lambda 或 VxEditor41 发布。
 - Phase 138 实质发布链已全部完成；准备只暂存 `task_plan.md/findings.md/progress.md` 创建独立发布记录提交。tov5parser 未跟踪 VxServer 文档继续排除。

@@ -2563,3 +2563,12 @@
 - Converter 的 `package.json` 从建库起一直误留 `license: ISC`；此前用户已决定两个公开分发仓库保持 `UNLICENSED`，而 Workflow 当前也采用 UNLICENSED。v1.2.2 应同步修正 Converter 包元数据；不会改变已不可变的 v1.2.1。
 - GitHub 发布安全状态已独立验证：仓库 PUBLIC；immutable releases enabled；分支规则精确保护 main/release-channel 的 deletion 与 non-fast-forward；标签规则精确保护 v*；两者 bypass actor 都为空。维护者私钥为 0600，v1.2.2 远端标签/Release 尚不存在。
 - 1.2.2 版本门禁通过：101/101 tests、0 fail；dry-run tarball 为 164 files / 1,787,467 bytes / unpacked 29,336,656 bytes，9 个 bundleDependencies 全部内置，发布所需核心文件全部存在。版本差异仅 package/package-lock 的 1.2.2 与 UNLICENSED 元数据。
+- 版本源提交固定为 `5572415` 并已在远端 main 可见；发布资产必须从该提交的干净 worktree 生成，不能从含用户未跟踪说明文件的主工作区直接发布。
+- prepare-release 已从干净 worktree 生成 1.2.2 计划，source commit 为完整 `55724159e8192be4435dac12cf57320ad671447a` 且 dirty=false；三个本地摘要分别为 tgz `64631093ef4c735411386697281b8879a8b3a621e2152775ad917efbc9bfb058`、payload `7a4657f9b70f92ec7060b6b93202f1ed8945239b94eccbf059ee18ff8d8f9779`、signed manifest `b197d7d912152fd8118e460a877db900cedd85125af1031f94f2ad4f26bbb501`。
+- 已用嵌入公钥独立验签 manifest：latest 1.2.2、minimum 1.2.0、versions 1.2.0/1.2.1/1.2.2、revoked empty；新 descriptor URL/hash/compatibleWorkflow 均正确。实际 tgz 可在无 registry 回退的 offline install 中加载 basic/detailed API，production audit 为 0 漏洞。
+- 公开 Release 回读闭合：v1.2.2 isImmutable=true、isDraft=false、isPrerelease=false、Latest；tag → `55724159...447a`。GitHub 资产 digest 分别为 manifest `b197d7d9...bbb501`、tgz `64631093...bfb058`，重新下载后的本地 SHA-256 一致。stable channel → commit `224b79e3...e11d`，远端 manifest 与签名资产逐字节相等。
+- 可重复的升级验收路径：在隔离 IVX_MIGRATION_HOME 中 setup 最新运行时；用 v1.2.1 的签名 release manifest 显式安装/激活 1.2.1；运行 stable `update check` 应报告 1.2.2，apply 后应激活 1.2.2；随后用受管 Converter dry-run，回滚到 1.2.1，再重新激活 1.2.2。执行前需确认 setup 的 Agent adapter 安装也能隔离。
+- 实际验收采用更低副作用路径：公开 tgz 的“全新安装”已由 isolated offline install 覆盖；受管升级在现有维护者 home 从真实 1.2.1 开始。stable 检测、签名下载、摘要验证、安装和激活均成功，当前 runtime set 为 Workflow 0.4.3 / Converter 1.2.2 / Knowledge 0.1.2。
+- 真实受管 dry-run 证明发布包不是只可导入：11023063 V4 snapshot 在 Converter 1.2.2 下转换成功；Job target 的两个报告 ln 均恢复 VxJaMap 类型契约并输出正式 `$evc`，精确断言为 argCount 3、first var/String/String、evcCount 1、orCount 0、fallback ASC、second JsonArr、last val placeholder。
+- 1.2.2 Job 的 validation blocker 不构成发布回归：与相同 source SHA-256 的 1.2.1 Job 相比，issue rules、29 个 duplicate ID 计数、554 个 fallback、801/801 node counts 和 333 个 V5 event AST 全部相同；astNodeCount 从 341,992 增至 343,749，符合本次更多结构化 `$evc` AST 的预期。
+- rollback 与再升级均通过：1.2.2→1.2.1 后 stable 正确显示 update available，再 apply 回到 1.2.2；最终 doctor pin/hash 与公开资产一致。所有本轮临时 worktree、offline install 和远端下载校验目录已清理。
