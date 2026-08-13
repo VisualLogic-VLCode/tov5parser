@@ -3198,4 +3198,8 @@
 - Lambda 发布成功：部署脚本在账号 `587849590304` 重新执行 101/101 测试，打包 1.9 MB，经历史 S3 key `archive-c83c698-20260813T093530Z.zip` 更新函数；发布版本 35，`prod` 从 34 切至 35。冒烟返回 StatusCode 200、ExecutedVersion 35、FunctionError null、业务 code 0。
 - Lambda 独立 read-back 通过：`prod→35`，版本 35 为 Active/Successful，CodeSha256 `7aBqZgfZAgu6M4XQ5rMnbUiKbVpihLIXN6kHVOL9I4c=`，描述精确指向 `c83c698`，运行参数仍为 nodejs20.x / 2048 MB / 120 s。
 - VxEditor41 已仅提交并推送目标转换器：`c5595597d fix: preserve value-or AST in v4 conversion`。目标文件 lint/parse、敏感扫描和 diff check 通过；`master` 与 `origin/master` 为 0/0，用户的 `.gitignore`、`src/stores/event.js` 和未跟踪 UI 目录保持未暂存。
+- 2026-08-13 Phase 139：用户确认继续发布 Converter 1.2.2。已核实最新公开 Release v1.2.1 固定在 `5509ad4`，不包含修复提交 `c83c698`；Lambda 35 和 VxEditor41 已更新但不能替代本地 Workflow 下载的 GitHub Release。开始执行版本、签名资产、不可变 Release、stable 渠道和干净安装验收链。
+- 已读取并复核维护者 prepare/publish 脚本及 Release 运维文档：发布器会先验 GitHub 加固、源码提交、签名和摘要，并保证 stable channel 最后更新。发现 Converter 包仍标为 ISC，与用户先前确认的 UNLICENSED 分发策略不一致；计划随 1.2.2 版本元数据一并纠正。
+- 发布安全预检通过：仓库 PUBLIC、immutable releases enabled；main/release-channel 与 v* 两套 ruleset active 且 bypass 为空；v1.2.2 标签和 Release 均不存在；Ed25519 私钥存在且权限为 0600。已把 package/package-lock 版本升至 1.2.2，并将包 license 元数据从 ISC 纠正为 UNLICENSED。
+- Converter 1.2.2 完整回归 101/101 通过；测试中的 ParseError 输出均为既有 fallback 断言路径，最终 0 fail。npm dry-run 产物 164 files / 1,787,467 bytes，9 个运行依赖均内置，index/map/converter/README/package 必需文件齐全；`git diff --check` 通过。
 - Phase 138 实质发布链已全部完成；准备只暂存 `task_plan.md/findings.md/progress.md` 创建独立发布记录提交。tov5parser 未跟踪 VxServer 文档继续排除。

@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 138（提交推送并发布生产 Lambda）— in progress
+Phase 139（发布 Converter 1.2.2 稳定版）— in progress
 
 ## Phases
 
@@ -2201,3 +2201,16 @@ Phase 138（提交推送并发布生产 Lambda）— in progress
 **授权与范围：** 用户明确授权提交、推送，并要求本项目更新到 Lambda。按仓库固定发布流程执行；不创建或修改平台案例，不恢复旧迁移 Job。tov5parser 排除未跟踪的 `VxServer-saveAs-same-gid-group-db-fix.md`；VxEditor41 只暂存目标公式转换器，保留 `.gitignore`、`src/stores/event.js` 和所有未跟踪 UI 目录。
 
 **结论：** tov5parser 产品提交 `c83c698` 和 VxEditor41 单文件提交 `c5595597d` 均已推送。生产 Lambda 发布版本 35，`prod` 已由 34 切至 35；101/101 测试、别名冒烟与独立 read-back 全部通过，版本 35 CodeSha256 为 `7aBqZgfZAgu6M4XQ5rMnbUiKbVpihLIXN6kHVOL9I4c=`。版本 34 保留为回滚点，两仓用户无关改动均未进入提交。
+
+### Phase 139：发布 Converter 1.2.2 稳定版（2026-08-13）
+
+- [x] 核对 v1.2.1 不含修复、兼容范围、远端基线、签名密钥权限与发布脚本
+- [x] 将 Converter 版本提升到 1.2.2，运行完整测试、打包内容和敏感信息门禁
+- [ ] 提交并推送版本变更，生成签名 tgz/manifest 与不可变发布计划
+- [ ] 创建 v1.2.2 标签和草稿 Release，上传资产并校验摘要后公开发布
+- [ ] 最后更新 release-channel，验证公开检查、全新安装/激活、受管转换和回滚链
+- [ ] 记录 Release URL、提交、标签、资产摘要及最终状态并推送发布记录
+
+**Status:** in progress
+
+**授权与范围：** 用户在确认 v1.2.1 不含 `c83c698` 修复并收到 v1.2.2 发布建议后回复“好”，授权执行该发布链。只发布 Converter 1.2.2；不重复部署 Lambda 35、不再次同步 VxEditor41、不修改或另存平台案例。现有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 继续排除。发布必须保留 v1.2.1 不可变资产，stable 渠道最后更新，并验证 Workflow 0.4.3 与 Knowledge 0.1.2 的既有兼容范围。

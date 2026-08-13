@@ -2553,3 +2553,13 @@
 - 已有 Job `mig_20260813042241_8e9f7923f3` 处于 `SAVE_INCOMPLETE`，其源 workId 为 `...-2533`，而平台当前 workId 为 `...-2539`。为避免重复 Job 和意外恢复另存链，本轮仅把该 Job 当作只读证据，并明确标注其比当前平台落后 6 个 revision。
 - 该 Job 的 Converter 1.2.1 目标产物确认两个动作首参均已是 `var(concat...)` 且根有 `cType:'String'`，内部 `param.order || 'ASC'` 则是 `op:'or'`；所以旧的 `var(jsfn)`、空 cType 现象不能再作为当前版本的主结论。
 - 编辑器确定性分叉仍成立：concat 会通过通用 AST→token 路径解析每个子项，嵌套 `op:'or'` 被 `condValProcessor` 识别为 `$condVal`；只有 `_blockType:'$evc'` 的 `switchexp` 才会走值兜底专用往返路径。
+
+# Phase 139：Converter 1.2.2 Release
+
+- GitHub 最新 Converter Release 是不可变的 v1.2.1，target commit 为 `5509ad4`；其资产只有 `tov5parser-1.2.1.tgz` 和签名 `converter-stable.json`。修复提交 `c83c698` 及发布记录 `e6024d6` 均位于标签之后，现有用户无法通过受管更新获得修复。
+- Workflow 0.4.3 的 Converter 兼容范围为 `>=1.2.0 <2.0.0`；Knowledge 0.1.2 的范围为 `>=1.2.1 <2.0.0`。因此 Converter 1.2.2 可独立发布，不需要同步发布 Workflow 或 Knowledge。
+- 当前 `package.json` 仍为 1.2.1，stable channel 的 latest 也仍为 1.2.1；必须发布新 patch 版本，不能覆盖不可变 v1.2.1。
+- 维护者发布脚本会在任何远端写入前强制检查：源码必须干净且与计划提交一致、仓库公开、不可变 Release 已启用、main/release-channel/v* 规则无 bypass、资产/manifest 摘要和 Ed25519 签名有效。发布顺序固定为草稿→资产校验→公开 Release→最后更新 stable channel。
+- Converter 的 `package.json` 从建库起一直误留 `license: ISC`；此前用户已决定两个公开分发仓库保持 `UNLICENSED`，而 Workflow 当前也采用 UNLICENSED。v1.2.2 应同步修正 Converter 包元数据；不会改变已不可变的 v1.2.1。
+- GitHub 发布安全状态已独立验证：仓库 PUBLIC；immutable releases enabled；分支规则精确保护 main/release-channel 的 deletion 与 non-fast-forward；标签规则精确保护 v*；两者 bypass actor 都为空。维护者私钥为 0600，v1.2.2 远端标签/Release 尚不存在。
+- 1.2.2 版本门禁通过：101/101 tests、0 fail；dry-run tarball 为 164 files / 1,787,467 bytes / unpacked 29,336,656 bytes，9 个 bundleDependencies 全部内置，发布所需核心文件全部存在。版本差异仅 package/package-lock 的 1.2.2 与 UNLICENSED 元数据。
