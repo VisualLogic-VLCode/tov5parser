@@ -3062,3 +3062,140 @@
 - Phase 130/67 收尾清理完成：`.tmp_audit_remaining.cjs`、`.tmp_export_remaining.cjs`、`.tmp_remaining_query.py` 已通过补丁删除；SSH 会话 51657 已终止，`127.0.0.1:13306` 无监听；`git diff --check` 通过。
 - findings 首次追加补丁因上下文行前缀不匹配而未修改文件；随后使用实际末行上下文成功追加，未重复原补丁。
 - Phase 130 与长期 Phase 67 已标记 complete：51/51 案例全部完成，最后一例未发现转换器错误，最终回归 96/96 通过。
+- 2026-08-11 Phase 132 开始：用户要求将判版、获取 V4 JSON、转换、诊断、正确性验证、问题归因、AI 非转换器修复与 V5 案例创建整合为工作流，输入仅为用户 token、源 nid 和可选 gid。本轮只做架构调研，不修改任何生产代码；重点验证参与案例的 token 权限和另存链路。
+- Phase 132 首轮代码盘点：确认当前 Lambda 只转换 JSON，本地 `--diag` 才生成诊断报告；VxEditor41 已有 `/editor/work/get`、`/work/load`、`/work/create`和 `/work/saveAs` 链路，create 支持 `caseData`、V5 extra 和可选 gid。第一次广泛检索附带了不存在的 `public` 目录，`rg` 只对该路径报错且其他 `src` 结果正常；后续只在已存在路径检索。
+- Phase 132 编辑器转 V5 链确认：现有 UI 通过 `saveAs?newVer=2` 创建新案例，再做默认配置迁移、nid/modDbId 替换和二次 `/work/save`；编辑器 XHR 依赖同源 Cookie，没有可直接复用的 token 请求头实现。下一步检查已有导出文档、路径配置与可能的后端仓库。
+- Phase 132 Save As 服务端证据补充：`/work/saveAs` 会复制 work 元数据、配置和数据库，权限与来源案例、用户身份及 gid 共同相关；历史真实失败还证明保存阶段的平台问题必须与转换器问题分开归因。第一次向 findings/progress 合并写入的补丁因空 hunk 格式无效而失败，随后已拆分为合法补丁完成记录，未改动项目代码。
+- Phase 132 参与者权限关键结论：VxServer Save As 要求源案例成员身份，但普通 Save As 会落回源 gid；组内案例若当前用户不是组拥有者，服务端通常拒绝另存到当前组。故“自己的 token 能获取 JSON”与“自己的 token 能创建同组 V5”是两个独立权限，工作流必须先做能力预检并提供明确的目标位置/拒绝结果，不能假设参与者都能另存。
+- Phase 132 认证边界补充：现有资源接口依赖平台请求上下文中的 uid（浏览器侧表现为同源 Cookie），不是一个已经证实可直接接受任意 Bearer token 的接口。推荐新增平台内迁移 API，由网关校验用户 token、注入用户身份并签发短期限域委派凭证；用户 token 永不进入转换器或 AI。
+- Phase 132 判版与认证结论收敛：`ih5bearer` 由网关校验后注入内部 uid，工作流入口可复用该机制；元数据 `extra.ver==2` 是 5.x 权威判据，V4 实物还需区分转换器支持的新代与不支持的旧代。宽泛跨仓检索再次命中打包静态 JS 导致输出截断，已记录并停止该检索方式。
+- Phase 132 token 可行性纠正：进一步读取 `getToken` 后确认平台网关原生支持 `Authorization: Bearer <ih5bearer>`，不只支持 Cookie。调用者自己的 token 可以作为工作流入口凭证，但必须由网关验证并转换为内部用户上下文；后续组件不得保存或接收原始 token。当前 Lambda 仍只是纯 JSON 转换器，不承担编排职责。
+- Phase 132 诊断边界确认：`app.convert-errors.json/.md` 是本地 CLI 在启用进程内 collector 后渲染的，不是 Lambda 自动产物；现有诊断仅说明结构化解析降级/兜底，不能替代正确性验证。工作流要把原始诊断结构化返回，并另设验证与问题归因阶段。
+- Phase 132 架构方案已收敛：平台网关认证 + 持久编排状态机 + 用户态 Case Adapter + 固定版本纯转换 Worker + 独立 validators/归因器 + 受控 AI source repair + 原子/可补偿 V5 Save As。明确了参与者权限矩阵、保存强门禁、幂等键、artifact 安全、终态错误码和 A–D 分阶段落地方案。
+- 2026-08-11 Phase 133 开始：用户明确要求按后续修订方案执行，目标调整为面向其他用户的本地 Agent 独立分发包。已运行 planning session catchup并同步本轮关于本地运行、独立包、全局 Job 目录、Converter/Workflow 更新渠道与稳定 Launcher 的决策；本轮先实现不产生线上写入的可运行 MVP，不提交。
+- Phase 133 基线完成：独立目标目录不存在；Node/npm 运行环境可用。已核对 tov5parser 公共入口与项目固定发布规则，本轮不改转换器。发现现有包未公开诊断 API，已将其列为 provider capability/后续 converter 发行契约，不通过私有文件路径制造分发耦合。
+- Phase 133 独立项目骨架已创建：新增 package/bin、私有路径与原子 0600 JSON 写入、禁止 token 落 config、Job 全局目录/registry/lock/状态转换、workspace 可选引用、语义版本比较与公共导出。目标项目尚未初始化 Git，不会在本轮擅自提交。
+- Phase 133 核心 MVP 已继续落地：新增元数据+work 双层判版、可声明 diagnostics capability 的本地 Converter Provider、基础 V5 AST/节点验证、受限 JSON Patch/问题归因契约、签名 release envelope、版本策略、runtime registry/回滚及校验 hash 后禁脚本安装的 artifact installer。
+- Phase 133 CLI 与 Agent 适配层已建立：支持 doctor、config、Job、offline dry-run、classification/Patch 回灌、release check/install/list/activate/rollback 和 agents sync；Codex/Claude Skill 均明确 converter defect 停止、token 禁止落盘和只经 CLI 复验。实现时主动发现 transition patch 不应展开整个 state（会触发不可变字段保护），已在首次运行前改为只补丁 source/target/issues。
+- Phase 133 首轮自动化验证通过：生成无依赖 package-lock，bin 设为可执行；Node 测试 13/13 通过，覆盖 offline CLI 全链、Job 权限/状态转换、判版冲突与旧代拒转、Patch 身份/secret 禁改、converter repair 禁止、Ed25519 release envelope和更新/撤销策略。测试全程使用临时目录和 fake converter，没有平台网络或线上写入。
+- Phase 133 真实冒烟样本已筛选：将用现有约 0.5MB 的 `user-avatar-menu/app.json` 调当前 tov5parser 包执行 offline dry-run；不读取/发送 token，不访问平台 API。
+- Phase 133 首次真实 dry-run 门禁通过：当前 converter 包成功加载并锁定 `1.1.0 + entrySha256`，但样本实物是 V5，Job 按预期进入 `SKIPPED_ALREADY_V5`，没有误转。随后用未作 NUL 分隔的 xargs 搜索样本时对一个含空格路径报错，已记录并改选无空格的小样本，不重复该命令。
+- Phase 133 第二次真实 dry-run 已实际调用当前 converter：eventless V4.1 通过元数据兜底转换并生成本地 V5，但基础 validator 暴露“无事件目标必须有 AST”的假阳性，Job安全停在 `ISSUES_CLASSIFIED` 而未误报成功。下一步修正规则并新增 eventless 回归后重跑同一案例。
+- Phase 133 eventless 假阳性已修复并回归：源存在 V4 tree时目标仍必须有 V5 AST；源/目标均无版本化事件时只产生 metadata-authority warning，不再阻断。真实 `合并分床小工具` 已用当前 tov5parser 1.1.0 完整跑到 `DRY_RUN_SUCCEEDED`，输出 hash `0043033e...6068`，全程无平台访问。
+- Phase 133 安全/分发测试扩展到 19/19 通过：新增 Agent adapter 手改冲突+force 备份、config token 落盘拒绝、真实 npm tgz SHA 校验/禁 scripts安装/activate，以及 eventless validator 两向边界；CLI 语法检查同时通过。
+- Phase 133 更新前置与 Launcher 已接通：每个新 dry-run 在创建 Job 前检查配置的 Workflow/Converter manifest；普通新版默认抛结构化提示并可显式 `--use-current`，revoked/minimumSupported 不可绕过，auto 安装 Workflow 后要求重启。稳定 bin 会从私有 `current.json` 读取并且只允许委派到 appHome/workflows 下的已管理 Runtime。对应测试后总数 22/22 通过。
+- Phase 133 分发面检查通过：`npm pack --dry-run` 仅包含 27 个运行/协议/Agent 文件，压缩约 22KB、解包约 80KB，bin 模式 0755，无测试与本地数据混入。隔离 HOME 的 doctor 正确显示平台/token/runtime 未配置；agents sync 成功安装 Codex/Claude 两份受管 Skill并输出内容 hash。
+- Phase 133 AI 修复闭环已补齐：集成测试让 fake converter 生成确定性错误，Job 经 `ISSUES_CLASSIFIED → AI_REPAIR_REQUIRED → AI_REPAIRED → VALIDATED → DRY_RUN_SUCCEEDED`；CONVERTER issue 仍禁止 repair。Patch 策略同时禁止整根替换及嵌套身份/secret 值注入。
+- Phase 133 用户同步发布链已形成文档和命令：新增 Workflow/Converter release payload schema、维护者 `release sign` 命令、独立发行/更新/回滚说明及平台 Save As 接入边界。Ed25519 签名命令测试确认输出 0600 且不泄漏私钥。
+- Phase 133 最终验证通过：CLI 语法与 24/24 自动化测试全部成功；`npm pack --dry-run` 只包含 30 个运行/协议/Agent/文档文件，约 25.1KB 压缩、89.8KB 解包，未生成 tgz、未混入测试/Job/token。隔离 doctor 通过，所有显式 `/tmp/ivx-migration-*20260811` 验证目录已删除。
+- Phase 133 complete：独立项目 `/Users/lianghuang/Desktop/ivx_repos/ivx-v4-v5-migration` 的非写入 MVP 已可审阅。未初始化 Git、未提交；未修改 tov5parser 转换代码、未调用 Lambda/VxEditor41/VxServer、未执行线上案例读取或 Save As。下一阶段需在确认真实平台认证/权限矩阵后实现 Platform Adapter 和可恢复保存链。
+# 2026-08-12：Phase 33 运行时等价诊断与知识库整合
+
+- 已确认 `vx-json-evolution-claude` 的定位与证据边界：适合成为诊断依据，不是运行时等价的唯一判据。
+- 已形成初步方向：把运行时观察、根因归属、修复对象、写入权限拆成独立概念；转换器问题只生成维护报告，安全的案例级问题才进入受限修复闭环。
+- 正在核对现有工作流的诊断分类、Patch 策略、保存链和 Job 状态，随后给出可落地的分阶段方案。
+- 已完成现有实现差距核对：当前闭环停在静态验证和首次 Save As；下一版需要新增运行时测试适配器、行为轨迹比较、根因/修复对象分离、同目标修订保存与重测状态。
+- 已形成待用户讨论的推荐架构：独立的 Runtime Parity 层、第三个版本化 Knowledge Runtime、问题分类 schema v2、有限次数的同目标修复循环，以及 Converter 维护报告/知识反馈报告双出口。
+- 本阶段仅完成只读调研与方案讨论准备，未修改 Workflow、Converter 或平台案例；待关键边界确认后再进入实现。
+
+# 2026-08-12：Phase 134 补充方案核对
+
+- 用户整体认可 Runtime Parity + Knowledge Runtime 方案，新增三个待确认点：自动修复轮次、V4 案例配置/预览域名的等价复制、用户人工定位后继续同一 Job。
+- 已恢复规划上下文并确认本轮只读讨论；下一步核对 Workflow、VxEditor41 和 VxServer 的真实配置链。
+- 已确认 Workflow 当前只从源配置复制 `customVars`，其他部分取当前用户默认配置；正在继续核对编辑器/服务端设计与可安全复制字段。
+- 已确认预览域名属于独立 `settings`/work 元数据，服务端另存会主动去除旧域名与路径并验证目标用户域名权限；不能通过简单全量复制解决，需要配置快照、字段策略和等价环境门禁。
+- 已形成配置解决方向：字段级复制/重映射/目标绑定/人工绑定/脱敏比较策略，运行时测试前先完成环境等价预检。
+- 已完成自动修复轮次和人工反馈续跑设计：默认 3 次目标写入、可显式追加 2 次；Job 增加运行时验收会话和 HumanFinding，用户手工修改通过 workId/CAS 接管为新基线。
+# 2026-08-13 Phase 135：案例 11023063 首参 AST 诊断
+
+- 用户报告转换为 V5 后，ln `chz95wfa3j50000v6630` 与 `cx77xtqa3j5000002qxg` 的动作块第一个入参在编辑器里不能正常显示。
+- 本轮按 `v4-to-v5-workflow` 执行只读诊断，并使用文件化计划保存 Job、AST 和编辑器契约证据；不修改转换器或案例。
+- 已运行 session catchup；现有三份规划记录属于历史长期任务，已保留并新增 Phase 135。
+- `ivx-migrate doctor` 成功；Workflow 0.3.8、Converter 1.2.1、平台配置和 Token 可用状态均通过，未读取 Token 内容。
+- `ivx-migrate runtime status` 失败为 `CLI_COMMAND_UNKNOWN`；已记录且不会原样重试，下一步读取当前 CLI 帮助寻找等价命令。
+- `update check` 首次调用没有返回可解释文本/退出码，需先核对当前命令语法与可能的长任务会话，再决定恢复方式。
+- 当前帮助确认 CLI 0.3.8 无 `runtime` 命令；一次 `update --help` 进入无输出长等待后已用 Ctrl-C 终止，未改变运行时状态。
+- 改用 CLI 正式签名发行检查：Workflow 0.4.1 可选更新、Converter 1.2.1 已最新。因策略为 prompt，本轮没有擅自更新；先读取仓库内既有 11023063 源/目标产物，避免创建重复 Job。
+- 使用包含 ignored 案例目录的只读检索定位到 nid 11023063 的 V4/V5/诊断产物；首次默认检索因 `.gitignore` 返回无结果，已改为显式包含 ignored 文件，不再重复原命令。
+- 已精确提取两个 V4 action 与 V5 ln AST；两者首参统一落成 `var(jsfn)`，源 Formula/绑定内容未明显丢失，旧/新两个本地产物结构一致。
+- 已核对诊断：两个目标都因 `||` 进入 custom-expr fallback。全案 execSql 形态统计显示两个目标属于 15 个 `var(jsfn)` 首参之一，而常规 `var(concat)` 首参携带 `cType:'String'`。
+- 已确认历史审计只覆盖 jsfn 语法/参数匹配，没有覆盖编辑器往返展示，因此需要继续查编辑器读取契约。
+- 已枚举本案全部 15 个 execSql/jsfn 首参：外层 cType 均为空，两个目标并非唯一形态。
+- 一次源码检索因未引用的 zsh `test*` glob 报 `no matches found`，未执行检索且未修改文件；后续改为由 `rg --files` 确认真实目录后显式检索，不重复该写法。
+- 已用真实目录重新检索：custom-expression 生成点集中在 `V4FormulaCodeConverter.js`，源码自称 `var(jsfn)` 与编辑器 bind 保存格式一致；同时已有动作参数 cType 回归，但尚未看到“动作参数 + jsfn fallback + 编辑器往返”的交叉覆盖。
+- 已读取 custom-expression 生成实现和相邻 cType 回归：生成器自身不写 cType，测试组合确实缺少 jsfn action-param 情形；编辑器存在 jsfn 解析分支，继续追踪其根节点前置条件。
+- 已核对编辑器 ASTToBlocks：`var(jsfn)` 可被递归解析，核心分支不要求 cType；cType 仍可能影响参数编辑器类型选择，但不是 jsfn parser 的直接门禁。
+- 已核对编辑器 TypeChecker：jsfn 类型未知时不直接报错；下一步转向 action.js 主转换路径和参数契约，寻找展示所需元数据是否在 fallback 时丢失。
+- 已读 action.js 主路径：paramType 来自组件方法 paramsMap，缺失时不会写 `type`；backend 类型推断能识别 concat、不能识别 jsfn。真实目标恰好两者都缺，现转向核对 execSql 权威方法映射与对象节点类型。
+- 已确认两个对象节点类型正确保留为 data-league-db/data-db；从 map 片段看到 execSql callback，但尚未看到输入 params，下一步完整提取方法契约。
+- 已完整提取原始 maps：execSql 参数并未缺失，但存在当前/legacy 多份定义，原始 type 为 Formula；下一步以实际运行时 MapCreator 输出定案，避免从源资产片段误推。
+- 已确认后台 action 映射只走 VxJaMap，不走 legacy overlay；现在直接查询两类节点的最终 runtime method contract。
+- runtime method 查询完成：两个对象的 execSql 契约都为 undefined；data-db VxJaMap 不含 execSql，data-league-db 不存在。真实 AST 的“无 type + 无 cType”现可由确定性代码路径解释。
+- 已做 raw map 路径与 MapCreator 双图核对：execSql 仅属于 VxWidgetMap，所有 server action maps 均无命中。根因已收敛到 scope→method contract 选择错误；继续找原生 V5/编辑器证据确认规范输出。
+- 已确认 VxEditor41 上游转换器也有同样的 strict VxJaMap 选择；本地原生 V5 样本无 execSql，下一步读取 VxEditor5 实际展示路径，避免仅从 V4 编辑器反序列化推断。
+- 已定位 VxEditor5 当前动作参数反序列化文件 methodUtils.js；jsfn parser 仍存在，开始精读 execSql 所走的参数构造分支。
+- 已确认参数 UI 先依赖 method contract；没有 method 时 genGeneralAstParams 直接无结果。现在定位 VxEditor5 如何为 server-tree data-db/data-league-db 选择 method。
+- 已定位精确调用点和 getTargetMethod 定义，下一步读取两段并闭合“method 是否存在/首参如何显示”的编辑器证据。
+- 已确认 VxEditor5 能通过 widgetStore 找到 execSql，排除“整个 method 不存在导致无参数 UI”。现在读取 AST arg→param value 的匹配逻辑，验证无 type/cType 是否会丢首参。
+- methodUtils 内未定义 getActionParamValue，下一步沿 import 定位真正 AST arg 读取函数；保持对“缺 type 是根因”的结论为待证，而非提前定案。
+- 已沿 import 定位到 generalAst.js 的参数读取实现；进入最终编辑器证据核对。
+- 已确认动作首参按索引原样取出，不因 type/cType 缺失被过滤；继续检查 customExpr 展示细节，并运行平台 preflight 验证当前源版本/权限。
+- preflight 成功，当前源为 V4.1/version 1018/ntype 1，权限允许且无写入。编辑器取参和 customExpr 代码均确认可到达；目标代码单行，排除旧换行问题。
+- 发现当前平台 workId 已从本地产物的 -2508 前进到 -2539；不把本地文件冒充当前 revision。开始核对 `||` 是否有正式 V5 可视 AST 表达，判断 fallback 本身是否就是根缺口。
+- 首次检索 `||` 因正则转义错误产生海量无关匹配，已记录并改用 fixed-string；下一步精读逻辑表达式分支和 emptyValCond AST。
+- 已确认 V5 官方 `$evc` AST 能无损表示 `a || b`，而转换器完全未生成该块。根因已收敛到 LogicalExpression `||` 的结构化转换缺失；继续定位具体函数/dispatch 和回归边界。
+- 发现通用 BinaryExpression 虽把 `||` 映射为 boolean `or`，但这不适合 value-or；目标在 string concat 专用路径被拒绝。继续定位该路径的精确函数。
+- 已确定两个 concat 函数的真实行号，按准确区间读取 reject 分支。
+- concat 函数没有 reject；当前怀疑真实 `||` 节点类型未进入 BinaryExpression 分支。准备直接解析目标公式并核对 dispatch。
+- 两个内联检索因 shell 引号处理失败，均未修改文件；改为脚本直接读 app.json 的目标 bid 获取公式并 parse，避免重复转义错误。
+- 真实 parse 证实 `||` 是 BinaryExpression。Git blame 发现当前 || 分支晚于本地旧产物：旧产物是 jsfn，现行 1.2.1 会走 op:or。开始审计新增分支是否错误覆盖 value-or。
+- 已审 `c4d2077`：测试仅覆盖结构存在与运行值，没有编辑器往返；value-or 被统一映射为 condition `op:or`。准备对两个真实公式做当前代码单元重放。
+- 2026-08-13：独立 Workflow 改造已在 `/Users/lianghuang/Desktop/ivx_repos/ivx-v4-v5-migration` 完成 46/46 阶段并发布 Workflow `0.4.3`；Converter 本仓库未在该工作中改动。停止钩子仍报告本仓库 139/140 阶段完成，现恢复并读取 `task_plan.md`，继续核对唯一未完成的 converter 调查阶段；保留现有 `findings.md`、`progress.md`、`task_plan.md` 和未跟踪说明文件，不提交或推送这些用户记录。
+- 已对两个真实公式执行当前 Converter 1.2.1 内存级重放：旧产物中的 jsfn 已由新版改为 concat 内嵌 `op:'or'`，但仍没有 V5 编辑器要求的 `$evc` 值兜底块。
+- 已闭合编辑器契约：`op:'or'` 属于 `$condVal` 布尔条件；`a || b` 的可视值表达式规范是 `_blockType:'$evc'` 的 `switchexp`。两个目标首参故障由该语义错配直接解释。
+- 已确认运行时假阴性来源：`ast2js` 会把 `op:'or'` 编译回 `||`，所以现有只测执行结果的回归可以通过，却无法证明编辑器可显示、可往返。
+- 次生问题保留为独立结论：后台 legacy `execSql` 在转换器中查不到 VxJaMap 方法契约，导致参数根缺 `type`；结构化 concat 可自行推导 `cType:String`，故它不是当前首个展示分叉。
+- Phase 135 只读诊断完成；未创建迁移 Job、未写平台、未修改 Converter。建议下一步单独授权后实现 `$evc` 转换与真实 SQL 的 AST→blocks→AST 回归。
+- 恢复钩子后重新执行受管健康检查、版本检查、运行时状态和平台 preflight：Workflow 0.4.3 / Converter 1.2.1 / Knowledge 0.1.2 均为 CURRENT，平台当前源仍为 V4.1/version 1018，权限为 GROUP_OWNER。
+- 发现已有 Job 状态为 SAVE_INCOMPLETE 且源 revision 比平台当前落后 6 个 workId 序号；严格保持只读，没有恢复 Save As，也没有新建重复 Job。该 Job 的当前 1.2.1 产物已排除旧 jsfn/cType 假设，并再次确认 concat 内的 value-or 被错误表示为 condition `op:or`。
+- 已补齐 VxEditor5 的 AST→blocks→AST 路径证据并完成最终检查：`planning-with-files` 报告全部阶段完成（140/140）。本轮只更新规划记录，项目代码、平台案例和发布状态均未改变。
+
+# 2026-08-13 Phase 136：同步 VxEditor41 最新线上 VxJaMap
+
+- 用户授权读取 VxEditor41 当前线上 `locale.js` 并补全 Converter 的 VxJaMap；本轮开始代码/资产修复，但不提交或发布。
+- 已执行 session catchup 并保留现有规划记录及未跟踪说明文件；当前工作区在本轮前只有三份规划文件修改和用户未跟踪文档。
+- 已从 VxEditor41 源码初步定位 `shared/proxyRuntime.js` 中的线上版本化 URL，下一步闭合实际加载链和响应结构。
+- 已确认 tov5parser 的 VxJaMap vendored 来源是根目录 `ivxMap.txt`，后台查询入口是 `v4ToV5/env.js`；首轮两个路径/glob 错误已记录，未修改产品文件。
+- 已确认 VxEditor41 默认 URL 可由运行环境覆盖，开始从线上编辑器入口解析真实 `locale.js` 版本；同时确认本轮遵守“改完先询问是否提交”的上层 Git 规则，不执行仓库文档中的自动发布链。
+- 已从线上 `dev.ivx.cn` HTML 解析到当前真实 CDN 版本 `20260813145238`；旧仓库默认和 tov5parser Map 均为六月快照。下一步静态提取最新 VxJaMap并比较组件/方法差异。
+- 已用 Acorn 安全解析线上 VxJaMap：只新增/变更 3 个组件范围，目标两个数据库组件的 execSql 参数契约均已确认。决定精确替换 VxJaMap、保留其他五类本地 Map，随后补动作参数转换回归。
+- 已完成 `ivxMap.txt.VxJaMap` 精确同步并通过语义 diff：其余五类 Map 未变，VxJaMap 仅变更预期 3 个组件；开始补两个数据库组件 execSql 的方法查询和参数类型转换回归。
+- 已在 `v4ToV5/v4ToV5.test.js` 增加两个数据库组件的 execSql 契约/AST 参数类型回归，定向测试 1/1 通过。下一步重转真实 11023063 案例并检查两个 ln，再运行全量测试。
+- 已完整内存重转真实案例 11023063：两个目标首参均恢复 `type:String/cType:String`，第二参恢复 `type:JsonArr`，错误回调占位存在；没有覆盖本地历史转换产物。
+- `npm test` 完整回归 100/100 通过、0 fail；线上/本地 VxJaMap canonical hash 一致，`git diff --check` 通过。
+- README 已补充同步来源与 VxJaVer。Phase 136 完成；代码、资产和测试尚未提交、推送或发布，等待用户确认是否创建 Git 提交。
+
+# 2026-08-13 Phase 137：修复 value-or AST
+
+- 用户明确授权继续修复 Converter AST；已重读技能与 session catchup，并新增 Phase 137。
+- 当前准备冻结 value-or/boolean-or 上下文和 `$evc` AST，再做最小源码修改。VxEditor41 的无关脏文件已记录并受保护。
+- 已冻结实现边界：不复用 gateway，新增显式 conditionContext；普通 value-or 走 `$evc`，仅在 `&&` 布尔树内保留 nested `op:or`。开始核对全部现有 `||` 回归并实施源码修改。
+- 已修改 tov5parser 的 V4FormulaCodeConverter，加入 `$evc` 生成器和 conditionContext 传播；修正了 operator 改名后上下文判断失效的首版细节。下一步先做公式级结构/运行冒烟，再补正式回归。
+- 已新增 value-or/concat/比较/boolean tree 回归并更新旧 `op:or` 断言，定向测试 2/2 通过。下一步重放案例两个真实 ln，并扫描全部测试对旧 AST 的依赖。
+- 已完成真实案例重放：两个 ln 均生成唯一 `$evc`、不再含 `op:or`，Map 补全带来的 String/JsonArr 类型仍完整。已确认 VxEditor41 目标文件干净，准备同步同一最小修复。
+- 发现并修正 root boolean-or 边界：新增保守 `isBooleanExpression`，使 `a>0||b>0` 保持 `$condVal/op:or`，而 `order||'ASC'` 继续生成 `$evc`；相应 root 回归已补齐，定向 2/2 通过。
+- 已把同一算法补丁同步到 VxEditor41 的目标转换器单文件；下一步做两仓语法/构建、完整回归、真实案例和 diff 门禁。
+- 最终门禁完成：tov5parser 完整测试 101/101、定向 2/2、diff check 通过；案例两个 ln 再次通过 `$evc/String/JsonArr/errorCb` 强断言。
+- VxEditor41 目标文件已通过 Babel parse、ESLint 0 warning 和 diff check；生产 webpack 构建成功（exit 0，34 类既有 warning）。Phase 137 完成，当前没有提交、推送或部署，等待用户决定是否创建 Git 提交。
+
+# 2026-08-13 Phase 138：提交推送与 Lambda 发布
+
+- 用户明确授权提交和推送，并要求把 tov5parser 更新至生产 Lambda；新增 Phase 138，开始按固定发布流程执行。
+- 用户指出本轮属于转换器维护发布，不需要 V4→V5 工作流；判断正确，已停止使用该技能。此前只读取了技能说明和本地规则，未执行任何工作流命令或平台写入；后续仅使用项目 Git/部署脚本与文件化计划记录。
+- 两仓已刷新 origin：tov5parser `main` 与 `origin/main` 为 0/0，VxEditor41 `master` 与 `origin/master` 也为 0/0，无需合并且禁止变基。tov5parser 远端新增 release-channel 引用和 v1.2.0/v1.2.1 标签，不影响当前 main 发布。
+- 提交范围复核：tov5parser 产品提交仅包含 README、ivxMap、转换器及两份测试；三份规划记录留到部署后作为发布记录单独提交，未跟踪 VxServer 文档排除。VxEditor41 只提交目标转换器，其他 tracked/untracked 用户改动全部排除。
+- tov5parser 产品提交已创建并推送：`c83c698 fix: preserve value-or AST and update backend maps`，精确包含 5 个目标文件；敏感模式扫描、diff check 和 staged 范围门禁通过。`main` 与 `origin/main` 已恢复 0/0。
+- Lambda 发布成功：部署脚本在账号 `587849590304` 重新执行 101/101 测试，打包 1.9 MB，经历史 S3 key `archive-c83c698-20260813T093530Z.zip` 更新函数；发布版本 35，`prod` 从 34 切至 35。冒烟返回 StatusCode 200、ExecutedVersion 35、FunctionError null、业务 code 0。
+- Lambda 独立 read-back 通过：`prod→35`，版本 35 为 Active/Successful，CodeSha256 `7aBqZgfZAgu6M4XQ5rMnbUiKbVpihLIXN6kHVOL9I4c=`，描述精确指向 `c83c698`，运行参数仍为 nodejs20.x / 2048 MB / 120 s。
+- VxEditor41 已仅提交并推送目标转换器：`c5595597d fix: preserve value-or AST in v4 conversion`。目标文件 lint/parse、敏感扫描和 diff check 通过；`master` 与 `origin/master` 为 0/0，用户的 `.gitignore`、`src/stores/event.js` 和未跟踪 UI 目录保持未暂存。
+- Phase 138 实质发布链已全部完成；准备只暂存 `task_plan.md/findings.md/progress.md` 创建独立发布记录提交。tov5parser 未跟踪 VxServer 文档继续排除。

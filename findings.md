@@ -1222,6 +1222,70 @@
 - 根因是 VxServer 组级数据库 Save As 的复制/结构同步逻辑：同 gid 的 `g` scope 表不应因 work uid 改变而复制到另一个用户分片；即使必须复制，也应在写数据前对齐目标表结构，而不能只使用 `CREATE TABLE IF NOT EXISTS`。
 - 前端还会放大问题：`FileIntro.jsx` 在检查 HTTP status 前直接 `JSON.parse(response)`，非 JSON 错误会抛异常；非 200 分支仍是 TODO。这会隐藏部分网关错误，但本次真实后端 1054 已从现存错误框取得。
 
+## 2026-08-11：V4→V5 工作流设计补充证据
+
+- 既有 `/work/saveAs` 服务端链路会复制 work 元数据、配置和数据库，且其权限检查与目标 gid/用户身份强相关；因此工作流不能绕过平台服务直接写数据库，也不能把“能读取参与案例”等同于“能在原组中另存”。
+- 既有真实案例已证明：即使转换结果正确，Save As 仍可能因平台数据库复制问题失败。工作流的问题归属至少要分为 `CONVERTER`、`SOURCE`、`PLATFORM`、`AUTHORIZATION`、`UNKNOWN`，不能把所有保存失败都记为转换器错误。
+- 之前为定位接口做过一次过宽的项目搜索，输出被规划文档噪声截断；后续只使用精确文件和路由范围检索，避免遗漏关键实现。
+- VxServer 的 `/work/saveAs` 先经过 `checkAuth`，要求当前用户对源 nid 的成员类型不高于 `developer`，随后 `Work.CopyAs` 再次校验成员身份；这证实“参与者身份”至少可能具备读取/编辑权限，但最终能否另存仍受组规则约束。
+- `copyWorkToUid` 在普通 Save As 时会强制 `req.Gid=oldWorkInfo.Gid`。若源案例在组内且当前 uid 不是组拥有者，默认拒绝“另存到当前组”；代码仅为特定 admin enterprise 场景留了例外。因此一般组内 developer 即使能加载源案例，也未必能用自己的身份完成 V5 Save As。
+- 一次 VxServer 全局检索误扫到打包后的 `apps/huawei/static/core/player.js`，导致输出达到约 1.3M tokens 并被截断；真实目标文件仍成功定位。后续检索严格限制到 `resource/`、`editor/` 与指定源码文件。
+- `/work/load` 的 `checkAuthLoad` 与写接口权限并不相同：公开无密码案例或若干平台管理员可以绕过成员检查，普通用户则需通过成员类型检查；所以“load 成功”更不能直接推出“saveAs 成功”。
+- 当前资源服务的最低登录判断只检查请求上下文解析出的 uid/sandbox uid，具体身份来自平台 Cookie/网关上下文；代码检索没有显示标准 Bearer token 被资源服务直接消费。工作流 API 应在平台认证边界验证调用者 token，再换成短期内部委派身份，不能把任意 token 原样转发给转换器 Lambda。
+- 本轮一次精确检索仍附带了不存在的 `VxServer/middleware` 目录，`rg` 对该路径报 ENOENT，但其余真实目录结果完整；后续不再使用该路径。
+- 网关证据进一步确认：浏览器登录凭证名为 `ih5bearer`，网关校验 JWT、在线 sid 和最长时效后才注入内部 `X-Uid/X-Sid`；资源服务本身信任的是网关清洗后注入的内部头。工作流若接收“token”，应明确它是平台登录 JWT，并复用网关验证，绝不能允许客户端自行提交 `X-Uid`。
+- `gateway/gwhdr/token.go` 明确同时支持 `Authorization: Bearer <ih5bearer JWT>` 与同名 Cookie；因此“调用者只传自己的 token”在认证层可行。最佳实现是让新工作流入口继续走现有网关，网关完成 JWT/sid 校验并注入 uid，工作流内部以用户 context 调平台服务；不是把 Bearer token交给转换器。
+- `vx-json-evolution-claude` 的权威判版规则可直接复用：平台元数据 `extra.ver == 2` 即 5.x；5.0/5.1 再由 `ntype` 区分，`verDetail` 仅审计。只有 work 文件时再用实体结构判定。转换器只支持新代 4.x work；旧代 4.x 必须返回 `UNSUPPORTED_V4_FORMAT` 或先进入独立的格式归一化步骤，不能直接硬转。
+- 第二次跨仓版本检索误扫到 VxEditor41 的打包静态 JS，输出约 3.9M tokens 并被截断；所需权威文档与源码命中已在截断前返回。后续只读取已知文档与源文件，不再跨整个编辑器执行宽泛 JS 检索。
+- 当前 Lambda 的公开动作只有 `version`、`convertV4ToV5`、`getTransferUrls`；转换动作只接受内联 V4 JSON或 S3 key并返回 V5 JSON/S3 key。它没有判版、用户权限、获取 work、诊断报告、验证或 Save As，所以不应把现有 Lambda 直接扩成持有用户凭证的全能入口，而应由外层编排服务组合这些能力。
+- 本轮先后误用了仓库根下 `convertDiag.js` 和 `v4ToV5/convertDiag.js`，实际文件位于 `v4ToV5/utils/convertDiag.js`；两次命令都只对错误路径报错，其余源码读取完整，未修改文件。
+- 诊断文件实际由 `scripts/convert-local-cases.mjs --diag` 生成：转换器内部只有默认关闭的进程内记录采集器 `v4ToV5/utils/convertDiag.js`。现有 Lambda 未启用也未返回这些记录。工作流需要把诊断采集变成转换 Worker 的正式结构化返回，而不是依赖本地 `.json/.md` 文件。
+- 当前诊断只直接区分 `dropped` 与 `custom-expr/jsfn fallback`；它是“需检查的证据”，不是完整正确性判定。大量 jsfn fallback 可以语义正确，转换成功也可能没有抛错却生成错误 AST。工作流必须增加独立验证器和归因器，不能用 `code=0` 或 `convert-errors` 数量直接判定成功/失败。
+
+### 推荐总体架构
+
+- 新增平台内 `CaseMigration` 编排服务，入口继续走 VxServer gateway；客户端只在 `Authorization: Bearer <ih5bearer>` 中传自己的 token，请求体只含 `sourceNid` 与可选 `gid`。网关验签、校验在线 sid并注入 uid；原始 token 不落库、不进入 S3、不传给转换器或 AI。
+- 编排器采用持久状态机（AWS Step Functions Standard、Temporal 或平台等价实现）并只在状态中传 S3 artifact key/摘要，不传大 JSON。Job 元数据落平台数据库，输入/输出/诊断落加密对象存储并设置 TTL。
+- 转换 Worker 固定到不可变 Lambda version/代码 SHA，只做 `V4 JSON → V5 JSON + raw diagnostics + manifest`；判版、权限、加载、验证、AI、Save As 均由外层组件负责。
+- 平台 Case Adapter 以网关确认的 acting uid 调用 `Work.Get/load/CopyAs/save/config` 内部服务。异步场景保存 acting uid + 限域 job capability，并在最终写入前再次校验源权限和目标权限；不得使用无审计的全权 service account绕过组权限。
+- 最终写入不建议直接复刻前端的多步公开接口链，而应新增一个幂等、尽量原子的 `MigrateSaveAsV5` 后端命令：统一复制元数据/资源/数据库、设置 `extra.ver=2`、迁移默认 config、替换 old nid→new nid且保留 `modDbId` 例外、写最终 work并返回 newNid/workId。若对象存储与数据库不能同事务，则先创建隐藏 draft，失败时补偿/标记失败，避免用户看到半成品。
+
+### 状态机与门禁
+
+- 状态建议：`RECEIVED → AUTHORIZED → SOURCE_RESOLVED → VERSION_CLASSIFIED → SOURCE_LOADED → SOURCE_BASELINED → CONVERTED → VALIDATED → ISSUES_CLASSIFIED → [AI_REPAIRED → REVALIDATED] → READY_TO_SAVE → SAVED → POST_SAVE_VERIFIED → SUCCEEDED`。
+- `extra.ver==2` 直接终止为 `SKIPPED_ALREADY_V5`；V3/范围外为 `SKIPPED_OUT_OF_SCOPE`；元数据/实体结构冲突为 `VERSION_AMBIGUOUS`；旧代且未被当前转换器支持的 4.x 为 `UNSUPPORTED_V4_FORMAT`，不得强转。
+- 保存前重新读取 source workId/hash；若源案例转换期间被修改，返回/自动重启一次 `SOURCE_CHANGED`，不能把旧快照静默另存为最新副本。
+- 保存强门禁：存在 `CONVERTER` blocker、未知高风险问题、AI 修复未通过确定性复验时，一律不创建 V5。保存后必须以同一 acting uid 重新 load 新案例，核对 `extra.ver=2`、newNid 重写规则、work 可读性和结构摘要后才算成功。
+
+### 验证与问题归因
+
+- 转换前先做 V4 source baseline；转换后做独立 V5 validators：顶层/节点/事件保留，启用动作与 `ln` 落点，data-if/绑定 AST，jsfn 语法/参数/自由变量，`_code` 可编译性，cType/paramFunc，服务目标与数据库操作语义，新增悬空 ref，后台事件，以及按规则允许的新服务节点增量。
+- 归因必须比较 V4 baseline 与 V5 输出：V4 有明确合法语义、V5 丢失/变形且可稳定复现，才标记 `CONVERTER`；V4 自身已有非法自由变量/悬空引用且 V5 只是保留，标记 `SOURCE`；load/save/DB/OSS/config/nid 重写失败标记 `PLATFORM`；权限单列 `AUTHORIZATION`；证据不足为 `UNKNOWN`。
+- 每个转换器问题输出证据包：source hash/workId、converter version、nodeId/BID/JSON path、V4 token/code/_code、错误 V5 AST/code、违反的不变量、最小复现和严重级别。只入缺陷队列/报告，不调用代码修改、提交或部署流程。
+- AI 只处理已排除 `CONVERTER/AUTHORIZATION` 的可修复 source 问题，输出受限 JSON Patch、理由与置信度；Patch 经过路径白名单、敏感字段禁改、变更预算和全部 validators 重跑。权限、平台故障走确定性错误/重试；业务语义有歧义或低置信度 source 问题进入 `NEEDS_REVIEW`，不能为追求全自动而猜测。
+- AI 不读取用户 token；案例 JSON 先做 secret/连接信息脱敏，尽量只发送问题切片、相邻上下文和对应规格。每次补丁保存 before/after、模型版本、prompt版本与验证结果，最多循环 1–2 次。
+
+### 权限与参与案例
+
+- 权限至少拆成 `canReadMetadata`、`canLoadWork`、`canSaveAsSource`、`canCreateAtTarget` 四项预检；`gid` 只是来源/目标完整性断言，必须与服务端解析到的 source gid 一致，不能被视为授权。
+- 非组个人案例：当前 `CopyAs` 允许具有 developer 成员身份的参与者另存到自己的 uid，预期可用，但仍要真实预检。
+- 组案例：组拥有者可以按现有规则另存回同组；普通 developer 通常能 load，却被 `copyWorkToUid` 拒绝另存回同组。若产品要求所有参与者都能转换，必须明确新增一种授权：组拥有者授予 `migrate/create-copy` 权限，或允许创建个人 V5 副本并正确复制/重绑组数据库。不得由工作流服务账号偷偷越权代存。
+- 第一版建议保持现有权限语义：非组 owner 返回 `TARGET_PERMISSION_DENIED`，明确说明“可读取但不能在原组创建”。在业务确认个人副本的数据库、资源与协作语义后，再实现第二种目标策略。
+
+### API、数据与幂等
+
+- `POST /api/v1/case-migrations`：header 为 Bearer token + `Idempotency-Key`，body 为 `{sourceNid, gid?}`，返回 `{jobId,status}`；`GET /api/v1/case-migrations/{jobId}` 返回进度、结论、newNid和报告，必要时提供 SSE/webhook。
+- Job 至少记录 `actingUid/sourceNid/resolvedGid/sourceWorkId/sourceHash/sourceVersion/targetPolicy/converterVersion/validatorVersion/status/newNid/issueSummary/artifactKeys/timestamps`，永不记录 token。
+- 幂等键由 acting uid、sourceNid、sourceWorkId/hash、target policy、目标版本和 converter version组成；同一快照重复提交返回原 job/原 newNid。Save 命令另带单次 reservationId，防止网络重试创建多个 V5。
+- 终态至少包含 `SUCCEEDED`、`SKIPPED_ALREADY_V5`、`SKIPPED_OUT_OF_SCOPE`、`VERSION_AMBIGUOUS`、`UNSUPPORTED_V4_FORMAT`、`TARGET_PERMISSION_DENIED`、`BLOCKED_CONVERTER_DEFECT`、`NEEDS_REVIEW`、`PLATFORM_FAILED`；所有终态都应给机器错误码和面向用户的中文说明。
+
+### 分阶段落地
+
+- Phase A：先定 API/状态/权限矩阵和原子 Save As 契约，尤其先决定组内非 owner 的目标策略。
+- Phase B（无 AI MVP）：完成网关入口、持久 job、权威判版、用户态 load、固定版本转换+结构化诊断、确定性验证、问题归因、强门禁与原子保存；用现有 51 个 clothing 案例做黄金回归，并补组 owner/developer/只读成员集成测试。
+- Phase C：加入受控 AI source repair、脱敏、Patch policy和重验证；先 shadow 运行，只报告拟修复，积累准确率后才允许自动应用低风险类别。
+- Phase D：完善 blocked job 在新转换器版本发布后的受控重跑、可观测性、配额/并发、告警、artifact TTL、审计与 post-save cleanup。
+
 ## 2026-07-29：修复 VxServer 同 gid 组级表误复制
 
 - 用户确认先修复判断逻辑：old/new work 位于同一个 gid 时，`g` scope 数据库应复用现有组表，不因 work uid 不同而进入复制。
@@ -2270,3 +2334,222 @@
 - 第 51 例 data-if 正确结构为 `props.conditionVal.ast`：414 个节点中 412 个正式条件均使用合法条件根且 `binds={}`；只有 2 个 V4 `code/_code` 全空的源空条件保留 `{value:{op:'val'}}` 兼容 bind。旧审计按 `conditionVal.op` 取值才会将 414 个全部误报为缺失。
 - 第 51 例完整性闭合：节点 4,120→4,120，事件 1,084→1,084，有效动作 5,356 个全部映射，176 个 disabled 全部 skip，4 个额外 skip 均为 infinite animation；184 个 fireService 逐 BID/目标精确一致；51 个后台事件均有 AST/_code；756 个 cType 及 369 个 formal paramFunc 均正式有效。
 - clothing 源目录共 51 个 JSON，V5 侧现有且仅有 51 份与源文件同名的 `conversion-report.md`，缺失 0。其中 46 例产生 `app.v5.json`，5 例最终判为原生 V5/V5.1 后跳过转换：工艺制作说明书、快递公司配置前端、快递公司配置后端、新裁剪任务单、部门产能管理。
+
+## Phase 132：自动工作流现有链路调研
+
+- 现有 Lambda `convertV4ToV5` 只接收内联 `v4CaseJson` 或 `v4CaseJsonS3Key`，成功时只返回 V5 JSON/下载指针，硬失败时返回 `code=10003 + errorMessage`。它不获取案例、不判版、不启用诊断采集、不验证转换正确性，也不创建 V5 案例。
+- `app.convert-errors.json/.md` 是本地 `scripts/convert-local-cases.mjs --diag` 启用 `convertDiag` 后由调用脚本整理和落盘的报告，不是转换核心或当前 Lambda 自动产生的文件。
+- VxEditor41 案例基础 API 为 `/work/create`、`/work/saveAs`、`/work/load/<workId>` 与 `/editor/work/get`。`onCreateCase` 支持直接传 `caseData`；创建 V5 时对外传 version≥5，对后端仍用 `version=4.1` 并通过 `extra=EditorVerHelper.genEditorVerInfo(...)` 写入 V5 版本信息。`gid` 作为可选查询参数传给 create。
+- VxEditor41 `onSaveAsWork` 调用 `/work/saveAs?nid=<sourceNid>`，POST body 是完整 nodes；这与新建空案例后再 save 不同，能让服务端保留“从原案例另存”的业务语义。但是否允许非 owner 的参与者 token 调用，必须从 HTTP 认证实现和后端权限校验进一步确认，不能仅根据前端按钮可见性推断。
+- VxEditor41 当前的“另存为 5.0 案例”不是一次 API，而是编排链：当前案例 `saveDealCase` → 内存转换器 → `/work/saveAs?nid=<old>&newVer=2` 创建新 nid/workId → 默认配置迁移 → 将 JSON 中旧 nid 替换为新 nid（但回退 `modDbId` 中的替换）→ `/work/save/<newWorkId>?nid=<newNid>` 写入最终 V5 JSON。新工作流要复制这条链，不能只调 `saveAs`。
+- VxEditor41 的 `ajaxSend` 没有设置 Bearer/token 请求头；同源 XHR 默认依赖浏览器会话 Cookie，`withCredentials` 只在少量跨域请求中显式打开。因此用户所说的“token”是否可直接替代编辑器 Cookie，目前没有代码证据；必须先确认平台服务端支持的服务端认证协议。
+- 编辑器按钮层只在非 guest/非 sandbox 时显示另存；这只是 UI 门禁。真正的“参与者能否读/能否另存”必须以 `/editor/work/get`、`/work/load`、`/work/saveAs`、`/work/save` 在对应用户身份下的 HTTP 结果为准。
+
+## 2026-08-11：本地独立分发包实施决策
+
+- 用户进一步明确：工作流运行在用户本地 Codex/Claude Code Agent 中，AI 分析也由本地 Agent 参与；因此 Phase 132 的中心化编排器调整为本地确定性 CLI，平台只提供当前用户权限下的元数据、load 与 Save As API。
+- 面向其他用户分发时不能要求克隆或在 `tov5parser` 源码仓运行。最终产品拆为稳定 Launcher、可版本化 Workflow Runtime、只读可校验 Converter Runtime和 Codex/Claude 薄适配层；Converter 仍只由当前维护者发布。
+- Job 默认不放当前工作目录，权威数据落用户全局私有目录；当前目录只保存不含 token/完整案例的可选引用。所有敏感文件 0600、目录 0700，token 只从环境变量/Keychain/隐藏输入进入内存。
+- 每个新 Job 在开始前逻辑检查 stable manifest；默认 `prompt`，可选 `auto/never`。不可变包下载后必须校验 hash/签名、兼容性和冒烟测试，再原子切换；运行中 Job 固定 workflow/converter 版本，旧版本保留用于恢复和回滚。
+- 更新不采用 `git pull`，而采用签名发行包和 `stable/canary` 清单。稳定 Launcher负责 Workflow 自更新，Workflow负责 Converter版本检查；Agent Skill 仅在 agent protocol 变化时同步。
+- 目标 sibling `/Users/lianghuang/Desktop/ivx_repos/ivx-v4-v5-migration` 当前不存在，可以无覆盖风险地新建独立项目。宿主 Node 为 v24.14.1、npm 11.11.0；分发包仍以 Node >=20 为运行基线，优先只用标准库降低安装面。
+- 当前 `@visuallogic-vlcode/tov5parser` 根导出只有 `convertV4CaseJsonToV5CaseJson` 与 `loadRuntimeMaps`；诊断 collector 位于未公开的 `v4ToV5/utils/convertDiag.js`。Workflow 的 Converter Provider 必须允许“基础转换”和“带正式诊断转换”两种能力，并在缺少后者时明确 capability，而不能依赖私有子路径作为长期发行协议。
+- 本轮不会为了搭建 Workflow 擅自修改 converter 导出；MVP 先定义稳定 provider/manifest 契约并支持当前基础转换。后续由 converter 维护流程单独发布公开的 detailed conversion API 后再启用正式诊断能力。
+- 真实 converter 集成冒烟候选优先选 `localCases/v4/user-avatar-menu/app.json`（约 500,780 bytes），显著小于同批 0.9–5.6MB 样本；可在不触发平台网络/保存的情况下验证独立 Workflow 对当前 tov5parser 公共 API 的兼容性。
+- 首次真实冒烟正确把 `localCases/v4/user-avatar-menu/app.json` 实物识别为 V5（9 个 event AST、0 个 V4 tree），以 `SKIPPED_ALREADY_V5` 结束且未调用 converter。说明目录名不能代替实物判版，同时验证了“非 V4 不转换”的门禁。
+- 搜索更小 clothing V4 样本时，使用 `xargs wc` 未处理含空格目录名，导致 `PAD 量体_...` 被拆成两个参数并报路径不存在；其余无空格结果仍返回。后续不再用裸 xargs，改用 NUL 分隔或直接选已知的 `合并分床小工具_12105173_熊/app.json`（约 106KB）核对后冒烟。
+- `合并分床小工具` 是真实 V4.1 但没有任何版本化事件信号；按文档规则应由元数据兜底。初版 classifier 把“有 work 但物理信号为空”留在 ambiguous，已补为 `CONFIRMED_V4_METADATA_FALLBACK`，且只有无 V5 冲突信号时才允许转换。
+- 当前 converter 对该 eventless V4 成功产出 V5，节点 5→5且摘要稳定；首版 validator 仍强制要求目标至少出现一个 V5 event AST，于是产生 `TARGET_NOT_V5` 假阳性。对没有事件的 work，文件本体本来就无法区分 V4/V5；正确规则是：源有 V4 event tree时目标必须有 V5 AST，源/目标都无版本化事件信号时由已确认元数据和“目标无 V4 残留”兜底，不应报 blocker。
+- 更新分发的可维护边界已经实现为“双签名清单”：Workflow 与 Converter各自拥有不可变 tarball、SHA-256、兼容范围、minimumSupported/revoked 与 stable/canary manifest。用户机器在每个新 Job 前检查；默认提示、可选自动更新，运行中 Job 不换版本。普通 converter 修复无需改 Agent Skill。
+- 维护者发行不依赖 Git pull：`release sign` 使用离线 Ed25519 私钥对 payload 的精确字节签名，客户端只持公钥；tarball 先上传、签名清单最后原子提升。测试确认清单 0600、签名可验证且输出不含私钥文本。
+- 独立 MVP 的 AI 权限边界通过端到端验证：Agent 只能提交与现有 validation issue 一一对应的 owner 分类；CONVERTER 永远不能 repair；SOURCE 且明确允许的修复只能走受限 RFC6902 Patch，禁止 identity/secret/整根替换，并必须重新运行确定性验证。
+- 平台接入仍有一条不可跳过的硬边界：必须分别验证 source load 和目标 Save As 权限，并完整复刻 VxEditor41 的多步另存链、保存后回读及 `SAVE_INCOMPLETE` 恢复。MVP 因缺少经实测的参与者权限矩阵而不暴露任何线上写入命令。
+# Phase 33：运行时等价诊断与知识库整合（2026-08-12）
+
+- `vx-json-evolution-claude` 的三套主文档是基于真实案例、编辑器源码和转换证据形成的知识资产，但项目自身明确声明：它们不能单独证明编辑器往返或 V4/V5 运行时等价。
+- 该项目已经定义了可用于工作流诊断的证据层级：真实案例证明“存在”，编辑器/运行时代码解释“语义”，转换器实现仅作为线索而不是结果标准。
+- 因此文档应作为版本化、可追溯的诊断知识库接入工作流；不应把整套 Markdown 直接塞入 Agent 提示，也不应把叙述性结论直接当作自动修复授权。
+- 知识条目需要保留规则 ID、适用版本、证据引用、置信度、例外和自动化级别，Job 必须记录实际使用的知识版本与规则 ID。
+- 初次批量读取文档输出过长而截断；后续改为按文件、按段读取关键章节。
+- 当前 Workflow 的静态验证器只覆盖三段根、版本信号、节点保留/重复、AST 基础形态与 `jsfn` 语法/参数个数；它没有编辑器加载验证、运行时行为采集或 V4/V5 行为比较能力。
+- 当前问题分类 schema 只有单一 `owner`（CONVERTER/SOURCE/PLATFORM/AUTHORIZATION/UNKNOWN）。这把“发生原因、负责方、可修复对象”混为一体，不足以表达测试脚本错误、环境不稳定、知识缺口、平台运行时差异和案例级目标修复。
+- 当前 Patch 策略只允许对 Job 内 V5 JSON 做最多 20 条受限 RFC 6902 操作，保护身份/凭据字段；这可以继续作为 AI 修复的底层安全门，但需要增加运行时证据、修复轮次和保存目标约束。
+- 当前保存编排器具备更新已创建目标案例与读回校验的底层接口，但状态机在首次另存完成后进入终态；要支持运行时修复闭环，应新增“同一目标案例的受控修订链”，而不是每轮重新另存产生多个案例。
+- `vx-json-evolution-claude` 已有稳定 `CVT-*` 规则 ID、KI 编号、溯源簿与证据锚点，适合生成机器可检索的知识卡；正文还明确将运行时行为作为双表示争议的最终裁判，并要求新发现按最小复现与规则 ID 反哺文档。
+- 不应把 `vx-json-evolution-claude` 的本机路径或 Git 仓库直接作为普通用户运行时依赖。推荐从该项目生成独立、不可变、签名的 Knowledge Runtime；Workflow Job 固定其版本与哈希，Agent 只读取按症状/路径检索出的有限知识卡。
+- 原始三册和溯源材料来自大量真实案例，分发前需要专门的脱敏与授权审查；终端用户包默认只带派生规则、必要的脱敏片段和公开锚点，不打包完整案例或内部底稿。
+- “直到测试通过”应实现为目标导向但有界的闭环：限定同一目标 nid、乐观并发版本、补丁次数、回归检测和低置信度停止条件，避免无限写入或把平台/测试环境问题误修进案例 JSON。
+
+# Phase 134：修复轮次、配置复制与人工反馈（2026-08-12）
+
+- 当前 Workflow 的 `mergeSaveAsConfig(defaultConfig, sourceConfig)` 不是完整源配置复制：主体取当前用户默认配置，只从源案例提取 `customVars`，并删除 `default` 标记；没有迁移源配置的其他顶层配置域。
+- 保存编排器会对该“合并后配置”计算哈希、写入目标、再读回核对，因此现有链路保证的是“按当前合并规则写入成功”，不是“V4 与 V5 环境配置等价”。
+- 这会让预览域名、微信/支付宝/钉钉等平台配置、第三方集成或环境变量在目标案例中发生变化，运行时比较前必须新增配置等价检查，不能把配置差异造成的行为差异归给转换器。
+- VxEditor41 当前普通另存明确执行相同策略：读取源案例 `config.customVars`，再以当前用户默认 Work Config 生成目标 `config`；注释写明“另存的时候，保留环境变量值”。因此 Workflow 现有逻辑是对编辑器现状的复刻，不是无意遗漏。
+- VxServer 将两类信息分开存储：`config` 保存微信/小程序/第三方集成与 `customVars`；`settings` 和 work 元数据保存 `domain/path/previewDomain/previewPath` 等运行地址。Workflow 目前只调用 `type:'config'`，完全没有读取或写入 `settings`，因此预览域名不是 `mergeSaveAsConfig` 少合并一个字段，而是缺少一条独立的 Settings 迁移链。
+- VxServer 的复制逻辑会主动从复制后的 settings 删除 `domain/path/previewDomain/previewPath`，并给新案例生成新的 play/preview path；服务端还会校验域名是否属于目标用户以及域名+路径是否冲突。这说明不能原样复制预览域名和路径，至少要经过目标用户所有权、平台允许范围和唯一性校验。
+- VxServer 的 copyConfig 对通用复制也有安全净化：删除 `wechat_config`，源 `customVars` 的值会被清空，仅保留声明；VxEditor41 普通另存随后又把源 `customVars` 写回。因此“结构复制”“运行值复制”“账号/密钥复制”必须分开制定策略。
+- `/work/saveAs` 的服务端复制本身会复制 `node_vx_config`，但会净化配置；随后 VxEditor41 又用“当前用户默认 config + 源 customVars”覆盖目标 config。Workflow 也复刻了这次覆盖。最终目标配置等价性必须按平台最终读回值判断，不能只看 Save As 内部复制步骤。
+- `ConfigConfig` 明确包含大量凭据/身份字段，例如支付宝私钥、钉钉 appSecret、企业微信 secret、PayPal clientSecret、Azure subscriptionKey、Android keystore 密码等。完整复制源 `config` 既可能越权，也可能把其他所有者的密钥带给当前用户，因此不能为了运行时等价默认全量复制。
+- 自动运行时测试需要把配置字段至少分为：安全可复制运行值、需要目标用户重新绑定的身份配置、绝不可自动复制的 secret、以及由平台重新分配的域名/路径。测试报告应把不等价配置标为 `ENVIRONMENT_CONFIGURATION`，在其解决前不进入 Converter 根因判断。
+- 推荐新增字段策略注册表，而不是整对象复制：`COPY_EXACT`、`REMAP_FOR_TARGET`、`USE_TARGET_BINDING`、`REQUIRE_USER_BINDING`、`REDACT_AND_COMPARE`、`IGNORE_FOR_PARITY`。策略应由 JSON Pointer + 版本/平台类型驱动，默认未知字段不复制并上报。
+- 预览域名/路径应走 `REMAP_FOR_TARGET`：使用目标用户允许的预览域名和新案例唯一 previewPath，并在行为轨迹比较时归一化源/目标 host、nid、workId；若案例逻辑主动读取或比较预览域名，则该字段不可忽略，必须配置可满足业务语义的目标域名，否则判为环境阻断。
+- `settings` 中可考虑精确复制 loading/favicon/tags/indexMetas/UA 等经审查的安全字段；domain/path/previewDomain/previewPath 需重映射，customDomain 重新计算，hideJs 等版本派生字段由目标平台生成。`config` 的 secret 和账号绑定字段默认使用目标用户绑定或要求人工配置。
+- 自动修复“3 轮”应只统计成功写入目标 V5 的 AI Patch Revision，不统计诊断、只读重测、测试脚本修复、平台网络重试或用户提供新线索。三轮通常覆盖“首要缺陷修复→暴露的次生缺陷→回归收口”，再继续时因基线累积变化、因果归属减弱和覆盖用户修改风险显著上升。
+- 推荐保留默认 3 轮，不直接放宽默认值；允许用户对同一目标显式追加 2 轮，单次授权硬上限 5。只有问题数单调下降、无新回归、修复范围未扩大且置信度仍高时才建议追加；出现振荡、重复失败或根因分类变化时即使未满 3 轮也停止。
+- 当前 Job 数据跨 Agent 会话持久化，但 `SUCCEEDED`/`DIAGNOSTIC_COPY_CREATED` 被定义为不可继续的终态。要支持用户人工定位后续跑，应把“案例创建结果”与“运行时验收会话”拆开：前者可完成，后者保持 `AWAITING_HUMAN_EVIDENCE`/`RUNTIME_REVIEW_OPEN` 并可恢复。
+- 用户自然语言不能直接改变 Job 或授权写入。应新增 `HumanFinding` 证据对象（症状、复现步骤、V4/V5 观察、可选 JSON 路径/BID/建议原因/是否手工改过目标）；Agent 将其提交给 CLI，CLI 固化来源和时间，随后重新诊断、分类和走原有 Patch/保存门禁。
+- 若用户已在编辑器中手工修改目标 V5，Workflow 必须检测目标 `workId` 前进并拉取最新目标，生成与上次 Workflow 基线的外部变更 diff。只有用户明确选择“采用该人工修订作为新基线”后才能验证/重测；禁止自动覆盖人工修改。
+# Phase 135：案例 11023063 两个动作块首参 AST 诊断
+
+- 待核验目标 ln：`chz95wfa3j50000v6630`、`cx77xtqa3j5000002qxg`。
+- 当前用户观察只证明编辑器展示异常；在对照 V4 源参数、V5 AST 和编辑器反序列化契约前，不预设是 Converter、源数据或平台编辑器问题。
+- 用户仅授权定位，因此不会执行 Save As、诊断副本创建、目标修复或 Converter 源码修改。
+- `doctor` 只读健康检查通过：平台已配置且 Token 可用；Workflow `0.3.8`、Converter `1.2.1`，两者能力/兼容范围匹配。
+- `doctor` 报告 Codex/Claude 的 workflow skill 相对托管版本存在本地修改；本轮保留本地文件，不执行覆盖式同步。
+- 当前 CLI 对 `runtime status` 返回 `CLI_COMMAND_UNKNOWN`，说明已加载的技能文档与本机 CLI 命令面存在版本差异；需从 CLI 当前帮助寻找等价只读状态命令，不能重复同一失败命令。
+- CLI 当前帮助确认 0.3.8 没有 `runtime` 命令；本次静态 AST 诊断不依赖浏览器 Runtime Review，可将该项记录为文档/CLI 版本差异。
+- 签名发行检查：Converter `1.2.1` 为 `CURRENT`；Workflow `0.3.8` 有兼容的 `0.4.1` 可更新，`required:false`，本机更新策略为 `prompt`。未获用户授权前不安装本地 Workflow 更新。
+- 仓库已有 nid `11023063` 的完整 V4/V5/诊断产物：`localCases/v4/clothing/frp后台1_11023063_熊/app.json` 与对应 V5 目录，可先做无新 Job 的只读证据提取。
+- 两个目标 ln 在 V5 中都是动作根 `let`，分别调用数据库变量的 `execSql`；首参精确结构均为 `method.args[0] = {op:'var', args:[{op:'jsfn', ...}]}`，第二参是空 `{op:'val'}`。
+- 两个 V4 源动作首参均为 `Formula` 类型 `sql` 参数，公式由 SQL 文本、组件字段 `$refs...p_value`、service params 和三元表达式拼接；第二参 `variables` 为 null。
+- 同一两个 ln 在旧目录 `frp-后台/app.v5.json` 与 nid 专属目录产物的 AST 完全一致，排除单次转换/落盘随机损坏；这是稳定的结构化转换结果。
+- 目标首参的 `jsfn` 可见内容和参数绑定均完整，当前可疑点集中在编辑器对动作参数中 `var(jsfn)` 的反序列化/展示契约，而非 SQL 字符串或参数数量明显丢失。
+- 诊断文件对两个目标均给出相同闭环：`phase=custom-expr-fallback`、`outcome=custom-expr`、`message=not support ||`、`prop=sql`、`propKind=actionParam`。因此 `||` 触发了 full-JS/jsfn 兼容兜底，而不是结构化 concat/switchexp 转换。
+- 本案共有 78 个 `execSql` 调用：首参形态为 `var(concat)` 56、`var(jsfn)` 15、`var(get)` 3、空 `val` 4。正常结构化 SQL 的外层 `var` 明确带 `cType:'String'`；两个目标的 `var(jsfn)` 外层没有 `cType`，这是下一步需要与其余 13 个 jsfn 和编辑器契约核对的高价值差异。
+- 历史转换报告只验证了 1,009 个 jsfn 可编译且形参与实参数量匹配，未验证编辑器反序列化/展示；因此原报告“逻辑保留”与当前“编辑器不可显示”并不矛盾。
+- 本案 15 个 `execSql` 的 `var(jsfn)` 首参全部没有外层 `cType`，所以“缺少 `cType:'String'`”是 custom-expr fallback 的系统性特征，不能仅凭两个目标就定为它们独有根因；需要核对编辑器是否普遍无法显示这 15 个落点。
+- 两个目标的 jsfn 不是 AST 特例：同案还有 13 个结构相同的 SQL fallback；潜在影响范围至少覆盖本案所有 `execSql.sql` 的 custom-expression fallback，而非仅两个 ln。
+- VxEditor41/VxEditor5 及 widgets sibling 仓库均存在，可用实际编辑器反序列化源码确认 `var(jsfn)` 和 `cType` 契约。
+- 转换器 `V4FormulaCodeConverter.js` 约 2517 行的注释明确声称 custom-expression 输出“与编辑器公式编辑器保存 bind 的产物一致：jsfn 外层包 var”；当前必须验证这条假设是否只覆盖 bind、却遗漏 action parameter 的类型/显示契约。
+- 现有回归包含“server action parameters retain inferred cType without copying target type”以及多条 jsfn 语义测试，说明类型传播与 custom-expression 是两个已有但可能未交叉覆盖的测试维度。
+- `processCustomExpr()` 的实际返回值固定为 `{op:'var', args:[{op:'jsfn', val, args}]}`，没有设置外层 `cType` 或目标 action-param 类型；因此任何 jsfn fallback 都只能依赖调用链后续的类型装饰。
+- 现有 cType 回归覆盖字符串/数字字面量、对象、service param 和 serverTime，但没有 jsfn fallback；现有 jsfn 回归又主要验证运行语义、单行和参数配对。二者的交叉缺口已确认。
+- VxEditor41 的可见代码中 `ASTToBlocks.js`、`VLangToTree` 和 blockProcessor 都有 `jsfn` 分支，说明编辑器并非完全不支持 jsfn；问题更可能是 jsfn 所在 action-param 根节点缺少编辑器所需上下文/类型，而非 `op:'jsfn'` 本身非法。
+- `ASTToBlocks.parseAst` 对 `op:'var'` 只是递归展开其 args，对 `op:'jsfn'` 会调用 `customExprPropcessor.toToken`；这个 AST→可视块的核心分支本身不检查外层 `cType`。因此单纯缺 cType 不足以解释“不能显示”，需继续查 action 参数把 AST 送入公式编辑器前的选择/校验逻辑。
+- `customExprPropcessor.toAST` 反向生成的正是 `{op:'jsfn', val:[code,...], args}`，结合外层公式保存包装可支持 round-trip；目标 AST 的 jsfn 内层基本符合这个格式。
+- 转换器 `dealDbStageMethodValue` 只负责前台直调 DB 的服务参数抽取；本案 scope 为 server，因此需读取 `convertActionParamValue` 主路径，而不是沿用该前台特殊分支判断。
+- 编辑器 `TypeChecker.processAst` 也没有 `jsfn` case，遇到 `var(jsfn)` 会得到 `targetType=undefined`，但 `compareType()` 仅在 targetType 和 pType 都存在时校验，因此这不会直接报类型错误；它进一步削弱了“仅缺 cType 导致完全不显示”的解释。
+- `convertActionParamValue` 的定义位于 `v4ToV5/utils/action.js`（不是 actionParamConvert.js）；下一步应从该主路径看 Formula 返回 AST 是否被附加 `type`/`cType`，以及 `execSql` 参数契约如何传入。
+- `convertActionParamValue` 在结束前只有拿到 `paramType` 才写 `result.type=paramType`；server Formula 还会运行 `applyBackendAstCTypes(result)`。后者能给 concat 推出 `cType:'String'`，但 `inferBackendAstCType`/编辑器 TypeChecker 都不能从 jsfn 推断类型。
+- 真实目标的首参既没有 `type` 也没有 `cType`；同案结构化 execSql SQL 通常虽也没有 `type`，却因 concat 推断得到 `cType:'String'`。这表明根因很可能是两条缺口叠加：execSql 参数契约没有向转换器提供 paramType，jsfn fallback 又不可推断 cType。
+- 若 `execSql.sql` 的权威方法契约应为 String，则正确修复点应优先是动作方法映射/参数类型传播；只给这两个 jsfn 硬塞 cType 会掩盖更广泛的 contract 缺失。
+- 两个动作对象类型分别是 `data-league-db`（ln `chz...`）与 `data-db`（ln `cx77...`），V4/V5 节点类型均未改变；不是对象引用映射到了错误组件。
+- `action.js` 明确从 `getWidgetMethodMap(...).params` 按参数名取 `paramType`，再给 AST 根写 `type`。目标根没有 `type`，意味着这两个对象的 `execSql` 方法映射没有提供可匹配的 `sql` 参数契约，或方法映射本身未命中。
+- `ivxMap.txt` 中可见的 `execSql` 片段至少含 callback 定义；尚需完整提取同名方法对象，确认是否确实没有 `params`，以及 `data-db` / `data-league-db` 是否共用该缺口。
+- 原始 `ivxMap.txt` 的唯一 `execSql` 方法确实有 `sql`/`variables` 两个 params，但其 UI 类型写作 `Formula`；legacy map 还有 3 个同名定义（含 `sql` 或 `sqlCode`）。因此“资产完全漏 params”已排除，问题转为运行时 MapCreator/overlay 解析后为何 `getWidgetMethodMap` 没把可匹配契约传到这两个 action。
+- 原始 map 的 UI 类型不能直接当作最终 AST Java type；必须读取 `loadRuntimeMaps()` / `getWidgetMethodMap()` 的实际输出，确认 MapCreator 是否将 Formula 映射为 String、以及 data-db/data-league-db 选中了哪个同名方法。
+- `env.js` 后台路径只查询 `MapCreator.getVxJaMap()[widgetName].methods`；legacy overlay 只用于前台 `VxWidgetMap`，不会补后台 `data-league-db`。因此 raw legacy `execSql` 定义不一定能进入本案后台 paramsMap。
+- `loadRuntimeMaps()` 仅把 `ivxMap.txt` 各顶层映射载入 global；需直接调用运行时 `getWidgetMethodMap` 验证 data-db/data-league-db 的最终结果，尤其确认 VxJaMap 是否包含这两个键。
+- 直接运行 `loadRuntimeMaps()` + `getWidgetMethodMap()` 已定案：`data-db.execSql` 与 `data-league-db.execSql` 均返回 undefined。
+- `global.VxJaMap['data-db']` 存在，但方法清单只有 dbSelect/dbInsert/dbBatchUpdate 等正式 V5 DB API，没有 execSql；`global.VxJaMap['data-league-db']` 整个组件不存在。
+- 因此 action.js 的 paramsMap 对两个目标都为空，首参不会得到契约 `type`。当 SQL 是结构化 concat 时 `applyBackendAstCTypes` 还能推导 `cType:'String'`；当 `||` 迫使它进入 jsfn fallback 时，推导器无 jsfn case，最终根节点既无 type 又无 cType。这一组合与两个目标的真实 AST 精确吻合。
+- 当前可判为 Converter 的映射/类型保真缺口，不是源 Formula 损坏，也不是编辑器完全不支持 jsfn。仍需核对 execSql 在 raw maps 的父级归属和 MapCreator 是否已有可复用的 legacy server action contract，确定最小通用修复层。
+- 路径级证据：`execSql` 只存在于 `VxWidgetMap.data-db/data-league-db/data-newDb/data-postgres` 的 methods；不在 VxJaMap。`genServerCompActionMap()` 与 `genServerCompActionJaLocMap()` 的 `$execSql` 命中数均为 0。
+- 这说明根缺口是“位于 server tree 的 legacy/VxWidgetMap 数据库动作，被转换器仅按 scope 选择 VxJaMap”，导致方法输入契约丢失；不是 raw map 缺资产。
+- 影响范围不限两个 ln：所有后台 `execSql` action 的 `paramType` 都会缺失；只有当参数 AST 自身能推导 cType 时编辑器表现被掩盖。任何无法推断类型的 jsfn（或其他 unknown 根）都会暴露同类展示问题。
+- 修复层有两个候选：A）后台方法查询在 VxJaMap 未命中时，对明确存在的 VxWidgetMap 方法做受控契约 fallback；B）仅增强 Formula/jsfn 的 backend cType 推断。A 能恢复真实方法 params，语义更完整；B 只修类型症状，可能继续漏 paramsAsObj/errorCb 等契约，应谨慎。
+- VxEditor41 原始转换器的 `getWidgetMethodMap` 同样在 `inServer=true` 时只查 `window.VxJaMap`；当前 Node 转换器忠实继承了这个选择。因此这是上游转换算法的通用缺口，不是独立移植时新引入的差异。
+- 本地已知原生 V5 样本未找到 execSql 动作，暂时不能从本地手工 V5 JSON直接取规范 AST；需改从当前 V5 编辑器源码/动作契约确认显示门禁。
+- 直接把 VxWidgetMap 方法作为 server paramsMap 仍需验证：其 param.type 是 UI 类型 `Formula`，而 server AST 的 `type` 通常应是 Java/VLang 类型。不能在未做类型映射的情况下盲目 fallback。
+- VxEditor5 同样使用 codeEditorV2 `ASTToBlocks` 的 jsfn 分支，进一步确认目标 inner jsfn 是可支持的表示。
+- VxEditor5 的动作参数重建集中在 `src/stores/funcs/event/methodUtils.js`；检索到它会依据 widget/method 参数生成 UI item，并在部分路径读取或删除 AST arg 的 `type`。需精读该函数确认“无 type+cType”如何导致首参不显示。
+- `genGeneralAstParams(method, objNode, ...)` 的硬门禁是 `method`：method 不存在直接返回 undefined；存在则克隆 `method.params` 并为后台节点保留完整 param 定义。动作入参 UI 本身主要来自方法契约，而不是 AST arg.type。
+- 因此若 VxEditor5 对这两个 server-tree 数据库对象也按 VxJaMap 查 `execSql`，首参/参数表会因 method undefined 无法正常重建；这与用户现象比“jsfn parser 不支持”更直接。下一步必须定位方法 lookup 的实际 scope 选择。
+- `genGeneralAstParams` 的 method lookup 调用点在约 2501 行，实际目标方法由同文件的 `getTargetMethod`（约 4699 行）提供；下一步读取这两段即可确定 VxEditor5 是否按 widgetStore（VxWidgetMap）找到 execSql，以及 AST 值如何灌回参数。
+- VxEditor5 `getTargetMethod` 不按 server scope 选 VxJaMap，而是统一查 `widgetStore.widget[node.type].map.methodsMap[actionName]`；因此它能从 VxWidgetMap 找到 data-db/data-league-db 的 execSql，参数表本身不会因 method undefined 消失。
+- 这修正了上一假设：Converter 的 strict VxJaMap 仍会导致 AST 丢 `type`，但 V5 编辑器方法 UI 有独立 VxWidgetMap 契约。要证明首参显示失败，必须继续检查“把 method.args[i] 灌回 Formula 参数”时是否依赖 arg.type/cType，或 customExpr tokenization 是否失败。
+- VxEditor5 methodUtils 中 `getActionParamValue` 只有调用、定义来自外部导入；需做 repo-wide 定位。当前 genGeneralAstParams 只是生成参数描述，并不在这里直接解析 jsfn AST。
+- `getActionParamValue` 已定位到 `VxEditor5/src/stores/funcs/generalAst.js:2930`；methodUtils 从 generalAst 导入它。下一步读取该函数和通用 AST 动作参数装配，确定是否按 arg.type/cType 筛选。
+- `getActionParamsArgs` 能从目标 `let -> get -> method.args` 正确取参，`getActionParamValue` 再按 index/对象 key 取对应 AST；已读部分没有按 `type`/`cType` 过滤。目标首参会原样进入 Formula 编辑器。
+- 因此“无 type+cType”能证明 Converter 丢了后台契约元数据，但还不足以单独解释渲染失败；编辑器路径仍会把 `var(jsfn)` 交给 ASTToBlocks。需要核对 customExpr 的具体 tokenization 或实际页面表现，防止把相关缺陷误当根因。
+- 平台只读 preflight 通过：nid `11023063` 当前仍是 V4.1、版本 `1018`、ntype 1，当前身份为 GROUP_OWNER 且可读；workId 与既有本地下载链需再核对。未创建 Job或案例。
+- `getActionParamValue` 完整实现确认按索引直接返回首参 AST，不看 type/cType；目标不会在取值层被丢弃。
+- VxEditor5 `customExprPropcessor.toToken` 会将 jsfn 参数占位符替换为公式块，再只读取 CodeMirror 第 0 行 tokens。目标 jsfn 已是单行，所以历史“换行导致只显示首行”问题不适用；仍需比对手工保存路径是否会补额外元数据或产生不同表达式形态。
+- 平台当前 workId 为 `calcup52uhpcud8vv3h0-2539`，本地 version 1018 产物来自 `...-2508`；本地 JSON 不是当前 work 的字节级快照。两个 ln/公式由用户当前观察与本地产物共同命中，但在未新建受管 Job前，证据应标注为“结构稳定、当前平台已确认同版本，work revision 不同”。
+- VxEditor5 `setParamAst` 更新已有参数时会清除 op/val/args/_syntaxError/_blockType/cType，但保留原 `type`；新保存的 jsfn 本身仍不会由 TypeChecker生成 cType。说明 type 是参数位元数据，cType 是表达式推断元数据，两者不能混为一谈。
+- 当前最直接的 Converter 分叉仍是诊断中的 `not support ||`：两个正常可结构化的 SQL 拼接因内层 `param.order || "ASC"` 被整体降为 jsfn。需核对 V5 编辑器是否已有官方“空值兜底/逻辑或” AST 块；若有，转换器不应退化为 customExpr。
+- 一次 `rg` 正则对 `||` 的转义写错，导致模式退化并匹配大量无关行、输出被截断；未修改文件。后续用 fixed-string `-F` 精确检索，不重复该命令。
+- 转换器目前唯一可见的结构化条件表达式生成点是 `switchexp`；VxEditor5 还存在 `emptyValCondProcessor`，需要读取其 AST 格式并判断是否对应 JS `||`/空值兜底。
+- VxEditor5 的正式空值判断块已确认：`emptyValCondProcessor.prefix='$evc'`，AST 为 `{op:'switchexp', _blockType:'$evc', args:[not(not(a)), a, empty-equality-sentinel, b]}`，运行语义正是 `a ? a : b`，可表达 V4 的 `a || b`，并可在公式编辑器正常往返显示。
+- tov5parser 全代码未发现 `$evc`/emptyValCond 生成；它只支持普通 conditional `switchexp` 和 `&&` 等逻辑 AST。两个目标因 `param.order || "ASC"` 进入 jsfn fallback，而不是生成现有的正式 `$evc` 可视 AST。
+- 根因现应表述为：V4FormulaCodeConverter 缺少 LogicalExpression `||` → V5 `$evc` 的结构化转换，fallback 保留运行语义但破坏编辑器正常展示/可逆性。缺 type/cType 是伴随的元数据缺口，会扩大 backend customExpr 的风险，但不是本案最直接的首个语义分叉。
+- 进一步读源码发现 `processBinaryExpression` 表面上接受 `||`，但把它交给 `genConditonValAST` 并映射成 `op:'or'`。这个 AST 表示布尔条件“或”，不能保留 JavaScript value-or 的返回值语义（如返回 `param.order` 或字符串 `ASC`）。
+- 两个目标的 `||` 嵌在字符串 `+` 拼接内部；顶层 addition/concat 的专用递归路径显然没有采用 `$evc`，最终抛出通用 `not support ||` 并让整条 SQL 降级。下一步定位 `genAdditionExpressionAST`/`genStringConcatAST` 的具体 reject 点。
+- 精确定位：`genStringConcatAST` 定义约 1662 行，`genAdditionExpressionAST` 约 1707 行；上一轮读取了错误的 2200+ 行区间，未修改文件，现按真实位置读取。
+- `genStringConcatAST` 本身只递归 `processParsedTree` 并拍平 concat，没有显式拒绝 `||`；`processBinaryExpression` 又有 `||` case。诊断仍报 `not support ||`，说明目标 `||` 很可能被解析成未覆盖的 `LogicalExpression`（而非该函数接收的 BinaryExpression），或由另一解析器路径进入 default。
+- 下一步以当前 jsepWrap 对真实公式做只读 parse，结合 `processParsedTree` dispatch 精确确认节点类型；不再从错误信息反推函数。
+- 首次内联真实 SQL 到 Node 命令时，公式里的引号被 shell 截断，导致 `param is not defined`；未修改文件。改为 Node 直接读取本地 JSON并按 bid 取 code，避免再次手工转义公式。
+- 一次包含反引号的 `rg` shell 引号不匹配而失败；未执行检索。后续只检索结构标识/函数名，不把模板字面量写进 shell pattern。
+- `processParsedTree` dispatch 只显式处理 `BinaryExpression`，没有 `LogicalExpression`；若当前 jsep 对 `||` 返回 LogicalExpression，default 会静默 `{op:'val'}`，但诊断中的 ParseError 仍可能来自其他嵌套路径。必须以真实 parse 结果定案。
+- 真实公式 parse 已确认内层 `||` 是 `BinaryExpression`，所以当前代码会进入 `processBinaryExpression`；LogicalExpression 假设排除。
+- Git blame 解释了本地诊断与当前源码的矛盾：`case '&&'/'||'` 是 2026-08-07 的 `c4d2077` 才加入；本地 app.v5/report 于 2026-07-24 生成，当时确实会报 `not support ||` 并输出 jsfn。当前 Converter 1.2.1 则会生成 `op:'or'`，必须按当前逻辑继续定位。
+- 用户今天观察很可能对应当前 `op:'or'` 产物，而不是本地旧 jsfn；不能用旧产物直接作为最终 AST 结论。下一步读取 `c4d2077` 的意图/回归，判断它把 value-or 错当 boolean-or 的范围。
+- `c4d2077 fix: structure safe filter logical formulas` 的 diff 明确把此前落入 default 的 `&&/||` 放进 `genConditonValAST`；新增测试只断言 `||` 产出某个 `op:'or'` 且运行结果正确，没有验证 Formula 编辑器 AST→blocks→AST 往返或嵌套在 concat 中的显示。
+- 该提交的 `||` 回归样本 `objArr_item(...) || '-'` 与本案同属 value-or，却被当作条件 operator AST。这是当前最强的回归来源：运行时 `ast2js` 可保持 JS `||` 语义，但编辑器可视模型应使用专门的 `$evc` switchexp。
+- 因此本案很可能是 2026-08-07 修复引入的“运行语义通过、编辑器表示不规范”缺陷；需要用当前 converter 对两个真实公式做内存级单元重放确认现输出为 nested `op:'or'`、无 jsfn。
+- 已用当前 `V4FormulaCodeConverter` 对两个真实 V4 `sql` Formula 做内存级重放：两者当前均生成 `var(concat...)`，不再含 jsfn，并且各自只含一个嵌套 `op:'or'`；该节点精确对应 `param.order || "ASC"`，没有 `_blockType:'$evc'`。
+- VxEditor5 `condValProcessor` 明确标注为“条件判断(bool)”，`checkOp()` 会把 `and/or/sysop` 全部序列化为 `$condVal`；因此当前 `op:'or'` 在 concat 内会被当作布尔条件块，而不是返回左值或右值的表达式块。
+- VxEditor5 `emptyValCondProcessor` 是正式的值兜底表示：`{op:'switchexp', _blockType:'$evc', args:[not(not(a)), a, empty-sentinel, b]}`，ASTToBlocks/BlocksToAST 都有专门分支，能正常往返公式编辑器。
+- `ast2js` 的 `opMap` 把 `or` 映射为 `||`，所以现有 `c4d2077` 回归只验证执行值时会通过；该测试没有覆盖 AST→blocks→AST，也没有覆盖 `op:'or'` 嵌在字符串 concat 中的编辑器展示。这是“运行正确、编辑器首参不显示”的直接原因。
+- Converter 的确定性首个分叉位于 `V4FormulaCodeConverter.processBinaryExpression()`：它把所有 `||` 交给 `genConditonValAST()`，后者无上下文地区分 value-or 与 boolean-or，统一输出 `op:'or'`。最小修复应为 value-or 生成 `$evc` switchexp，并补真实 SQL 的编辑器往返回归；`execSql` 后台方法契约缺失应作为独立元数据修复评估。
+
+# Phase 136：同步最新线上 VxJaMap
+
+- 用户指出 VxEditor41 的后台 Java 组件 Map 已更新，要求从其线上 `locale.js` 读取最新资产并补全 Converter 的 VxJaMap。
+- VxEditor41 当前仓库的 `shared/proxyRuntime.js` 明确引用 `https://file3.ih5.cn/v35/locale/20260617182958/locale.js`；仍需核对编辑器运行时加载/覆盖逻辑与线上响应后，才能把它定为当前权威快照。
+- 本轮允许修改 tov5parser 的 vendored Map、加载逻辑和测试，但不创建/修改平台案例，不提交、不推送、不发布。
+- 转换器现有权威资产为仓库根 `ivxMap.txt`，加载器位于 `utils/MapCreator.js`；`v4ToV5/env.js` 的后台方法查询直接读取 `MapCreator.getVxJaMap()`。
+- 首轮检索使用了不存在的旧推测路径并触发 zsh glob 错误；已记录并改用真实文件清单，不从失败输出推断资产结构。
+- VxEditor41 的默认 `locale.js` URL 可被 `IVX_LOCALE_URL` 覆盖；`editor_entry.js` 通过页面已有 `locale.js` script 标签反推 CDN 前缀，说明权威版本应从线上编辑器入口实际引用解析，而不是只信本地默认常量。
+- tov5parser 的 `AGENT.md` 含自动提交/推送/部署流程，但本任务上层 Git 规则明确要求项目代码修改后先询问用户是否提交；本轮以后者为准，不自动提交、推送或发布。
+- 2026-08-13 线上 `https://dev.ivx.cn/` HTML 实际引用 `//file3.ih5.cn/v35/locale/20260813145238/locale.js`，这是当前页面权威版本；它新于 VxEditor41 本地默认的 `20260617182958`。
+- 旧默认 CDN 响应显示约 4,976,795 bytes、ETag `cad93a32e10c66e02c8b7e5a1855d70b`；现有 `ivxMap.txt` 为 14,131,315 bytes、SHA-256 `e79c587a...6e`，内部版本 `VxLangLocalVer=2026/6/18 10:01:59`，确实是六月快照。
+- 最新线上脚本将只下载到临时目录并做静态解析，不直接执行不受信任的 JavaScript；目标只替换 `ivxMap.txt` 的 `VxJaMap`（以及若契约要求的紧密配套版本字段），避免无关 VxWidgetMap 漂移。
+- Acorn 安全字面量解析完成：线上脚本共有 `VxLocale/VxLoc/VxJaLoc/VxExLoc/VxJaMap/VxJaVer` 六个赋值；`VxJaMap` 解析访问 14,954 个字面量节点，没有函数、调用或未知标识。
+- 新旧 VxJaMap：179→180 个组件；新增 `data-league-db`，变更 `data-db` 与 `server-security`，无组件删除。`data-db` 新增 10 个方法（含 `execSql`），`data-league-db` 有 13 个方法（含 `execSql`）；两者 `execSql` 都定义 `sql:String`、`variables:JsonArr` 并带 `errorCb:true`。
+- 最新 `server-security` 删除 `rsaOaepSha256Encrypt/rsaOaepSha256Decrypt/aesGcmEncrypt/aesGcmDecrypt` 四个方法。为真实同步当前 V5 后台契约，本轮按线上 VxJaMap 精确替换，而不是只做 additive merge；其余 VxWidgetMap/VxJaLoc/VxExLoc/VxSfMap/VxLangLocalVer 保持原样。
+- 当前和最新 VxJaLoc 都没有 `data-db:+execSql` 或 `data-league-db:+execSql` 条目；这不影响 `v4ToV5/utils/action.js` 通过 VxJaMap 直接读取动作参数/返回类型，但公式层的英文别名派生仍不会凭空新增该动作。用户本轮只要求补全 VxJaMap，因此不扩大为 VxJaLoc 全量同步。
+- 最新 `execSql` 返回类型引用 `DbExecSqlResult`，但最新 VxJaMap 本身没有该 class definition；保持线上原样，不私自补造返回结构。
+- 已在旧 Map SHA-256、新 locale SHA-256、必需 `execSql` 契约三重门禁下机械替换 `ivxMap.txt.VxJaMap`；新文件 SHA-256 为 `a808f9a5...868e`。
+- 语义 diff 复核通过：除 `VxJaMap` 外五个顶层 Map 字节解析值完全不变；VxJaMap 差异严格只有 `server-security`、`data-db`、`data-league-db` 三个组件，与预分析一致。文本 diff 为 +798/-289 行，来源于这三个对象的精确替换。
+- 新增 `latest VxJaMap supplies execSql contracts for backend database components` 回归：对 `data-db`、`data-league-db` 同时断言方法存在、业务参数为 `sql:String/variables:JsonArr`、`errorCb:true`，并通过 `genMethodArgs()` 验证 AST 分别携带 `type:String`、`type:JsonArr` 和错误回调占位。
+- 定向测试 1/1 通过；这证明 Map 更新已经修复先前 `getWidgetMethodMap(..., inServer:true)` 返回 undefined 的确定性缺口。
+- 对案例 11023063 做完整内存重转（未覆盖历史产物）：两个目标 ln 均为 `execSql`、3 个 args；首参从旧的“无 type”恢复为 `op:var,type:String,cType:String`，第二参为 `op:val,type:JsonArr`，末尾为空错误回调占位，jsfnCount=0。两者内层仍各有一个 `op:or`，这是公式表示的独立议题，不影响本次 VxJaMap 类型契约同步结论。
+- 项目完整测试 100/100 通过、0 fail；测试控制台的 ParseError/parse error 是既有 fallback 预期分支，最终 Node test 汇总为全绿。
+- 最新线上 VxJaMap 与本地 vendored VxJaMap canonical JSON 完全相等，双方 SHA-256 均为 `cd22ee43f8c9b530b04596a83b928df469afc3bab687fb84a68b91e24aa69789`；`git diff --check` 通过。
+- README 已记录线上来源 URL、`VxJaVer` 和“只替换 VxJaMap”的混合快照边界，避免后续把其余 Map 误认成同日版本。
+
+# Phase 137：value-or `$evc` AST 修复
+
+- 用户在 VxJaMap 补全后明确要求继续修复转换生成的 AST；目标是把 `a || b` 的值表达式从 `$condVal/op:or` 改成 V5 编辑器正式支持的 `$evc/switchexp`。
+- 本轮保留已完成但未提交的 VxJaMap、README 与测试改动；VxEditor41 工作区有大量与本任务无关的用户修改，后续同步必须只触碰转换器对应文件并在写前后核对差异。
+- 修复必须区分 value-or 与 boolean-or：字符串拼接、赋值/返回、动作参数中的 `a || b` 应生成 `$evc`；条件块或明确布尔上下文中的 OR 必须保持 `op:'or'`，否则会破坏条件编辑器和短路逻辑树。
+- `gateway` 的真实含义只是“公式编辑器入口/允许 fallback”，不是 boolean context；root value-or 也以 `gateway:true` 进入，不能用它决定 `op:or` 或 `$evc`。
+- 最小上下文策略：给 `processParsedTree/processBinaryExpression` 增加显式 `conditionContext`。普通 `||` 生成 `$evc`；当 `&&` 已把表达式纳入布尔逻辑树时，其左右子树以 `conditionContext:true` 递归，嵌套 `||` 保持 `op:or`。比较运算的左右值不传播条件上下文，因为 `(a || b) == c` 中左侧仍是 value-or。
+- 普通 V4 条件块由 `con.js` 分别转换 value1/value2 后再组装比较 AST，因此其操作数内部的 `||` 仍应是 `$evc`；无需把所有 condition editor 输入粗暴标为 boolean。
+- tov5parser 已实施首版最小修改：新增 `conditionContext`、普通 `||` 生成 `$evc`、`&&` 条件树向逻辑子节点传播 boolean context。实现时及时发现 `genConditonValAST` 会先把 `&&/||` 改名为 `and/or`，因此条件上下文标志必须在 operator 改写前捕获；已修正，避免 nested OR 被误转 `$evc`。
+- 公式冒烟结构符合预期：root `order||'ASC'` 为 `$evc`；concat 内嵌 `$evc`；`(value||0)==1` 的比较左值为 `$evc`、比较根仍为 `$condVal`；`(a>0||b>0)&&enabled` 为 `$condVal(and(or(...),...))` 且无 `$evc`。
+- 新增正式回归并更新既有 object-array value-or 断言；定向 2/2 通过。既有运行测试继续用 ast2js 验证 truthy/null/missing 等结果，证明 `$evc` 路径没有破坏该样本的返回值。
+- 首版上下文传播仍有一个 root 边界：独立公式 `a > 0 || b > 0` 没有 `&&` 父节点提供 `conditionContext`，会被误判为 value-or。现已增加保守的结构化布尔识别：比较、`!`、`&&`、布尔字面量，以及两侧都明确为布尔表达式的 `||`，保留 `$condVal/op:or`；成员、调用等类型不明的操作数仍按 `$evc`。这避免重新把普通 `order || 'ASC'` 扩大成 condition AST。
+- 新增 root boolean-or 回归后定向测试仍为 2/2；同一最小算法已同步到 VxEditor41 的目标转换器单文件，未触碰该仓库其他用户改动。
+- 最终真实重转再次闭合两个目标 ln：动作均为 `execSql` 且参数数为 3；首参 `type:String/cType:String`、唯一 `$evc` fallback 为 `ASC`、`op:or` 数为 0；第二参 `JsonArr`、末参为空 error callback 占位。验证只在内存中执行，没有覆盖案例产物。
+- 最终门禁：tov5parser 101/101、定向 2/2、`git diff --check` 通过；VxEditor41 Babel parse 和目标 ESLint 均为 0 error/0 warning，生产 webpack 构建 exit 0（34 类既有 warning）。两仓都未提交、推送或发布；编辑器用户的其他脏文件保持不动。
+
+# Phase 138：Git 与生产发布
+
+- 用户授权范围是两个仓库提交推送和 tov5parser 生产 Lambda 更新；不包含平台案例写入。发布提交将排除 tov5parser 的未跟踪 VxServer 说明文档，并严格排除 VxEditor41 的用户既有脏文件。
+- 为让 Lambda 版本描述精确指向产品代码，先提交并推送 tov5parser 的产品/测试文件，再用该提交发布；部署完成后的版本号和双仓哈希作为独立发布记录提交推送。
+- V4→V5 工作流技能不适用于当前发布阶段：本轮不转换/保存/修复案例，只维护 Converter 代码并部署其 Lambda。用户纠正后已停止使用，未产生工作流或平台副作用。
+- 远端基线安全：两仓 fetch 后 ahead/behind 均为 0/0，可直接创建普通提交并推送；不需要 merge，更不需要 rebase/历史改写。
+- tov5parser 代码发布基线为 `c83c698`；Lambda 应使用该短哈希生成版本描述和历史 S3 key。规划记录与未跟踪 VxServer 文档未进入产品提交。
+- 生产回滚点为版本 34（CodeSha256 `TuW0...L30=`）；新发布版本 35 的更新响应 CodeSha256 为 `7aBq...I4c=`，部署脚本已把 `prod` 切换并用别名实际执行 35。仍需独立 read-back 后再封存最终发布记录。
+- 独立 Lambda read-back 已闭合，版本 35 状态 Active/Successful、完整 CodeSha256 与发布响应一致、描述为 `tov5parser c83c698 value-or AST and VxJaMap`；回滚版本 34 未删除。
+- VxEditor41 发布提交 `c5595597d` 严格为 1 file changed，未混入工作树中其他两份 tracked 修改或任何未跟踪目录；远端 master 已同步。
+- 发布记录采用独立 docs 提交，避免 Lambda 版本描述所指的产品代码哈希被发布后记录覆盖；生产实际运行代码仍可明确追溯到 `c83c698`。
+- 真实案例 11023063 完整内存重转通过强断言：两个目标首参各有且仅有一个 `$evc`、`op:or` 为 0、fallback 均为 `ASC`；根仍为 `type:String/cType:String`，第二参为 `JsonArr`，错误回调占位存在。
+- VxEditor41 目标转换器文件当前无工作区差异，虽然仓库其他路径有用户改动；可安全把同一最小算法补丁应用到该单文件。编辑器版本源码结构与 tov5parser 对应分支一致，但缺少 Node 侧诊断/类型等独立改造，因此不能整文件覆盖。
+- 受管环境复核显示 Workflow `0.4.3`、Converter `1.2.1`、Knowledge `0.1.2` 均为当前版本；Token 和平台只读访问可用，运行时浏览器已安装但登录态未配置。本轮诊断不依赖浏览器写入。
+- 已有 Job `mig_20260813042241_8e9f7923f3` 处于 `SAVE_INCOMPLETE`，其源 workId 为 `...-2533`，而平台当前 workId 为 `...-2539`。为避免重复 Job 和意外恢复另存链，本轮仅把该 Job 当作只读证据，并明确标注其比当前平台落后 6 个 revision。
+- 该 Job 的 Converter 1.2.1 目标产物确认两个动作首参均已是 `var(concat...)` 且根有 `cType:'String'`，内部 `param.order || 'ASC'` 则是 `op:'or'`；所以旧的 `var(jsfn)`、空 cType 现象不能再作为当前版本的主结论。
+- 编辑器确定性分叉仍成立：concat 会通过通用 AST→token 路径解析每个子项，嵌套 `op:'or'` 被 `condValProcessor` 识别为 `$condVal`；只有 `_blockType:'$evc'` 的 `switchexp` 才会走值兜底专用往返路径。
