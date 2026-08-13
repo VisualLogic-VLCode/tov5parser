@@ -161,6 +161,10 @@ npm run deploy:lambda:prod -- --smoke     # 日常部署：zip 经 S3 中转→�
 | `v4ToV5/` | 转换核心（converter/env/utils/formulaCode） | VxEditor41 `src/utils/convertV4ToV5`（import 头与 env 委托为移植差异） |
 | `utils/MapCreator.js` | 运行时组件映射读取/派生 | vlparser `utils/MapCreator.js`（整文件拷贝） |
 | `legacyMaps/` | legacy 组件 overlay 基建与资产 | vlparser `legacyToVLang/legacyMaps/`（整文件拷贝） |
-| `ivxMap.txt` | 5.x 运行时组件映射（VxWidgetMap/VxJaMap 等） | vlparser `ivxMap.txt` |
+| `ivxMap.txt` | 5.x 运行时组件映射（VxWidgetMap/VxJaMap 等） | 基础快照来自 vlparser；`VxJaMap` 从 VxEditor41 线上 `locale.js` 同步 |
 
 上游更新（尤其两份 map 资产与 MapCreator）需要手动同步拷贝。
+
+当前 `ivxMap.txt.VxJaMap` 同步自线上编辑器实际引用的
+`https://file3.ih5.cn/v35/locale/20260813145238/locale.js`
+（`VxJaVer=20260813145234`）；同步时仅替换 `VxJaMap`，其余映射保持原快照。

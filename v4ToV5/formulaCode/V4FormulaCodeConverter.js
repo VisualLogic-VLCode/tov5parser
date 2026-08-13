@@ -861,7 +861,8 @@ export default class V4FormulaCodeConverter {
     args = [], // 函数调用的参数，当identity为callee时有效
     customExprContext, // 自定义表达式的上下文
     callbackParamInfo, // 当前函数型参数的定义
-    callbackBlockId // V5 用于隔离嵌套回调局部参数的块 ID
+    callbackBlockId, // V5 用于隔离嵌套回调局部参数的块 ID
+    conditionContext = false // 已进入 &&/|| 布尔条件树
   }) => {
     let { type } = parsed || {}
     try {
@@ -886,7 +887,12 @@ export default class V4FormulaCodeConverter {
         case 'UnaryExpression': // 一元表达式
           return this.processUnaryExpression({ parsed })
         case 'BinaryExpression': // 二元表达式
-          return this.processBinaryExpression({ parsed, gateway, identity })
+          return this.processBinaryExpression({
+            parsed,
+            gateway,
+            identity,
+            conditionContext
+          })
         case 'ConditionalExpression': // 三元表达式
           return this.processConditionalExpression({ parsed })
         case 'ArrayExpression': // 数组
@@ -1231,7 +1237,12 @@ export default class V4FormulaCodeConverter {
     }
     return ast
   }
-  processBinaryExpression = ({ parsed, gateway, identity }) => {
+  processBinaryExpression = ({
+    parsed,
+    gateway,
+    identity,
+    conditionContext
+  }) => {
     let { operator, left, right } = parsed || {}
     let ast = {}
     switch (operator) {
@@ -1247,8 +1258,13 @@ export default class V4FormulaCodeConverter {
       case '<': // 小于
       case '<=': // 小于等于
       case '&&': // 与
-      case '||': // 或
         ast = this.genConditonValAST({ parsed, gateway })
+        break
+      case '||': // JavaScript 或：普通公式返回操作数，条件树中返回布尔条件
+        ast =
+          conditionContext || this.isBooleanExpression({ parsed })
+            ? this.genConditonValAST({ parsed, gateway })
+            : this.genEmptyValConditionAST({ parsed })
         break
       case '+': // 字符串拼接/加法
         ast = this.genAdditionExpressionAST({ parsed, identity })
@@ -1417,6 +1433,51 @@ export default class V4FormulaCodeConverter {
       args.push(this.processParsedTree({ parsed: alternate }))
     }
     return { op: 'switchexp', args }
+  }
+  // 只在两侧都能从语法上确定为布尔值时，把独立的 `a || b`
+  // 识别成条件 OR；普通值兜底仍交给 `$evc`。
+  isBooleanExpression = ({ parsed }) => {
+    const { type, operator, left, right, value } = parsed || {}
+    if (type === 'Literal') return typeof value === 'boolean'
+    if (type === 'UnaryExpression') return operator === '!'
+    if (type !== 'BinaryExpression') return false
+    if (
+      ['==', '!=', '===', '!==', '>', '>=', '<', '<=', '&&'].includes(operator)
+    ) {
+      return true
+    }
+    if (operator !== '||') return false
+    return (
+      this.isBooleanExpression({ parsed: left }) &&
+      this.isBooleanExpression({ parsed: right })
+    )
+  }
+  // JavaScript value-or（a || b）在 V5 公式编辑器中的正式表示。
+  // `$evc` 会由编辑器的 emptyValCondProcessor 在 AST 与可视块之间往返。
+  genEmptyValConditionAST = ({ parsed }) => {
+    const { left, right } = parsed || {}
+    const leftAst = this.processParsedTree({ parsed: left })
+    return {
+      op: 'switchexp',
+      _blockType: '$evc',
+      args: [
+        {
+          op: 'not',
+          args: [
+            {
+              op: 'not',
+              args: [leftAst]
+            }
+          ]
+        },
+        leftAst,
+        {
+          op: '=',
+          args: [{ op: 'val' }, { op: 'val' }]
+        },
+        this.processParsedTree({ parsed: right })
+      ]
+    }
   }
   genActionResultAST = ({ ctx }) => {
     let { actionBlockId, varCompName, action, varCompScope } = ctx || {}
@@ -2166,6 +2227,7 @@ export default class V4FormulaCodeConverter {
   // 条件块(true/false)
   genConditonValAST = ({ parsed, gateway }) => {
     let { operator, left, right } = parsed || {}
+    const nestedConditionContext = ['&&', '||'].includes(operator)
     let val
     switch (operator) {
       case '&&':
@@ -2196,7 +2258,10 @@ export default class V4FormulaCodeConverter {
       }
     }
     let convertedArgs = [left, right].map(item =>
-      this.processParsedTree({ parsed: item })
+      this.processParsedTree({
+        parsed: item,
+        conditionContext: nestedConditionContext
+      })
     )
     let ast = {
       op: operator,

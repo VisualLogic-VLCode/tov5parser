@@ -874,6 +874,64 @@ test('legacy array search full-JS normalization evaluates receiver and target on
   assert.deepEqual(evaluate(), [0, 1, 1, 'kept'])
 })
 
+test('value-or uses the V5 empty-value block while boolean trees keep condition or', () => {
+  const getCtx = name =>
+    name === 'fParamgroup' ? { varType: 'param' } : undefined
+  const convert = str =>
+    new V4FormulaCodeConverter({ str, getCtx, scope: 'stage' }).exec()
+
+  const valueAst = convert('fParamgroup.order || "ASC"')
+  assert.equal(valueAst.op, 'switchexp')
+  assert.equal(valueAst._blockType, '$evc')
+  assert.equal(valueAst.args.length, 4)
+  assert.deepEqual(valueAst.args[0], {
+    op: 'not',
+    args: [{ op: 'not', args: [valueAst.args[1]] }]
+  })
+  assert.deepEqual(valueAst.args[2], {
+    op: '=',
+    args: [{ op: 'val' }, { op: 'val' }]
+  })
+  assert.deepEqual(valueAst.args[3], { op: 'val', val: 'ASC' })
+  assert.equal(findAst(valueAst, item => item.op === 'or'), undefined)
+
+  const concatAst = convert(
+    '" ORDER BY " + (fParamgroup.order || "ASC")'
+  )
+  assert.ok(
+    findAst(
+      concatAst,
+      item => item.op === 'switchexp' && item._blockType === '$evc'
+    )
+  )
+
+  const comparisonAst = convert('(fParamgroup.value || 0) == 1')
+  assert.equal(comparisonAst.op, '=')
+  assert.equal(comparisonAst._blockType, '$condVal')
+  assert.equal(comparisonAst.args[0]._blockType, '$evc')
+
+  const rootBooleanAst = convert(
+    'fParamgroup.a > 0 || fParamgroup.b > 0'
+  )
+  assert.equal(rootBooleanAst.op, 'or')
+  assert.equal(rootBooleanAst._blockType, '$condVal')
+  assert.equal(
+    findAst(rootBooleanAst, item => item._blockType === '$evc'),
+    undefined
+  )
+
+  const booleanAst = convert(
+    '(fParamgroup.a > 0 || fParamgroup.b > 0) && fParamgroup.enabled'
+  )
+  assert.equal(booleanAst.op, 'and')
+  assert.equal(booleanAst._blockType, '$condVal')
+  assert.equal(booleanAst.args[0].op, 'or')
+  assert.equal(
+    findAst(booleanAst, item => item._blockType === '$evc'),
+    undefined
+  )
+})
+
 test('legacy object-array item composes with array search as structured sysutils', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
@@ -885,7 +943,13 @@ test('legacy object-array item composes with array search as structured sysutils
   }).exec()
 
   assert.equal(findAst(ast, item => item.op === 'jsfn'), undefined)
-  assert.ok(findAst(ast, item => item.op === 'or'))
+  assert.ok(
+    findAst(
+      ast,
+      item => item.op === 'switchexp' && item._blockType === '$evc'
+    )
+  )
+  assert.equal(findAst(ast, item => item.op === 'or'), undefined)
   assert.ok(
     findAst(ast, item => item.op === 'sysutil' && item.val === 'arr_search')
   )

@@ -336637,186 +336637,6 @@
                         }
                     ],
                     "paramsAsObj": true
-                },
-                {
-                    "name": "rsaOaepSha256Encrypt",
-                    "type": "IvxResult<JsonObj>",
-                    "params": [
-                        {
-                            "name": "ctx",
-                            "type": "IvxContext"
-                        },
-                        {
-                            "name": "props",
-                            "type": "JsonObj"
-                        },
-                        {
-                            "name": "data",
-                            "type": "String"
-                        },
-                        {
-                            "name": "pemKey",
-                            "type": "String"
-                        },
-                        {
-                            "name": "inputEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "outputEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "requestId",
-                            "type": "String"
-                        }
-                    ],
-                    "paramsAsObj": true
-                },
-                {
-                    "name": "rsaOaepSha256Decrypt",
-                    "type": "IvxResult<JsonObj>",
-                    "params": [
-                        {
-                            "name": "ctx",
-                            "type": "IvxContext"
-                        },
-                        {
-                            "name": "props",
-                            "type": "JsonObj"
-                        },
-                        {
-                            "name": "ciphertext",
-                            "type": "String"
-                        },
-                        {
-                            "name": "pemKey",
-                            "type": "String"
-                        },
-                        {
-                            "name": "inputEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "outputEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "requestId",
-                            "type": "String"
-                        }
-                    ],
-                    "paramsAsObj": true
-                },
-                {
-                    "name": "aesGcmEncrypt",
-                    "type": "IvxResult<JsonObj>",
-                    "params": [
-                        {
-                            "name": "ctx",
-                            "type": "IvxContext"
-                        },
-                        {
-                            "name": "props",
-                            "type": "JsonObj"
-                        },
-                        {
-                            "name": "plaintext",
-                            "type": "String"
-                        },
-                        {
-                            "name": "plaintextEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "key",
-                            "type": "String"
-                        },
-                        {
-                            "name": "keyEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "nonce",
-                            "type": "String"
-                        },
-                        {
-                            "name": "nonceEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "aad",
-                            "type": "String"
-                        },
-                        {
-                            "name": "aadEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "outputEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "requestId",
-                            "type": "String"
-                        }
-                    ],
-                    "paramsAsObj": true
-                },
-                {
-                    "name": "aesGcmDecrypt",
-                    "type": "IvxResult<JsonObj>",
-                    "params": [
-                        {
-                            "name": "ctx",
-                            "type": "IvxContext"
-                        },
-                        {
-                            "name": "props",
-                            "type": "JsonObj"
-                        },
-                        {
-                            "name": "ciphertext",
-                            "type": "String"
-                        },
-                        {
-                            "name": "inputEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "key",
-                            "type": "String"
-                        },
-                        {
-                            "name": "keyEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "nonce",
-                            "type": "String"
-                        },
-                        {
-                            "name": "nonceEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "aad",
-                            "type": "String"
-                        },
-                        {
-                            "name": "aadEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "outputEncoding",
-                            "type": "String"
-                        },
-                        {
-                            "name": "requestId",
-                            "type": "String"
-                        }
-                    ],
-                    "paramsAsObj": true
                 }
             ],
             "ctx": "true"
@@ -351213,6 +351033,168 @@
                     "errorCb": "true"
                 },
                 {
+                    "name": "dbOriginalSelect",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbCols"
+                        },
+                        {
+                            "name": "extra",
+                            "type": "JsonObj"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbSearch",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        },
+                        {
+                            "name": "extra",
+                            "type": "JsonObj"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbSmartSearch",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "query",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "searchRange",
+                            "type": "JsonArr",
+                            "display": "DbSearchRange"
+                        },
+                        {
+                            "name": "minMatch",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbCols"
+                        },
+                        {
+                            "name": "extra",
+                            "type": "JsonObj"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbCustomizeSearch",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "queries",
+                            "type": "JsonArr"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbCols"
+                        },
+                        {
+                            "name": "extra",
+                            "type": "JsonObj"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
                     "name": "dbRandomSelect",
                     "type": "IvxResult<DbSelectResult>",
                     "params": [
@@ -351824,6 +351806,159 @@
                             "type": "JsonObj",
                             "subParams": "[{\"name\":\"filterNull\",\"type\":\"boolean\",\"display\":\"Hidden\",\"desc\":{\"zh\":\"当筛选条件中的值为空时，这个筛选条件不参与筛选。比如，数据库有三个字段，姓名，手机，年龄，在筛选条件中指定 姓名=xx，手机=xx，年龄=xx, 其中xx代表服务的入参。此时，如果打开了开关，前端只传了姓名和手机两个入参，没有传年龄，那么年龄字段，就不会参与筛选，最终的筛选条件只会包含姓名和手机。反之，如果开关关闭，那么年龄会作为一个空值来进行判断，即搜索数据库中年龄数据为空的字段，那么在大多数场景下，就无法搜出来预期数据。所以，当用户可能动态传入需要筛选字段的时候，可以将这个开关打开。注意，0不属于空值。如果将一个入参的类型设为整数或浮点数，则其即使没有传，也会被自动转为0。\",\"en\":\"\"},\"locale\":{\"zh\":\"空字段不参与筛选\",\"en\":\"filterNull\"}}]",
                             "hasSubParams": "true"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbDelete",
+                    "type": "IvxResult<DbUpdateResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "rowId",
+                            "type": "JsonVal"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbGetConfig",
+                    "type": "IvxResult<JsonObj>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbSetConfig",
+                    "type": "IvxResult<JsonVal>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "openConfig",
+                            "type": "boolean"
+                        },
+                        {
+                            "name": "startTime",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "endTime",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "timeLimit",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "countLimit",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "dayLimit",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "totalCountLimit",
+                            "type": "JsonVal"
+                        },
+                        {
+                            "name": "totalDayLimit",
+                            "type": "JsonVal"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbExportConsExcel",
+                    "type": "IvxResult<JsonObj>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        },
+                        {
+                            "name": "extra",
+                            "type": "JsonObj"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbExportExcel",
+                    "type": "IvxResult<JsonObj>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "execSql",
+                    "type": "IvxResult<DbExecSqlResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "sql",
+                            "type": "String"
+                        },
+                        {
+                            "name": "variables",
+                            "type": "JsonArr"
                         }
                     ],
                     "errorCb": "true"
@@ -352949,6 +353084,380 @@
                         }
                     ],
                     "paramsAsObj": true
+                }
+            ]
+        },
+        "data-league-db": {
+            "path": "db.DataLeagueDb",
+            "props": [],
+            "methods": [
+                {
+                    "name": "dbSelect",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbCols"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbSelectFromMain",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbCols"
+                        },
+                        {
+                            "name": "extra",
+                            "type": "JsonObj",
+                            "display": "Hidden"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbGroupBy",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbGroupByCols"
+                        },
+                        {
+                            "name": "groups",
+                            "type": "JsonArr",
+                            "display": "DbGroupCols"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbGroupByFromMain",
+                    "type": "IvxResult<DbSelectResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbGroupByCols"
+                        },
+                        {
+                            "name": "groups",
+                            "type": "JsonArr",
+                            "display": "DbGroupCols"
+                        },
+                        {
+                            "name": "orders",
+                            "type": "JsonArr",
+                            "display": "DbOrders"
+                        },
+                        {
+                            "name": "range",
+                            "type": "JsonObj",
+                            "display": "DbRange"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbCount",
+                    "type": "IvxResult<Long>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbCountFromMain",
+                    "type": "IvxResult<Long>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbDistinctCount",
+                    "type": "IvxResult<Long>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbSelectCols"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbDistinctCountFromMain",
+                    "type": "IvxResult<Long>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "cols",
+                            "type": "JsonArr",
+                            "display": "DbSelectCols"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbSum",
+                    "type": "IvxResult<Double>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "column",
+                            "type": "String",
+                            "display": "DbNumCol"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbSumFromMain",
+                    "type": "IvxResult<Double>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "column",
+                            "type": "String",
+                            "display": "DbNumCol"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbAvg",
+                    "type": "IvxResult<Double>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "column",
+                            "type": "String",
+                            "display": "DbNumCol"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "dbAvgFromMain",
+                    "type": "IvxResult<Double>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "cons",
+                            "type": "JsonArr",
+                            "display": "DbCons"
+                        },
+                        {
+                            "name": "column",
+                            "type": "String",
+                            "display": "DbNumCol"
+                        }
+                    ],
+                    "errorCb": "true"
+                },
+                {
+                    "name": "execSql",
+                    "type": "IvxResult<DbExecSqlResult>",
+                    "params": [
+                        {
+                            "name": "ctx",
+                            "type": "IvxContext"
+                        },
+                        {
+                            "name": "props",
+                            "type": "JsonObj"
+                        },
+                        {
+                            "name": "sql",
+                            "type": "String"
+                        },
+                        {
+                            "name": "variables",
+                            "type": "JsonArr"
+                        }
+                    ],
+                    "errorCb": "true"
                 }
             ]
         },

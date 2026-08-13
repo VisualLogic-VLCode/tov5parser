@@ -13,6 +13,7 @@ import {
 import { loadRuntimeMaps } from '../index.js';
 import {
   convertActionParamValue,
+  genMethodArgs,
   getLegacyFormulaTextValue,
 } from './utils/action.js';
 import {
@@ -1242,6 +1243,80 @@ test('getWidgetMethodMap resolves methods from runtime maps', (t) => {
     }),
     dbMethod,
   );
+});
+
+test('latest VxJaMap supplies execSql contracts for backend database components', (t) => {
+  if (!ensureIvxMapNodeEnv()) {
+    t.skip('missing optional fixture: ivxMap.txt');
+    return;
+  }
+
+  const v4CaseJson = buildV4CaseJson();
+  const componentTypes = ['data-db', 'data-league-db'];
+  componentTypes.forEach((type, index) => {
+    v4CaseJson.server.children.push({
+      id: `exec-sql-db-${index}`,
+      type,
+      rootId: 'server1',
+      uis: {},
+      props: {},
+      children: [],
+    });
+  });
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  try {
+    componentTypes.forEach((type, index) => {
+      const method = getWidgetMethodMap({
+        widgetName: type,
+        methodName: 'execSql',
+        inServer: true,
+      });
+      assert.ok(method, `${type}.execSql should exist in VxJaMap`);
+      assert.deepEqual(
+        method.params.slice(2).map(({ name, type: paramType }) => ({
+          name,
+          type: paramType,
+        })),
+        [
+          { name: 'sql', type: 'String' },
+          { name: 'variables', type: 'JsonArr' },
+        ],
+      );
+      assert.equal(method.errorCb, 'true');
+
+      const args = genMethodArgs({
+        action: {
+          name: 'execSql',
+          params: [
+            {
+              name: 'sql',
+              type: 'Formula',
+              value: { code: '"SELECT 1"' },
+            },
+            { name: 'variables', type: 'Formula', value: null },
+          ],
+        },
+        scope: 'server',
+        actionObject: `exec-sql-db-${index}`,
+        nodeId: 'svc1',
+        blockId: `exec-sql-${index}`,
+      });
+
+      assert.deepEqual(args, [
+        {
+          op: 'val',
+          val: 'SELECT 1',
+          type: 'String',
+          cType: 'String',
+        },
+        { op: 'val', type: 'JsonArr' },
+        { op: 'val' },
+      ]);
+    });
+  } finally {
+    clearActiveEnv();
+  }
 });
 
 test('convertV4CaseJsonToV5CaseJson converts with runtime maps loaded', (t) => {
