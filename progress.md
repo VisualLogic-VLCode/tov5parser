@@ -1,5 +1,18 @@
 # Progress Log
 
+## 2026-08-14 — Phase 142
+
+- 用户确认发布 Converter 1.2.3，以便 Workflow 通过签名 stable 通道获取本次成员访问修复。
+- 已运行 planning session catchup：当前 `main...origin/main` 无 tracked 差异，仅用户未跟踪文档 `VxServer-saveAs-same-gid-group-db-fix.md`，继续保护并排除。
+- 发布边界：只处理 Converter Release 与受管运行时；不运行 V4→V5 工作流、不创建/恢复 Job、不读取 Token、不保存平台案例。
+- 已完整复核 Workflow 仓库的 Release 运维文档及 prepare/publish 实现：发布器会验证签名/摘要、公开仓与保护规则，从干净 Converter 提交创建 Draft、核验资产、公开 Release，并最后提升 stable；将使用 detached 干净 worktree 保护根目录未跟踪文档。
+- 首轮 preflight 通过：1.2.3 tag/Release 均不存在，仓库公开且 immutable release 已开启，保护 ruleset active，签名密钥 0600；stable 历史完整停在 1.2.2。已记录 Workflow 仓库用户改动 `test/basic-validator.test.js`，本轮不触碰。
+- ruleset 深检通过：branch/main+release-channel 与 tag/v* 均 active、deletion/non-fast-forward、bypass=0；上一版 raw payload 与签名 envelope 内 payload 完全一致。`gh release view` 的 `isLatest` 字段在当前 CLI 不可用，已记录并改用 GitHub API latest 端点。
+- 改用 GitHub API 后确认 v1.2.2 是当前 Latest、immutable、非 draft/prerelease，资产完整，tag/target 均为 `5572415`。Phase 142 发布预检完成，进入 1.2.3 版本元数据修改与回归。
+- 已将 `package.json` 与 lockfile 根包版本精确升至 1.2.3；依赖、License、发布文件白名单均未改变。下一步运行完整测试、npm pack dry-run、audit 和差异门禁。
+- 1.2.3 发布级基础验证通过：项目测试 102/102、production audit 0 vulnerabilities；npm dry-run 164 files / 1,787,580 bytes，必需文件齐全。测试中的 ParseError 均为 fallback 契约日志，最终 0 fail。
+- 包清单安全门禁通过：仅 9 个预期运行依赖，无 AWS dev 依赖与敏感/案例/发布目录；lockfile dry-run 和 diff check 通过。Phase 142 版本准备完成，进入提交推送。
+
 ## 2026-08-14 — Phase 141
 
 - 用户已明确授权：提交并推送 tov5parser、更新生产 Lambda，并把同一转换器修复同步到 VxEditor41 后提交推送。

@@ -1,5 +1,20 @@
 # Findings & Decisions
 
+## Phase 142：Converter 1.2.3 Release
+
+- 指定会话与当前仓库均确认：Workflow 使用签名 stable 通道安装受管 Converter；Lambda 36 和 VxEditor41 提交不会更新该运行时。当前 stable `latest=1.2.2`，不可变 v1.2.2 固定在修复之前，因此必须发布新版本 1.2.3，不能替换旧资产或重用旧标签。
+- 当前 Workflow 0.6.1 声明兼容 Converter `>=1.2.0 <2.0.0`，Knowledge Runtime 声明兼容 `>=1.2.1 <2.0.0`；1.2.3 无需联动发布 Workflow 或 Knowledge。
+- 已存在 Job/Review 的 Converter pin 不会被更新；受管更新只改变活动 Converter，供后续新转换或显式刷新流程使用。
+- 本轮用户明确确认发布，授权包括必要的版本提交、推送、签名 Release、stable 通道更新和本机受管更新验收；不授权运行案例迁移、Save As 或平台写入。
+- Converter 的签名准备/发布器由独立 Workflow 仓库维护：prepare 从指定 Converter packageDir 执行 `npm pack`、继承上一版 raw payload、生成 Ed25519 envelope 与发布计划；publisher 强制源仓干净且 HEAD 与计划一致，并在公开仓库、不可变 Release、无 bypass 的分支/标签保护通过后，按 Draft→资产核验→公开 Release→最后更新 stable 的顺序执行。
+- 由于 tov5parser 根目录保留用户未跟踪文档，正式 prepare/publish 应从 1.2.3 提交建立 detached 干净 worktree，确保计划的 `source.dirty=false` 且不移动、删除或暂存用户文件。
+- 首轮发布预检通过：tov5parser `main/origin=0/0`，远端 tag 与 GitHub Release `v1.2.3` 均不存在；仓库 PUBLIC、immutable Releases enabled，两套 branch/tag ruleset active，签名私钥存在且 mode 0600。
+- 当前 stable 历史为 latest 1.2.2、minimum 1.2.0、versions 1.2.0/1.2.1/1.2.2、revoked 空；Workflow 仓库已有上一版 raw payload，可用于 1.2.3 继承历史。
+- Workflow 维护仓当前有用户修改 `test/basic-validator.test.js`，本轮不得暂存或改写；Release 相关脚本和依赖文件无 diff，可只作为发布工具读取执行。
+- v1.2.2 基线复验通过：Latest/Release 均 immutable、非 draft、非 prerelease，资产为 tgz + signed manifest，tag 与 targetCommitish 均精确指向 `5572415`。1.2.3 可安全以前一 raw payload 追加版本描述符。
+- 1.2.3 完整测试 102/102、0 fail；production npm audit 0 vulnerabilities。npm dry-run 为 164 files、1,787,580 bytes（unpacked 29,338,734），必需入口/Map/README/package 完整；`node_modules` 是 package.json 明确要求的 9 个 bundled runtime dependencies，不是意外开发依赖。
+- dry-run 文件清单仅含预期 9 个 runtime bundle，无 AWS 开发依赖、无 localCases/release-out/archive/凭证/secret/用户 VxServer 文档；`npm ci --ignore-scripts --dry-run` 与 `git diff --check` 均通过。版本 diff 精确只有 package/package-lock 的三处 1.2.2→1.2.3。
+
 ## Phase 141：提交、Lambda 发布与编辑器同步
 
 - tov5parser 当前 `main` 与 `origin/main` 同步，基线提交为 `ceb8b8a`；发布入口是 `npm run deploy:lambda:prod -- --smoke`，脚本负责测试、打包、发布版本、切换 `prod` 别名和冒烟。

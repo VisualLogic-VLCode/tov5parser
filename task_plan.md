@@ -5,9 +5,26 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 141（提交发布并同步 VxEditor41）— complete
+Phase 142（发布 Converter 1.2.3 并更新受管运行时）— in progress
 
 ## Phases
+
+### Phase 142: 发布 Converter 1.2.3 并更新受管运行时（2026-08-14）
+- [x] 复核发布脚本、远端保护、v1.2.3 不存在、签名密钥权限和当前 stable 历史
+- [x] 将 package/package-lock 升至 1.2.3，运行完整测试、打包和安全门禁
+- [ ] 提交并推送 1.2.3 版本元数据
+- [ ] 从干净提交生成签名资产并完成离线安装/兼容性验收
+- [ ] 创建不可变 GitHub Release v1.2.3，并最后更新 stable 通道
+- [ ] 从公开端复验标签、资产、摘要、签名和通道历史
+- [ ] 通过受管更新安装 1.2.3，验证 update/rollback/reapply 与 Workflow/Knowledge 兼容性
+- [ ] 完成发布记录提交与最终 read-back
+- **Status:** in progress
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `gh release view` 当前版本不支持 `isLatest` JSON 字段 | 1 | 其余 hardening/payload 检查已通过；改用 `gh api repos/.../releases/latest` 核对 Latest，不重复无效字段 |
 
 ### Phase 141: 提交发布并同步 VxEditor41（2026-08-14）
 - [x] 复核两个仓库状态、远端差异、发布脚本和目标文件
