@@ -3318,4 +3318,4 @@
 - 更新后 Workflow/Converter/Knowledge 为 `0.6.2/1.2.4/0.1.4`，三者 CURRENT，Agent protocol 7 current；受管 1.2.4 包内公式回归 44/44。下一步验证 rollback→reapply。
 - rollback→reapply 验收通过：回滚精确恢复 1.2.3/摘要 `71b0d5f9...7769ef`，stable 立即报告 1.2.4 UPDATE_AVAILABLE；重新 apply 后回到 1.2.4/摘要 `1b51f179...73ebf8`。最终 Workflow/Converter/Knowledge `0.6.2/1.2.4/0.1.4` 全部 CURRENT，Agent current。
 - 首次临时目录清理因包含递归删除而在执行前被安全策略拒绝，无文件受影响；改为 Git worktree 正常移除后，将四个精确临时目录移动到废纸篓，保持可恢复。
-- detached worktree 已正常注销，候选/离线安装/公开下载/预检临时目录已移动到 `/Users/lianghuang/.Trash`，可恢复；根仓用户未跟踪文档未改动。Phase 145 完成，准备只提交本阶段发布记录，不混入并发 Phase 146 的未提交诊断记录。
+- detached worktree 已正常注销，候选/离线安装/公开下载/预检临时目录已移动到 `/Users/lianghuang/.Trash`，可恢复；根仓用户未跟踪文档未改动。Phase 145 完成，准备只提交本阶段发布记录，并保留并发诊断记录为未暂存。

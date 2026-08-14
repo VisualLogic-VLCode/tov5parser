@@ -38,6 +38,7 @@ Phase 145（发布 Converter 1.2.4 稳定版）— complete
 | CLI 不支持 `rollback --help` 子命令形式，把它当实际 rollback 并因缺 `--kind` 返回参数错误 | 1 | 未改变运行时；顶层 usage 已给出确切语法，后续使用 `rollback --kind converter`，不再调用该 help 形式 |
 | stable 提升后立即运行受管 `update check` 仍读到 raw CDN 缓存的 1.2.3 | 1 | GitHub Release、Contents/ref 与公开下载已独立证明 1.2.4 正确；先核对客户端 manifest 配置与缓存行为，再做有界传播检查，不重复无信息的立即重试 |
 | 临时目录清理命令包含 `rm -rf`，执行前被安全策略拒绝 | 1 | 命令整体未运行、文件未删除；改为先用 Git 正常移除 worktree，再把四个已核对的精确临时目录移动到用户废纸篓以便恢复 |
+| staged 范围检查用宽泛的 `Phase 146` 文本匹配，误中发布记录中“未混入”说明 | 1 | 未提交、未推送；删除不必要的阶段编号引用，并把门禁收窄到并发阶段标题和其专有 Job/ln 标识 |
 
 ### Phase 144：提交推送并发布三元 truthy 修复（2026-08-14）
 
