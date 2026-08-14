@@ -9,6 +9,19 @@ import {
 import { pushDiagContext, popDiagContext } from './convertDiag.js'
 import { getLegacyV41FormulaString } from './legacyFormulaValue.js'
 
+const SERVICE_REQUEST_INFO_IDENTIFIERS = new Set([
+  '$serReqHeader',
+  '$serReqIP',
+  '$serCookies',
+  '$serReqUserAgent'
+])
+
+function hasServiceParamToken(formulaValue) {
+  return formulaValue?.str?.some(
+    token => token?.type === 'param' && token?.extra?.type === 'serviceParam'
+  )
+}
+
 // 少量旧案例会把一个多余的右括号作为普通文本 token 追加到 editor code，
 // 而运行态 _code 仍是有效表达式。只在三重证据同时成立时删除该尾字符：
 // 1) _code 是完整 JS 表达式；2) 尾 token 明确是普通文本而非括号 token；
@@ -61,10 +74,17 @@ function convertEditorValue({
     return { op: 'val' }
   }
 
-  const legacyString = getLegacyV41FormulaString({
-    code: editorCode,
-    conditionValue: legacyFormulaType === 'conditionValue'
-  })
+  let node = getNodeById(nodeId)
+  const isServerRequestInfoIdentifier =
+    isServerRootNode(node) &&
+    SERVICE_REQUEST_INFO_IDENTIFIERS.has(editorCode) &&
+    hasServiceParamToken(value)
+  const legacyString = isServerRequestInfoIdentifier
+    ? undefined
+    : getLegacyV41FormulaString({
+        code: editorCode,
+        conditionValue: legacyFormulaType === 'conditionValue'
+      })
   if (legacyString !== undefined) {
     return { op: 'val', val: legacyString }
   }
@@ -79,7 +99,6 @@ function convertEditorValue({
     })
   }
 
-  let node = getNodeById(nodeId)
   let nodeInServer = isServerRootNode(node)
 
   let scope = nodeInServer ? 'server' : 'stage'
@@ -466,6 +485,14 @@ function getCtx(str, extra) {
         actionBlockId: actionBlock.bid
       }
     }
+  } else if (SERVICE_REQUEST_INFO_IDENTIFIERS.has(str)) {
+    let node = getNodeById(nodeId)
+    if (isServerRootNode(node) && hasServiceParamToken(formulaValue)) {
+      return {
+        varType: 'requestInfo',
+        requestInfoName: str
+      }
+    }
   } else if (LOOP.test(str)) {
     // 次数循环：循环次数
     let loopId = str.slice('_loop'.length)
@@ -479,8 +506,11 @@ function getCtx(str, extra) {
   } else if (PARAM.test(str)) {
     // 事件参数
     let node = getNodeById(nodeId)
+    const isServiceParam = node?.type === 'data-service'
     return {
-      varType: node?.type === 'data-service' ? 'serviceParam' : 'param'
+      varType: isServiceParam ? 'serviceParam' : 'param',
+      requestInfoContext:
+        isServerRootNode(node) && hasServiceParamToken(formulaValue)
     }
   } else if (FUNC_GROUP_PARAM.test(str)) {
     // 动作组入参

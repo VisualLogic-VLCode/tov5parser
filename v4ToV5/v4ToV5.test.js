@@ -35,6 +35,7 @@ import {
   compileV5ServerAst,
   normalizeServerMethodErrorCallbacks,
 } from './serverAstCompiler.js';
+import { ast2js } from './ast2js.js';
 
 // 将包内 ivxMap.txt / legacyIvxMap.txt 载入运行时全局（VxWidgetMap/VxJaMap 等）
 function ensureIvxMapNodeEnv() {
@@ -1616,6 +1617,209 @@ test('server action parameters retain inferred cType without copying target type
     assert.deepEqual(methodAst.args, [
       { op: 'val', val: 'ymdhms', cType: 'String' },
     ]);
+  } finally {
+    clearActiveEnv();
+  }
+});
+
+test('V4 backend request-info pseudo params use V5 requestInfo AST', () => {
+  const v4CaseJson = buildV4CaseJson();
+  v4CaseJson.server.children.push({
+    id: 'serverVar1',
+    type: 'data-var',
+    rootId: 'server1',
+    uis: {},
+    props: {},
+    children: [],
+  });
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  const cases = [
+    {
+      code: '$serReqHeader',
+      label: 'Header信息',
+      ref: ['sysFunc', '_serviceReqHeader'],
+      cType: 'JsonObj',
+      runtime: '_serviceReqHeader()',
+    },
+    {
+      code: '$serReqIP',
+      label: 'IP信息',
+      ref: ['sysFunc', '_serviceReqIP'],
+      cType: 'String',
+      runtime: '_serviceReqIP()',
+    },
+    {
+      code: '$serCookies',
+      label: 'Cookie信息',
+      ref: ['sysFunc', '_serviceCookies'],
+      cType: 'String',
+      runtime: '_serviceCookies()',
+    },
+    {
+      code: '$serReqUserAgent',
+      label: '客户端信息',
+      ref: ['sysFunc', '_serviceReqUserAgent'],
+      cType: 'String',
+      runtime: '_serviceReqUserAgent()',
+    },
+    {
+      code: 'param.$SF_getInParams_body()',
+      label: 'Body信息',
+      ref: ['sysHelper', 'getInParams_body'],
+      cType: 'String',
+      runtime: '$sys.util.getInParams_body(param)',
+    },
+    {
+      code: 'param.$SF_getInParams_url()',
+      label: 'Url参数',
+      ref: ['sysHelper', 'getInParams_url'],
+      cType: 'String',
+      runtime: '$sys.util.getInParams_url(param)',
+    },
+  ];
+
+  try {
+    for (const nodeId of ['svc1', 'serverVar1']) {
+      for (const item of cases) {
+        const ast = convertEditorValue({
+          value: {
+            code: item.code,
+            str: [
+              {
+                type: 'param',
+                obj: item.label,
+                extra: { type: 'serviceParam' },
+              },
+            ],
+          },
+          nodeId,
+          blockId: `request-info-${nodeId}-${item.label}`,
+        });
+        assert.deepEqual(ast, {
+          op: 'var',
+          args: [
+            {
+              op: 'get',
+              args: [{ op: 'ref', val: item.ref }],
+              _cbParamsGroup: 'requestInfo',
+              _blockType: '$cbParams',
+            },
+          ],
+          cType: item.cType,
+        });
+        assert.equal(
+          ast2js({ ast, getNodeByIdFunc: () => undefined }),
+          item.runtime,
+        );
+      }
+    }
+
+    const compositeAst = convertEditorValue({
+      value: {
+        code: '{ip:$serReqIP,userAgent:$serReqUserAgent,body:param.$SF_getInParams_body()}',
+        str: cases.slice(1, 5).map(item => ({
+          type: 'param',
+          obj: item.label,
+          extra: { type: 'serviceParam' },
+        })),
+      },
+      nodeId: 'serverVar1',
+      blockId: 'request-info-composite',
+    });
+    const compositeRefs = collectAstNodes(
+      compositeAst,
+      node => node?.op === 'ref' && ['sysFunc', 'sysHelper'].includes(node.val?.[0]),
+    )
+      .map(node => node.val.join(':'))
+      .sort();
+    assert.deepEqual(compositeRefs, [
+      'sysFunc:_serviceReqIP',
+      'sysFunc:_serviceReqUserAgent',
+      'sysHelper:getInParams_body',
+    ]);
+    assert.doesNotMatch(
+      JSON.stringify(compositeAst),
+      /\["param","\$SF_getInParams_body"\]|"val":"\$serReq(?:IP|UserAgent)"/,
+    );
+
+    const headerMemberAst = convertEditorValue({
+      value: {
+        code: '$serReqHeader.Host[0]',
+        str: [
+          {
+            type: 'param',
+            obj: 'Header信息',
+            extra: { type: 'serviceParam' },
+          },
+        ],
+      },
+      nodeId: 'serverVar1',
+      blockId: 'request-info-header-member',
+    });
+    assert.deepEqual(
+      collectAstNodes(headerMemberAst, node => node?.op === 'ref').map(
+        node => node.val,
+      ),
+      [['sysFunc', '_serviceReqHeader']],
+    );
+    assert.equal(
+      ast2js({ ast: headerMemberAst, getNodeByIdFunc: () => undefined }),
+      '$sys.util.obj_item($sys.util.obj_item(_serviceReqHeader(),"Host"),0)',
+    );
+
+    assert.deepEqual(
+      convertEditorValue({
+        value: { code: '"$serReqIP"', str: [{ type: 'str', obj: '$serReqIP' }] },
+        nodeId: 'svc1',
+        blockId: 'request-info-string-literal',
+      }),
+      { op: 'val', val: '$serReqIP' },
+    );
+    assert.deepEqual(
+      convertEditorValue({
+        value: { code: '$serReqIP', str: [{ type: 'str', obj: '$serReqIP' }] },
+        nodeId: 'svc1',
+        blockId: 'request-info-service-string',
+      }),
+      { op: 'val', val: '$serReqIP' },
+    );
+    assert.deepEqual(
+      convertEditorValue({
+        value: { code: '$serReqIP', str: [{ type: 'str', obj: '$serReqIP' }] },
+        nodeId: 'txt1',
+        blockId: 'request-info-stage-identifier',
+      }),
+      { op: 'val', val: '$serReqIP' },
+    );
+
+    const bodyCallWithArgument = convertEditorValue({
+      value: {
+        code: 'param.$SF_getInParams_body(1)',
+        str: [{ type: 'param', obj: 'Body信息', extra: { type: 'serviceParam' } }],
+      },
+      nodeId: 'serverVar1',
+      blockId: 'request-info-body-with-argument',
+    });
+    assert.deepEqual(bodyCallWithArgument.args?.[0]?.args?.[0]?.val, [
+      'param',
+      '$SF_getInParams_body',
+    ]);
+    assert.equal(bodyCallWithArgument.args?.[0]?._cbParamsGroup, undefined);
+
+    const unmarkedBodyCall = convertEditorValue({
+      value: {
+        code: 'param.$SF_getInParams_body()',
+        str: [{ type: 'str', obj: 'param.$SF_getInParams_body()' }],
+      },
+      nodeId: 'serverVar1',
+      blockId: 'request-info-unmarked-body',
+    });
+    assert.deepEqual(unmarkedBodyCall.args?.[0]?.args?.[0]?.val, [
+      'param',
+      '$SF_getInParams_body',
+    ]);
+    assert.equal(unmarkedBodyCall.args?.[0]?._cbParamsGroup, undefined);
   } finally {
     clearActiveEnv();
   }

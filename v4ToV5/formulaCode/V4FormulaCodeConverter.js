@@ -1015,6 +1015,9 @@ export default class V4FormulaCodeConverter {
       case 'reqUser':
         ast = this.genReqUserAst({ parsed })
         break
+      case 'requestInfo':
+        ast = this.genRequestInfoAst({ name: ctx.requestInfoName })
+        break
       case 'localVar': // ivx局部变量
         ast = this.genLocalVarAST({ parsed })
         break
@@ -1064,7 +1067,7 @@ export default class V4FormulaCodeConverter {
       })
     }
     let ctx = this.getCtx(object?.name)
-    let { varType: objectVarType, varCompId } = ctx || {}
+    let { varType: objectVarType, varCompId, requestInfoContext } = ctx || {}
     if (!objectVarType) {
       if (this.isRefsMemberExpression({ parsed })) {
         // $refs.cx4nm2rh3f4000077ggg
@@ -1107,7 +1110,16 @@ export default class V4FormulaCodeConverter {
         })
         break
       case 'requestInfo':
-        ast = this.genRequestInfoAst({ property })
+        if (ctx.requestInfoName) {
+          ast = this.genRequestInfoAst({ name: ctx.requestInfoName })
+          propertyAST = this.genObjectPropertyAST({
+            property,
+            objAst: ast,
+            computed
+          })
+        } else {
+          ast = this.genRequestInfoAst({ name: property?.name })
+        }
         break
       case 'forItem': // 循环下的当前数据
         ast = this.processParsedTree({ parsed: object })
@@ -1129,10 +1141,21 @@ export default class V4FormulaCodeConverter {
       case 'JSON': // JSON方法，eg: JSON.parse(_item.distance)
         return this.genJsonMethodPropertyAST({ property, args })
       case 'serviceParam': // 服务入参
-        ast = this.genServiceParamAST({ parsed: property })
-        break
       case 'param': // 参数
-        ast = this.genParamAST({ parsed: property })
+        if (
+          identity === 'callee' &&
+          args.length === 0 &&
+          requestInfoContext &&
+          ['$SF_getInParams_body', '$SF_getInParams_url'].includes(
+            property?.name
+          )
+        ) {
+          ast = this.genRequestInfoAst({ name: property.name })
+        } else if (objectVarType === 'serviceParam') {
+          ast = this.genServiceParamAST({ parsed: property })
+        } else {
+          ast = this.genParamAST({ parsed: property })
+        }
         break
       default:
         // 处理属性
@@ -2358,50 +2381,68 @@ export default class V4FormulaCodeConverter {
     }
   }
   // 生成请求信息的AST
-  genRequestInfoAst = ({ property }) => {
-    let { name } = property || {}
-    let cType, sysfunc, _cbParamsType, _cbParamsGroup
+  genRequestInfoAst = ({ name }) => {
+    let cType, refType, refName, _cbParamsType, _cbParamsGroup
     switch (name) {
       case 'userId':
         cType = 'String'
-        sysfunc = '_serviceReqUserId'
+        refType = 'sysFunc'
+        refName = '_serviceReqUserId'
         _cbParamsType = 'serviceParam'
         break
       case 'userInfo':
         cType = 'String'
-        sysfunc = '_serviceReqUserInfo'
+        refType = 'sysFunc'
+        refName = '_serviceReqUserInfo'
         _cbParamsType = 'serviceParam'
         break
+      case '$serReqIP':
       case 'ip':
         cType = 'String'
-        sysfunc = '_serviceReqIP'
+        refType = 'sysFunc'
+        refName = '_serviceReqIP'
         _cbParamsGroup = 'requestInfo'
         break
+      case '$serReqHeader':
       case 'header':
         cType = 'JsonObj'
-        sysfunc = '_serviceReqHeader'
+        refType = 'sysFunc'
+        refName = '_serviceReqHeader'
         _cbParamsGroup = 'requestInfo'
         break
+      case '$SF_getInParams_body':
       case 'body':
         cType = 'String'
-        sysfunc = 'getInParams_body'
+        refType = 'sysHelper'
+        refName = 'getInParams_body'
         _cbParamsGroup = 'requestInfo'
         break
+      case '$serCookies':
       case 'cookie':
         cType = 'String'
-        sysfunc = '_serviceCookies'
+        refType = 'sysFunc'
+        refName = '_serviceCookies'
         _cbParamsGroup = 'requestInfo'
         break
+      case '$serReqUserAgent':
       case 'agent':
         cType = 'String'
-        sysfunc = '_serviceReqUserAgent'
+        refType = 'sysFunc'
+        refName = '_serviceReqUserAgent'
         _cbParamsGroup = 'requestInfo'
         break
+      case '$SF_getInParams_url':
       case 'url':
         cType = 'String'
-        sysfunc = 'getInParams_url'
+        refType = 'sysHelper'
+        refName = 'getInParams_url'
         _cbParamsGroup = 'requestInfo'
         break
+      default:
+        throw new ParseError({
+          message: `unknown request info: ${name}`,
+          type: 'requestInfo'
+        })
     }
 
     let arg = {
@@ -2409,7 +2450,7 @@ export default class V4FormulaCodeConverter {
       args: [
         {
           op: 'ref',
-          val: ['sysFunc', sysfunc]
+          val: [refType, refName]
         }
       ],
       _blockType: '$cbParams'
