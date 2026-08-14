@@ -3268,3 +3268,24 @@
 - dry-run 的 1 blocker/1 warning 与同输入的旧 1.2.1 Job 完全同基线：29 组 TARGET_NODE_ID_DUPLICATE、554 条 custom-expression fallback，source SHA-256 相同，不是 1.2.2 新回归。一次读取未生成 issue-classification.json 的只读子命令失败，已改用两版 validation 直接比较并记录。
 - Phase 139 完成，准备提交并推送最终发布记录；产品/tag/Release/channel/运行时均已处于目标状态，不重复 Lambda 或 VxEditor41 发布。
 - Phase 138 实质发布链已全部完成；准备只暂存 `task_plan.md/findings.md/progress.md` 创建独立发布记录提交。tov5parser 未跟踪 VxServer 文档继续排除。
+# 2026-08-14 Phase 143：修复三元表达式 truthy 条件
+
+- 用户要求开始修复 Converter；本轮使用 planning-with-files 管理源码、回归、真实案例和双仓检查，不使用 V4→V5 工作流，也不写平台案例。
+- session catchup 已恢复上一轮只读判断：当前问题是外层三元 test 未按编辑器规则规范化；正式目标为单参数 `sysop:isTruthy`，而不是用户示例中的双参数形态。
+- 基线复核完成：tov5parser 当前为 1.2.3/main `f20dc51`，产品源码干净；只有本轮三份规划记录和受保护未跟踪 VxServer 文档。VxEditor41 目标转换器无差异，用户其他改动已记录保护。
+- 红色回归已建立：`ternary value tests use isTruthy while condition AST stays structured` 修复前 0/1，差异为 `var !== sysop`。下一步按 V5 编辑器 `isConditionAst/convertCondItem` 规则实施最小 AST 规范化。
+- 首版修复后定向用例的 value/isTruthy、stage comparison、boolean tree 均已通过，但测试误以为 server `>` 会转成 `sysop:greater`；当前转换器只把 server equality 映射为 `sysop:equal`，`>` 合法地保持 stage op。已把该测试改为 server `==`，用于验证真正的既有 sysop 条件不被二次包裹；这是测试假设错误，不是产品修复失败。
+- tov5parser 与 VxEditor41 已同步最小条件规范化实现；修正测试假设后定向 3/3 通过，value-or 和 1.2.3 member-access 回归同时保持绿色。
+- 真实案例重转完成：两个 ln 均生成 `sysop:isTruthy(param.orderBy)`（单参数）、唯一 `$evc(order,'ASC')`，0 个无效 switchexp 条件槽；String/JsonArr/errorCb 契约无回归。下一步运行全量测试与编辑器构建门禁。
+- 完整回归 103/103 通过；VxEditor41 生产构建成功（34 类既有 warning）。目标文件首次 lint 有 1 条纯换行提示，按 Prettier 期望调整后最终 ESLint 0 warning、Babel parse/diff check 通过。
+- Phase 143 完成：两仓实现已同步、真实案例和回归闭环，所有用户无关改动保持原状。尚未提交、推送、Lambda 部署或 stable Converter 发布，等待用户确认是否创建提交。
+
+# 2026-08-14 Phase 144：提交推送与生产 Lambda 发布
+
+- 用户已明确确认提交并推送 tov5parser 与 VxEditor41，并把本次三元 truthy 修复更新至生产 Lambda。开始按固定发布链执行；不使用 V4→V5 工作流、不写平台案例，也不创建新的稳定 Converter GitHub Release。
+- 两仓刷新 origin 后均为 ahead/behind 0/0。生产账号为 `587849590304`，当前 `prod→36`，版本 36 为 Active/Successful，作为本次回滚点；其描述指向 member-access 修复提交 `86498e9`。
+- tov5parser 产品提交 `f52304d fix: normalize ternary value conditions` 已创建并推送，精确只含转换器与公式回归测试；敏感模式扫描、cached diff check 和远端 0/0 门禁通过。三份规划记录与未跟踪 VxServer 文档均未进入产品提交。
+- 生产 Lambda 发布成功：脚本重新运行 103/103 测试，历史包保存为 `archive-f52304d-20260814T082108Z.zip`，发布版本 37 并把 `prod` 从 36 切至 37；别名冒烟为 StatusCode 200、ExecutedVersion 37、FunctionError null、业务 code 0。
+- 独立 read-back 通过：`prod→37`，版本 37 为 Active/Successful，CodeSha256 `rdieo39wtJRVHotO5h9Zs2QW+00ziJy0SWMU7d8xW+I=`，描述精确指向 `f52304d`，运行参数仍为 nodejs20.x / 2048 MB / 120 s；S3 历史包存在且大小 1,975,455 bytes。版本 36 保留为回滚点。
+- VxEditor41 已仅提交并推送目标转换器：`f50012b81 fix: normalize ternary value conditions`。目标 ESLint 0 warning、Babel parse、敏感扫描和 diff check 均通过，master 与 origin/master 为 0/0；用户的 `.gitignore`、`src/stores/event.js` 与全部未跟踪 UI 目录保持未暂存。
+- Phase 144 发布链完成；准备只暂存三份规划记录创建独立发布记录提交，未跟踪 VxServer 文档继续排除。

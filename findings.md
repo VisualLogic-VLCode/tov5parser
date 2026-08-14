@@ -2620,3 +2620,25 @@
 - 真实受管 dry-run 证明发布包不是只可导入：11023063 V4 snapshot 在 Converter 1.2.2 下转换成功；Job target 的两个报告 ln 均恢复 VxJaMap 类型契约并输出正式 `$evc`，精确断言为 argCount 3、first var/String/String、evcCount 1、orCount 0、fallback ASC、second JsonArr、last val placeholder。
 - 1.2.2 Job 的 validation blocker 不构成发布回归：与相同 source SHA-256 的 1.2.1 Job 相比，issue rules、29 个 duplicate ID 计数、554 个 fallback、801/801 node counts 和 333 个 V5 event AST 全部相同；astNodeCount 从 341,992 增至 343,749，符合本次更多结构化 `$evc` AST 的预期。
 - rollback 与再升级均通过：1.2.2→1.2.1 后 stable 正确显示 update available，再 apply 回到 1.2.2；最终 doctor pin/hash 与公开资产一致。所有本轮临时 worktree、offline install 和远端下载校验目录已清理。
+# Phase 143：三元表达式 truthy 条件规范化
+
+- 附件中的外层 `switchexp.args[0]` 是普通 `var(param.orderBy)`；ast2js 可直接把它编译为 JavaScript truthy 条件，所以运行语义正确，但 V5 `conditionProcessor` 会把该槽按条件操作符解析，`op:var` 不是合法条件项，编辑器表示不规范。
+- V5 编辑器的 VLang 转换器已给出权威规则：`processConditionalExpression` 先判断 test 是否为条件 AST；否则调用 `convertCondItem`，生成 `{op:'sysop',val:'isTruthy',args:[valueAst]}`。`op_isTruthy(v1)` 与 ConditionHelper 都证明这是单值操作，不应添加第二个空 `val`。
+- 正确边界：比较、`and/or`、已有 `sysop` 等条件 AST原样进入 `switchexp`；identifier/member/call/字面量等值表达式包为 `isTruthy`。默认分支的 `op:'=' + 两个空 val` 哨兵和内层 `$evc` 保持不变。
+- 当前仓库基线已推进到 Converter 1.2.3（main `f20dc51`、tag source `a06bf91`），其中另含 value-or 后续的 member access 修复；本次必须在该最新基线上增量修改，不能套用旧 1.2.1 行号或覆盖 1.2.3 逻辑。
+- tov5parser 与 VxEditor41 的 `processConditionalExpression` 仍完全同形地直接 push `processParsedTree(test)`，缺口尚未被 1.2.3 修复。VxEditor41 目标转换器当前干净，可做单文件增量同步；其余用户脏文件仍与本任务无关。
+- 已新增失败回归覆盖四个边界：普通 `orderBy` value test 应为单参数 `isTruthy` 且可执行；stage 比较 test 保持 `>`；布尔 OR 树保持 `or`；server 比较保持既有 `sysop:greater`。修复前测试精确在首项失败，实际 `op:'var'`、期望 `op:'sysop'`，证明回归命中目标缺口。
+- 回归中的 server `>` 预期经源码复核不成立：`genConditonValAST` 只对 server 的 `==/!=` 生成 `sysop:equal/notEqual`，大小比较仍是合法直接 op。server 条件保留样本已改为 `count == 0` → `sysop:equal`，继续覆盖“已有 sysop 原样保留”的真实边界。
+- 最小实现与 V5 编辑器规则一致：新增 `normalizeConditionAST/isConditionAST`，`var` 仅在内部本身包着条件 AST 时递归视为条件；否则生成 `{op:'sysop',val:'isTruthy',args:[ast]}`。直接 `sysop/and/or/比较` 均原样返回，不添加 `_blockType` 或第二参数。
+- 真实案例 11023063 内存重转强断言通过：两个目标 ln 的外层三元条件均为唯一单参数 `sysop:isTruthy`，内部 ref 精确为 `['param','orderBy']`；所有普通 switchexp 偶数条件槽均为合法条件 op。内层唯一 `$evc` fallback `ASC`、首参 String/String、第二参 JsonArr、error callback 占位都保持完整。
+- 最终门禁通过：tov5parser 103/103、目标定向回归 1/1（联合相邻回归 3/3）、`git diff --check` 均绿色；VxEditor41 生产 webpack exit 0（34 类既有 warning），目标文件最终 ESLint 0 warning、Babel parse 和 diff check 通过。构建中曾捕获目标注释附近一条 Prettier 换行提示，已只调整格式并复核清零。
+- 改动范围严格为 tov5parser 转换器/公式测试/三份规划记录，以及 VxEditor41 目标转换器；未跟踪 VxServer 文档和编辑器 `.gitignore`、event store、UI 目录均未触碰。当前不提交、不推送、不部署，等待上层 Git 确认。
+
+# Phase 144：三元 truthy 修复发布
+
+- 用户已授权两个仓库的提交与推送以及生产 Lambda 更新；本次授权只覆盖现有补丁发布，不包含平台案例写入或新的稳定 Converter GitHub Release。
+- 发布记录继续采用产品提交与记录提交分离：Lambda 描述指向只含转换器和测试的产品提交，部署完成后再单独提交三份规划记录。
+- 发布前生产回滚基线为 `prod→36`，版本 36 的 CodeSha256 为 `37GbY0oQ/T8yPczUtNgi2PltURS/JW5Hu9NqVlnVH1o=`，状态 Active/Successful；本次不得删除该版本。
+- tov5parser 产品提交固定为 `f52304d`，且已推送至 origin/main；Lambda 历史归档与描述应追溯到该提交，而不是后续发布记录提交。
+- 生产发布闭环：Lambda 版本 37 的 CodeSha256 为 `rdieo39wtJRVHotO5h9Zs2QW+00ziJy0SWMU7d8xW+I=`，状态 Active/Successful，描述为 `tov5parser f52304d normalize ternary truthy conditions`；`prod` 冒烟实际执行版本 37 并返回业务 code 0。
+- VxEditor41 提交 `f50012b81` 精确为目标转换器 1 file changed；推送后 master 与 origin/master 为 0/0，仓库中其余 tracked/untracked 用户改动没有被暂存或提交。

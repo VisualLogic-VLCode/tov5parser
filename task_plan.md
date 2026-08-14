@@ -5,9 +5,40 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 142（发布 Converter 1.2.3 并更新受管运行时）— complete
+Phase 144（提交推送并发布三元 truthy 修复）— complete
 
 ## Phases
+
+### Phase 144：提交推送并发布三元 truthy 修复（2026-08-14）
+
+- [x] 刷新两仓远端与生产 Lambda 状态，核对提交范围、回滚点和敏感信息
+- [x] 仅提交并推送 tov5parser 转换器与回归测试
+- [x] 从 tov5parser 产品提交发布生产 Lambda，运行完整测试、别名冒烟和独立回读
+- [x] 仅提交并推送 VxEditor41 目标转换器文件，保留其他用户改动
+- [x] 记录提交哈希、Lambda 版本和最终远端/工作区状态，推送发布记录
+
+**Status:** complete
+
+**授权与范围：** 用户已明确确认提交并推送两个仓库，同时更新生产 Lambda。本阶段只发布 Phase 143 的 Converter 修复；不使用 V4→V5 工作流、不写案例平台、不发布新的稳定 Converter GitHub 版本。两仓仅暂存任务目标文件，所有用户无关改动继续排除。
+
+**结论：** tov5parser 产品提交 `f52304d` 与 VxEditor41 单文件提交 `f50012b81` 均已推送。生产 Lambda 发布版本 37，`prod` 已由 36 切至 37；103/103 测试、别名冒烟与独立 read-back 全部通过，版本 37 CodeSha256 为 `rdieo39wtJRVHotO5h9Zs2QW+00ziJy0SWMU7d8xW+I=`。版本 36 保留为回滚点，两仓用户无关改动均未进入提交。
+
+### Phase 143：规范化三元表达式的 truthy 条件 AST（2026-08-14）
+
+- [x] 冻结 `switchexp` 条件槽规范：条件 AST原样保留，普通值 AST 包为单参数 `sysop:isTruthy`
+- [x] 在 tov5parser 增加三元表达式结构、运行语义和条件保留回归
+- [x] 实施最小转换器修复并同步 VxEditor41 对应实现
+- [x] 重转案例 11023063，核对两个目标 ln 的外层 `orderBy` 与内层 `$evc`
+- [x] 运行完整测试、VxEditor41 定向检查/生产构建和两仓 diff 门禁
+- [x] 汇总验证结果并按上层 Git 规则等待用户确认是否提交
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求开始修复 Converter。本阶段只修改 tov5parser 公式转换器、必要回归测试和 VxEditor41 对应转换器；不使用 V4→V5 工作流，不写案例平台。此前发布授权已完成，不自动扩展到本次新补丁；验证完成后先询问是否创建 Git 提交。
+
+**工作区保护：** tov5parser 当前仅有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md`，继续排除；VxEditor41 的用户既有脏文件必须保持不动，目标转换器写前后单独核对。
+
+**结论：** 三元表达式的普通值 test 现按 V5 编辑器规范生成单参数 `sysop:isTruthy`，已有比较、布尔树和 sysop 条件保持原样。案例 11023063 两个目标 ln 均为 `isTruthy(param.orderBy)`，内层 `$evc(order,'ASC')` 及 String/JsonArr/errorCb 契约完整。tov5parser 103/103、定向回归、VxEditor41 目标 lint/parse 和生产构建、两仓 diff check 全部通过；尚未提交、推送或部署，等待用户确认 Git 提交。
 
 ### Phase 142: 发布 Converter 1.2.3 并更新受管运行时（2026-08-14）
 - [x] 复核发布脚本、远端保护、v1.2.3 不存在、签名密钥权限和当前 stable 历史
