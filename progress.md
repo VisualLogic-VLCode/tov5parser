@@ -3383,3 +3383,15 @@
 - 已将 package/package-lock 版本从 1.2.4 提升到 1.2.5；完整回归 104/104、production audit 0 vulnerabilities、`git diff --check` 全部通过。
 - 1.2.5 dry-run tarball 为 164 entries / 1,788,091 bytes / unpacked 29,349,189 bytes，9 个运行依赖全部内置；必需入口完整，未包含规划记录、Git/环境文件、密钥或用户 VxServer 文档。
 - 下一步精确提交 package/package-lock 与三份发布记录并推送，随后只从该干净远端提交生成签名资产。
+- Converter 1.2.5 源提交 `fd6561e15f688a31e4b943c14d6c588108b7477a` 已推送至 `origin/main`，主分支远端精确可见；用户未跟踪文档未进入提交。
+- 已从该提交建立 detached 干净 worktree，v1.2.4 公开 manifest 以嵌入公钥验签通过后导出 raw payload。prepare 生成的候选摘要为 tgz `e324108206cb8e601987662d54faa55a96f5f48cd02f2eb62628b2f87f67b083`、payload `96adc86c9c8ced4b434a7daafa51b0016ec1d0797e2beb07838321d254427ce7`、manifest `62d13049ae0dfd72cbb3338319b42f4dd2455e0a88d6c62a7e44fe2dda2363a4`。
+- 候选独立验收通过：source dirty=false、签名有效、历史 1.2.0–1.2.4 descriptor 未变、latest 1.2.5/minimum 1.2.0/revoked empty、tar 164 entries 无风险路径；离线安装可导入三个 API，包内公式 44/44 与转换 39/39 测试通过。
+- 发布前 GitHub 加固再次通过：仓库 PUBLIC/非归档、immutable Releases enabled，main+release-channel 与 v* ruleset active 且 bypass=0；v1.2.5 Release/tag 不存在，私钥权限 0600，维护仓干净。
+- 正式 publisher 已成功发布不可变 Converter v1.2.5，并最后推进 stable；Release URL 为 `https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.5`，channel commit 为 `e1fae90035573c75b1273d55147ef3cd9033342d`。
+- 公开回读闭环：Release 为 immutable、Latest、非草稿、非 prerelease，tag/target 精确指向 `fd6561e15f688a31e4b943c14d6c588108b7477a`；GitHub asset digest、重新下载 SHA-256 与候选完全一致，下载内容逐字节相等且 manifest 验签通过。
+- stable channel 提交 `e1fae90035573c75b1273d55147ef3cd9033342d` 的唯一父提交是 v1.2.4 channel `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985`，远端通道 manifest 与候选逐字节相等；默认 stable URL 已直接返回 latest 1.2.5。
+- 真实受管客户端从 1.2.4 检测到 UPDATE_AVAILABLE 并安装/激活 1.2.5，摘要 `e324108206cb8e601987662d54faa55a96f5f48cd02f2eb62628b2f87f67b083`，restartRequired=false；受管包内公式 44/44、转换 39/39 通过。
+- rollback 恢复 1.2.4 后，stable 再次正确提示 1.2.5；重新 apply 后最终 Workflow/Converter/Knowledge 为 `0.6.2/1.2.5/0.1.4`，三者 CURRENT，doctor ok，Agent protocol 7/current。
+- detached release worktree 已正常注销，候选、公开下载与离线安装临时目录整体移动到 `/Users/lianghuang/.Trash/tov5parser-release-1.2.5.CqmAq9`，保持可恢复；Lambda 临时目录同样已移入废纸篓。
+- 最终独立复核通过：tov5 main/origin 0/0，远端 main/tag 指向 `fd6561e`、release-channel 指向 `e1fae900`；VxEditor41 master/origin 0/0；Lambda `prod→38` Active/Successful；v1.2.5 immutable Latest；受管三运行时全部 CURRENT。
+- Phase 148 完成，准备只提交并推送三份最终发布审计记录；用户未跟踪 VxServer 文档继续排除。

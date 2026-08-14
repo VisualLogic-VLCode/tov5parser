@@ -2741,3 +2741,9 @@
 - VxEditor41 的实现差异只在节点访问入口和缺少 Node 侧诊断包装；按仓库结构手工移植后，`isServerRootNode + serviceParam token` 识别、直接请求信息标识符、Header 成员访问、Body/URL 零参调用和 sysFunc/sysHelper 映射与 tov5parser 一致。
 - VxEditor41 发布提交为 `277bbb6924df0802b0f9404e302bce22ec39b243`，仅含两份目标转换器文件；其余用户 tracked/untracked 状态在提交前后保持原样。
 - Converter 1.2.5 保持既有 `UNLICENSED` 和 9 个 bundled runtime dependencies；版本门禁为 104/104 tests、0 production vulnerabilities，dry-run 包 164 entries、1,788,091 bytes，必需公开入口齐全且敏感/任务记录路径为空。
+- 1.2.5 Release 源提交固定为 `fd6561e15f688a31e4b943c14d6c588108b7477a`；候选 tgz/payload/manifest SHA-256 依次为 `e324108206cb8e601987662d54faa55a96f5f48cd02f2eb62628b2f87f67b083`、`96adc86c9c8ced4b434a7daafa51b0016ec1d0797e2beb07838321d254427ce7`、`62d13049ae0dfd72cbb3338319b42f4dd2455e0a88d6c62a7e44fe2dda2363a4`。
+- v1.2.5 payload 在 v1.2.4 官方验签 payload 上追加版本，旧 1.2.0–1.2.4 descriptor 逐项不变；新 descriptor 的 Workflow 兼容范围保持 `>=0.3.1 <1.0.0`，minimumSupported 仍为 1.2.0，revoked 为空。
+- v1.2.5 Release 已公开且不可变/Latest，tag source 为 `fd6561e15f688a31e4b943c14d6c588108b7477a`；asset digest 与公开下载摘要都精确匹配候选 tgz `e3241082...7b083` 和 manifest `62d13049...363a4`。
+- stable channel `e1fae90035573c75b1273d55147ef3cd9033342d` 以唯一父提交 `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985` 追加，证明未改写历史；默认 raw stable 已传播到 1.2.5，且内容与 Release manifest 相同、签名有效。
+- 受管更新、回滚和重应用均通过：1.2.4→1.2.5 后运行包测试 44/44 + 39/39；rollback 回到 1.2.4 时 stable 报 UPDATE_AVAILABLE；最终恢复 1.2.5，Workflow 0.6.2/Knowledge 0.1.4 和 Agent protocol 7 保持 current。
+- Phase 148 终态可追溯链：产品 `6c6d135fb504aa414f871c26a49659b4e1f4e88d` → Lambda 38；Release source/tag `fd6561e15f688a31e4b943c14d6c588108b7477a` → immutable v1.2.5；stable `e1fae90035573c75b1273d55147ef3cd9033342d`；VxEditor41 `277bbb6924df0802b0f9404e302bce22ec39b243`。

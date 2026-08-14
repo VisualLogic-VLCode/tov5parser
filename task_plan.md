@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 148（发布请求信息 AST 修复）— in progress
+Phase 148（发布请求信息 AST 修复）— complete
 
 ## Phases
 
@@ -14,12 +14,12 @@ Phase 148（发布请求信息 AST 修复）— in progress
 - [x] 复核双仓远端、用户脏文件、生产 Lambda 回滚点与 v1.2.5 发布安全基线
 - [x] 推送 tov5parser 产品提交并从该提交更新生产 Lambda
 - [x] 将最小修复同步至 VxEditor41，完成定向检查/构建并提交推送
-- [ ] 准备 Converter 1.2.5 版本提交，完成测试、打包、依赖和敏感信息门禁
-- [ ] 从干净提交生成签名资产，发布不可变 v1.2.5 并最后提升 stable
-- [ ] 验证公开下载、签名、受管更新、回滚/重应用及最终远端状态
-- [ ] 推送发布审计记录并汇总交付
+- [x] 准备 Converter 1.2.5 版本提交，完成测试、打包、依赖和敏感信息门禁
+- [x] 从干净提交生成签名资产，发布不可变 v1.2.5 并最后提升 stable
+- [x] 验证公开下载、签名、受管更新、回滚/重应用及最终远端状态
+- [x] 推送发布审计记录并汇总交付
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求推送当前修复、更新生产 Lambda、发布新的 Converter Release，并同步 VxEditor41 转换器后提交推送。允许双仓 Git 远端写入、Lambda 版本/`prod` 别名更新、GitHub Release/tag/stable channel 与受管 Converter 更新验证；不写案例平台，不修改 VxEditor41 用户无关文件，不覆盖用户未跟踪 VxServer 文档。
 
@@ -31,6 +31,10 @@ Phase 148（发布请求信息 AST 修复）— in progress
 | ruleset 列表摘要没有完整 `rules`，jq 直接迭代 null 失败 | 1 | 仓库无变更；下一步先读取 ruleset ID/摘要，再逐个调用详情端点验证规则与 bypass |
 | detached worktree 首次缺少依赖，Lambda 前置测试报缺 `xid-js/jsep` | 1 | 根因是创建 worktree 与 `npm ci` 在同一调用中但固定 cwd 仍为根仓，安装没有发生在新 worktree；AWS mutation 前已停止。改为显式以 detached source 为 cwd 执行 lockfile 安装并验证 `npm ls`，不跳过测试 |
 | 部署后的独立 AWS 回读首次未指定项目 profile，CLI 报 `NoCredentials` | 1 | 部署本身及冒烟已成功；按部署脚本默认值显式使用 `vl-case-json-converter-cn` 重新只读校验，别名、版本和 S3 历史包均通过 |
+| `node --test` 对 `node_modules` 下显式测试路径报找不到文件 | 3 | 包文件实际存在且离线导入正常；Node 测试发现会排除依赖目录。改为直接执行两份使用 `node:test` 的测试模块，分别 44/44 与 39/39 通过，不改候选资产 |
+| `gh release view --json isLatest` 在当前 gh 版本不支持该字段 | 1 | Release 已成功公开；改用 GitHub `/releases/latest` 权威 API 验证 v1.2.5 为 Latest，其余 immutable/draft/prerelease/target/asset 字段继续由 release view 回读 |
+
+**结论：** tov5parser 修复提交 `6c6d135`、版本源提交 `fd6561e` 与 VxEditor41 同步提交 `277bbb692` 均已推送。生产 Lambda `prod→38` 且 Active/Successful；Converter v1.2.5 已作为不可变 Latest 发布，stable channel 为 `e1fae900`。公开摘要/签名、受管升级、包内测试、回滚与重应用全部通过，最终受管版本为 Workflow/Converter/Knowledge `0.6.2/1.2.5/0.1.4`，两仓用户无关文件未进入提交。
 
 ### Phase 147：修复 V4 请求信息入参 AST 转换（2026-08-14）
 
