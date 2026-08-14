@@ -1,5 +1,37 @@
 # Progress Log
 
+## 2026-08-14 — Phase 141
+
+- 用户已明确授权：提交并推送 tov5parser、更新生产 Lambda，并把同一转换器修复同步到 VxEditor41 后提交推送。
+- 本轮按转换器维护发布执行，不调用 V4→V5 工作流、不创建迁移 Job、不修改平台案例；两个仓库的无关脏文件继续排除。
+- 已运行 session catchup 并恢复 Phase 140 上下文；tov5parser 当前 `main...origin/main` 无 ahead/behind，待提交范围为转换器、回归测试和三份规划记录，用户未跟踪 VxServer 文档保持未改动。
+- 已确认 tov5parser 发布基线为 `ceb8b8a`，Lambda 标准入口为 `npm run deploy:lambda:prod -- --smoke`；提交前仍需刷新远端和完成 staged 范围门禁。
+- 已定位 VxEditor41：`master...origin/master` 无 ahead/behind，目标转换器干净；仓库既有 `.gitignore`、`src/stores/event.js` 与未跟踪 UI 目录将全部排除。确认目标分支仍存在同类静默丢弃逻辑。
+- 一次在 VxEditor41 目录读取 tov5parser 部署脚本失败，原因是工作目录错误；未修改文件，已改为后续在各自仓库读取对应路径。
+- 已完整复核 Lambda 发布脚本：新版本发布后原子切换 `prod`，冒烟会校验实际执行版本；因用户未跟踪文档使工作树不能完全 clean，本轮将在精确提交并推送后以 `--allow-dirty` 发布白名单运行包。
+- 已将 `MemberExprReceiver` 保义修复同步到 VxEditor41 的目标转换器单文件；未修改该仓其他文件，下一步执行解析、ESLint 与生产构建验证。
+- tov5parser 完整回归再次通过：102/102、0 fail；VxEditor41 目标转换器 ESLint 以 0 warning 通过。测试输出中的 ParseError 是既有和新增保义 fallback 的可观测日志，测试结果为成功。
+- 两仓已刷新远端且均为 0 ahead / 0 behind：tov5parser `main` 与 VxEditor41 `master` 没有分叉；两仓 `git diff --check` 通过。VxEditor41 目标 diff 精确为同一 12 行保义修复，其他用户改动未混入。
+- tov5parser 产品提交 `86498e9 fix: preserve member access after value fallbacks` 已创建并推送到 `origin/main`；提交精确包含转换器和回归测试两文件，规划记录与用户未跟踪文档未进入该提交。
+- 生产 Lambda 发布成功：部署内 102/102 测试通过，发布版本 36，`prod→36`；冒烟 StatusCode 200 / ExecutedVersion 36 / FunctionError null / 业务 code 0。CodeSha256 为 `37GbY0oQ/T8yPczUtNgi2PltURS/JW5Hu9NqVlnVH1o=`，归档包按提交号留存。
+- Lambda 独立 read-back 通过：`prod→36` 且 RoutingConfig 为空，版本 36 Active/Successful，描述精确指向 `86498e9`，运行参数保持不变。
+- VxEditor41 生产 webpack 构建成功（exit 0，33 类既有 warning）；目标转换器此前已单文件 ESLint 0 warning。下一步只暂存该转换器并提交推送。
+- VxEditor41 提交 `c97326655 fix: preserve member access after value fallbacks` 已创建并推送到 `origin/master`；提交精确包含目标转换器单文件，仓库原有 `.gitignore`、`src/stores/event.js` 与未跟踪 UI 目录保持未暂存。
+- 最终 read-back 通过：tov5parser `86498e9` 与 `origin/main` 0/0，VxEditor41 `c97326655` 与 `origin/master` 0/0；Lambda `prod→36`、无路由权重、版本 Active/Successful、摘要和提交描述一致。
+- Phase 141 完成。tov5parser 仅余三份本轮规划记录和用户未跟踪文档；将只提交规划记录作为发布审计，继续排除用户文档。
+
+## 2026-08-14 — Phase 140
+
+- 已恢复现有规划上下文并确认工作区只有用户未跟踪文档 `VxServer-saveAs-same-gid-group-db-fix.md`，本轮不触碰。
+- 已确认修复目标：为逻辑/条件表达式结果保留后续成员访问，并先补失败回归测试。
+- 已在 `jsepWrap.test.js` 增加 `((row || {}).customerCompany || {}).name` 的执行语义回归，覆盖正常对象、空嵌套对象和空行值。
+- 新测试在未修复代码上按预期失败：实际返回整条 row 对象，预期为 `Acme`，直接复现线上症状。
+- 已修改 `processMemberExpression`：当 `genObjectPropertyAST` 无法把属性追加到接收者 AST 时抛出 `MemberExprReceiver`，由公式入口统一转入现有 custom-expression/jsfn 保义兜底，不再返回被截断的 AST。
+- 回归已扩展到生产形态三元公式，同时验证 `invoiceCode` 分支和公司名称分支；定向测试通过。
+- 项目全量测试 102/102 通过、0 fail；`git diff --check` 通过，最终差异仅含转换器、回归测试及三份规划记录，用户原有未跟踪文档保持未改动。
+- Phase 140 完成；未运行 V4→V5 工作流、未修改平台案例、未提交或发布，等待用户确认是否创建 Git 提交。
+- 已把回归扩展为生产同形三元表达式，同时验证 `invoiceCode` 动态取值分支与 `customerCompany.name` 安全取值分支。
+
 ## Phase 126：修复 callback paramFunc 元数据并发布（2026-08-10）
 
 - VxEditor41 两处逻辑同步完成：只修改 `formulaCode/MapCreator.js` 与 `V4FormulaCodeConverter.js`，保留编辑器 window 依赖和代码风格。两目标文件 ESLint 0 error / 0 warning，目标 diff check 通过；差异与主仓语义一致。下一步执行生产构建。

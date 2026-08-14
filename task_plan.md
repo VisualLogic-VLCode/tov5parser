@@ -5,9 +5,32 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 139（发布 Converter 1.2.2 稳定版）— complete
+Phase 141（提交发布并同步 VxEditor41）— complete
 
 ## Phases
+
+### Phase 141: 提交发布并同步 VxEditor41（2026-08-14）
+- [x] 复核两个仓库状态、远端差异、发布脚本和目标文件
+- [x] 提交并推送 tov5parser 修复
+- [x] 发布新的 Lambda 版本并验证 `prod` 别名与冒烟结果
+- [x] 同步修复到 VxEditor41，运行定向校验与构建
+- [x] 仅提交并推送 VxEditor41 目标转换器文件
+- [x] 完成两仓最终状态与发布 read-back
+- **Status:** complete
+
+### Phase 140: 修复逻辑表达式结果的成员访问被静默丢弃（2026-08-14）
+- [x] 为 `((row || {}).customerCompany || {}).name` 增加失败回归测试
+- [x] 修复非 `get` AST 接收者的成员访问转换，避免属性路径静默丢失
+- [x] 运行定向测试与项目全量测试
+- [x] 检查最终差异并汇报，等待用户确认是否提交
+- **Status:** complete
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 在 VxEditor41 工作目录读取 tov5parser 的部署脚本，路径不存在 | 1 | 已确认只是工作目录选错；后续从 tov5parser 根目录读取剩余脚本，不重复该路径 |
+| 新回归测试修复前返回整条 row 对象而不是 `Acme` | 1 | 失败符合预期，证明属性访问被静默丢弃；进入转换逻辑修复 |
 
 ### Phase 1: 调研与依赖抽离设计
 - [x] 摸清 VxEditor41 `src/utils/convertV4ToV5` 模块结构与编辑器环境依赖（9 处，四类）

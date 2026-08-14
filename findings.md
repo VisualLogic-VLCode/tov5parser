@@ -1,5 +1,27 @@
 # Findings & Decisions
 
+## Phase 141：提交、Lambda 发布与编辑器同步
+
+- tov5parser 当前 `main` 与 `origin/main` 同步，基线提交为 `ceb8b8a`；发布入口是 `npm run deploy:lambda:prod -- --smoke`，脚本负责测试、打包、发布版本、切换 `prod` 别名和冒烟。
+- 本轮提交必须排除用户未跟踪的 `VxServer-saveAs-same-gid-group-db-fix.md`；产品改动是公式转换器和回归测试，三份规划记录用于发布审计。
+- 用户明确授权两仓提交推送及 Lambda 更新，因此无需再次请求 Git 提交确认；仍须在提交前刷新远端并验证无远端分叉，禁止变基和历史重写。
+- VxEditor41 位于 `/Users/lianghuang/Desktop/ivx_repos/VxEditor41`，当前 `master` 与 `origin/master` 同步，基线 `c5595597d`；目标转换器文件无本地改动。仓库已有 `.gitignore`、`src/stores/event.js` 和多组未跟踪 UI 目录，必须全部保留且排除提交。
+- 编辑器侧同样存在忽略 `genObjectPropertyAST` 返回值的默认分支，适合同步同一 `MemberExprReceiver` 保义修复；仓库只有生产 `build` 脚本，没有项目级 test/lint script，验证需使用目标文件解析/ESLint与生产构建。
+- Lambda 部署脚本在更新函数后等待状态稳定，再发布不可变版本、清空别名附加权重并把 `prod` 指向新版本；`--smoke` 会以 `action:version` 调用别名并强校验 `ExecutedVersion`。由于仓库保留用户未跟踪文档，发布需使用 `--allow-dirty`，但运行包构建仍只取白名单运行文件，并用已提交 HEAD 写版本描述。
+- 生产 Lambda 已从提交 `86498e9` 发布为版本 36，代码摘要 `37GbY0oQ/T8yPczUtNgi2PltURS/JW5Hu9NqVlnVH1o=`；`prod` 已切到 36。别名直调返回 StatusCode 200、ExecutedVersion 36、FunctionError null、业务 code 0，包版本仍为 1.2.2。
+- 发布归档位于 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-86498e9-20260814T063336Z.zip`；部署内完整测试再次为 102/102、0 fail。
+- Lambda 独立 read-back 再次确认别名无额外路由权重，版本 36 为 Active/Successful，描述精确关联 `86498e9`，运行参数仍为 nodejs20.x / 2048 MB / 120 s。
+- VxEditor41 目标文件 ESLint 0 warning，生产 webpack 构建 exit 0；构建报告 33 类仓库既有 warning，均来自其他文件/旧依赖或用户未跟踪 UI 代码，目标转换器没有新增 warning。
+- VxEditor41 修复提交为 `c97326655 fix: preserve member access after value fallbacks`，已推送到 `origin/master`；提交精确只有 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`，既有 tracked/untracked 用户改动均未暂存。
+
+## Phase 140：逻辑表达式后成员访问丢失
+
+- V4 公式 `((row || {}).customerCompany || {}).name` 在 Converter 1.2.2 中被转换为只含 `row || {}` 的 `switchexp`；`.customerCompany` 与 `.name` 被静默丢弃，运行时因此显示整条 row 对象。
+- 根因位于 `processMemberExpression` 默认分支：`genObjectPropertyAST` 只接受可由 `isGetAST` 识别的接收者；逻辑表达式产生的 `switchexp` 不满足条件，函数直接返回，而调用方没有触发 custom-expression fallback 或其他保义路径。
+- 修复采用现有公式网关的保义路径：属性无法安全追加时抛出 `MemberExprReceiver`，让完整表达式进入 custom-expression/jsfn fallback；不再静默输出被截断的结构化 AST。
+- 回归覆盖独立成员链和生产形态三元表达式；正常公司名、发票号分支与 null 接收者语义均正确。公式模块定向测试和项目全量测试通过，全量为 102/102、0 fail。
+- 本轮用户明确要求绕过 V4→V5 工作流，直接修复转换器；不修改案例或平台数据。
+
 ## callback paramFunc 通用修复
 
 - 全案审计确认新增元数据未改变组件、事件、事件块、data-if、jsfn、持久化代码或 cType 不变量；V4 root 通过 eventId 保留，所有非 root BID 均有 V5 ln。
