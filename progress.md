@@ -3289,3 +3289,17 @@
 - 独立 read-back 通过：`prod→37`，版本 37 为 Active/Successful，CodeSha256 `rdieo39wtJRVHotO5h9Zs2QW+00ziJy0SWMU7d8xW+I=`，描述精确指向 `f52304d`，运行参数仍为 nodejs20.x / 2048 MB / 120 s；S3 历史包存在且大小 1,975,455 bytes。版本 36 保留为回滚点。
 - VxEditor41 已仅提交并推送目标转换器：`f50012b81 fix: normalize ternary value conditions`。目标 ESLint 0 warning、Babel parse、敏感扫描和 diff check 均通过，master 与 origin/master 为 0/0；用户的 `.gitignore`、`src/stores/event.js` 与全部未跟踪 UI 目录保持未暂存。
 - Phase 144 发布链完成；准备只暂存三份规划记录创建独立发布记录提交，未跟踪 VxServer 文档继续排除。
+
+# 2026-08-14 Phase 145：发布 Converter 1.2.4
+
+- 用户明确要求发布 Converter release 版；新增 Phase 145，目标为把已验证并已进入 main 的三元 truthy 修复发布成稳定补丁版 1.2.4。只处理 Converter Release/stable 渠道，不重复 Lambda 或 VxEditor41 发布，也不运行 V4→V5 案例工作流。
+- session catchup 已确认上一阶段的源码、Lambda 37 与 VxEditor41 发布均已闭合；当前 main/origin 同步，工作区只有受保护的未跟踪 VxServer 说明文档和本阶段规划记录。
+- 当前 package 为 1.2.3 / UNLICENSED；仓库自身只包含运行、打包与 Lambda 脚本，签名 Release 发布器需从既有维护者工具链定位。一次检索误带不存在的 `.github` 路径，已记录并改用真实目录。
+- 已定位并完整复核独立维护仓 `/Users/lianghuang/Desktop/ivx_repos/ivx-v4-v5-migration` 的 `release:prepare/release:publish` 实现；维护仓当前 clean。发布器仍执行签名/摘要、source clean+commit、PUBLIC、immutable release、ruleset、Draft 资产校验，并最后提升 stable。
+- 首轮远端预检已确认 main/origin 0/0、仓库 PUBLIC、immutable releases enabled、两套 ruleset active、v1.2.3 immutable Latest、v1.2.4 Release 不存在、签名私钥 0600。读取旧 manifest 时误把字符串 payload 当对象，已记录并改为显式解析。
+- 进一步确认 envelope payload 使用 base64 编码；第二次按普通 JSON 字符串解析失败，未产生写入。后续按 base64 解码并由官方验证器验签，避免第三次重复同一假设。
+- 一次 stable 字节核验在 Workflow 维护仓读取了错误 origin，因而未找到 Converter manifest；仅刷新了维护仓远端引用，没有改工作区。已改为显式指定 tov5parser 仓库路径。
+- Converter release-channel 已按正确仓库刷新；官方 envelope 验证器首次调用因未传公钥而按设计拒绝，已记录，下一次将使用内嵌公开发布配置显式验签。
+- 正式预检闭合：v1.2.3 Release asset 与 origin/release-channel manifest SHA-256 均为 `2dbe59a6...9162fc`，使用内嵌公钥验签成功；stable 历史完整为 1.2.0–1.2.3、minimum 1.2.0、revoked 空。标签之后只有三元修复产品提交与其发布记录，1.2.4 发布边界清晰。
+- package/package-lock 已精确提升为 1.2.4；完整测试 103/103、production audit 0 vulnerabilities、`npm ci --ignore-scripts --dry-run` 和 diff/sensitive 门禁通过。
+- 1.2.4 npm dry-run 为 164 files / 1,787,691 bytes（unpacked 29,341,202），入口、README、Map 与转换器均存在；仅包含 9 个预期 bundled runtime dependencies，未包含 localCases、release-out、archive、凭证、secret 或用户 VxServer 文档。

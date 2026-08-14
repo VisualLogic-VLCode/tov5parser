@@ -2642,3 +2642,14 @@
 - tov5parser 产品提交固定为 `f52304d`，且已推送至 origin/main；Lambda 历史归档与描述应追溯到该提交，而不是后续发布记录提交。
 - 生产发布闭环：Lambda 版本 37 的 CodeSha256 为 `rdieo39wtJRVHotO5h9Zs2QW+00ziJy0SWMU7d8xW+I=`，状态 Active/Successful，描述为 `tov5parser f52304d normalize ternary truthy conditions`；`prod` 冒烟实际执行版本 37 并返回业务 code 0。
 - VxEditor41 提交 `f50012b81` 精确为目标转换器 1 file changed；推送后 master 与 origin/master 为 0/0，仓库中其余 tracked/untracked 用户改动没有被暂存或提交。
+
+# Phase 145：Converter 1.2.4 Release
+
+- 当前仓库包版本与最新稳定标签均为 1.2.3；三元 truthy 产品修复提交 `f52304d` 位于 v1.2.3 标签之后，因此需要新补丁版本，不能覆盖不可变的 v1.2.3 资产。
+- 发布范围限定为 Converter 1.2.4 的源码版本提交、签名 tgz/manifest、GitHub Release 和最后更新的 stable 渠道；Lambda 37 与 VxEditor41 `f50012b81` 已完成，无需重复发布。
+- 1.2.3 的既有发布链已验证可复用：版本元数据提交后从干净 commit 生成签名资产，公开 Release 校验完成后最后更新 stable channel，再执行公开下载、受管 update/rollback/reapply；本次沿用相同顺序。
+- prepare 默认使用 `~/.ivx-v4-v5-maintainer/keys/release-private-key.pem`，要求非组/全局可读；它会以 `npm pack` 生成 `tov5parser-1.2.4.tgz`，继承上一 raw payload 后写入签名 envelope 与绑定 source commit/dirty 状态的计划。
+- publish 会重验三个摘要和 Ed25519 签名，要求 packageDir clean 且 HEAD 等于计划提交；之后检查 GitHub PUBLIC、immutable releases 与无 bypass 的 main/release-channel/v* 保护，按 Draft→资产核验→公开 Latest→stable channel 最后更新执行。
+- v1.2.4 发布安全预检通过：main/origin 0/0，v1.2.4 tag/Release 均不存在；仓库 PUBLIC、immutable releases enabled；branch rules 精确保护 main/release-channel，tag rules 精确保护 v*，均 active 且 bypass=0；私钥权限 0600。
+- v1.2.3 的公开 manifest 与 Converter release-channel 字节一致且官方验签通过，SHA-256 `2dbe59a6123b84d1d81230e0a7212c4b6d633baca2cf9fab0f601db4c89162fc`。继承基线为 latest 1.2.3、minimum 1.2.0、versions 1.2.0–1.2.3、revoked empty。
+- 1.2.4 版本级门禁通过：103/103 tests、0 vulnerabilities；dry-run tarball 为 164 files / 1,787,691 bytes / unpacked 29,341,202 bytes，9 个 bundleDependencies 与必需入口完整，无敏感路径。版本变更仅 package/package-lock 1.2.3→1.2.4，规划文件记录发布审计。

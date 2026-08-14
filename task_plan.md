@@ -5,9 +5,32 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 144（提交推送并发布三元 truthy 修复）— complete
+Phase 145（发布 Converter 1.2.4 稳定版）— in progress
 
 ## Phases
+
+### Phase 145：发布 Converter 1.2.4 稳定版（2026-08-14）
+
+- [x] 核对 v1.2.3 最新稳定版、v1.2.4 不存在、远端基线、发布保护和签名密钥
+- [x] 将 Converter 版本提升至 1.2.4，运行完整测试、打包内容、依赖与敏感信息门禁
+- [ ] 提交并推送版本源，生成签名 tgz/manifest 和不可变发布计划
+- [ ] 创建并校验 v1.2.4 GitHub Release，最后更新 stable release-channel
+- [ ] 验证公开下载、签名、全新安装、受管 1.2.3→1.2.4 更新与回滚链
+- [ ] 记录 Release URL、提交、标签、摘要及最终状态并推送发布记录
+
+**Status:** in progress
+
+**授权与范围：** 用户明确要求发布当前 Converter 的 release 版，按语义化版本发布下一个补丁版 1.2.4。只发布 Converter 稳定资产和 stable 渠道；不重复部署 Lambda 37、不再次提交 VxEditor41、不运行案例迁移或写平台。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 发布文件检索包含仓库中不存在的 `.github` 目录，`rg` 报路径不存在 | 1 | 已确认项目发布器不在该目录；后续只检索实际存在的 `scripts/docs` 和既有发布记录，不重复该路径 |
+| 直接把签名 envelope 的 `payload` 当对象读取，实际字段是规范化 JSON 字符串，导致 `Object.keys` TypeError | 1 | 下载文件与远端均未受影响；下一步先读取 envelope 键和 payload 类型，再显式 `JSON.parse(envelope.payload)`，不重复错误假设 |
+| envelope 的 `payload` 字符串实际为 base64，而非直接 JSON 文本，第二次解析报 SyntaxError | 2 | 已从错误内容确认编码；改为 `Buffer.from(payload, 'base64')` 解码后解析，并用官方 `loadReleaseEnvelope` 做正式验签 |
+| 在 Workflow 维护仓工作目录刷新/读取 `origin/release-channel`，误取到 Workflow 通道，找不到 `converter-stable.json` | 1 | 只产生只读 fetch；后续对 Converter refs 显式使用 `git -C /Users/lianghuang/Desktop/ivx_repos/tov5parser`，验签仍在维护仓执行 |
+| 直接调用官方 `loadReleaseEnvelope` 时未显式传公钥，返回 `RELEASE_PUBLIC_KEY_REQUIRED` | 1 | 官方验证器按设计不隐式信任密钥；改为传入 `PUBLIC_RELEASE_PROFILE.publicKeyPem`，不降低验签要求 |
 
 ### Phase 144：提交推送并发布三元 truthy 修复（2026-08-14）
 
