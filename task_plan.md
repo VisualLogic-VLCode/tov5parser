@@ -5,7 +5,7 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 145（发布 Converter 1.2.4 稳定版）— in progress
+Phase 145（发布 Converter 1.2.4 稳定版）— complete
 
 ## Phases
 
@@ -13,14 +13,16 @@ Phase 145（发布 Converter 1.2.4 稳定版）— in progress
 
 - [x] 核对 v1.2.3 最新稳定版、v1.2.4 不存在、远端基线、发布保护和签名密钥
 - [x] 将 Converter 版本提升至 1.2.4，运行完整测试、打包内容、依赖与敏感信息门禁
-- [ ] 提交并推送版本源，生成签名 tgz/manifest 和不可变发布计划
-- [ ] 创建并校验 v1.2.4 GitHub Release，最后更新 stable release-channel
-- [ ] 验证公开下载、签名、全新安装、受管 1.2.3→1.2.4 更新与回滚链
-- [ ] 记录 Release URL、提交、标签、摘要及最终状态并推送发布记录
+- [x] 提交并推送版本源，生成签名 tgz/manifest 和不可变发布计划
+- [x] 创建并校验 v1.2.4 GitHub Release，最后更新 stable release-channel
+- [x] 验证公开下载、签名、全新安装、受管 1.2.3→1.2.4 更新与回滚链
+- [x] 记录 Release URL、提交、标签、摘要及最终状态并推送发布记录
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确要求发布当前 Converter 的 release 版，按语义化版本发布下一个补丁版 1.2.4。只发布 Converter 稳定资产和 stable 渠道；不重复部署 Lambda 37、不再次提交 VxEditor41、不运行案例迁移或写平台。
+
+**结论：** Converter 1.2.4 已作为 immutable Latest Release 发布，tag/source 为 `v1.2.4` → `0cdbfe8b201773ff91e5fa9f92f7f4f66a39c6af`。tgz SHA-256 `1b51f179a7acce8cb8fd35ad0c93b6be1262f9628de30de46b57698b4b73ebf8`，signed manifest SHA-256 `1f552649900df477fbe06578a0e8d2c52d1d6352f7b117fac818736aa6a89984`，stable channel commit `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985`。公开下载、验签、离线安装、受管 1.2.3→1.2.4 更新、包内 44/44 回归、回滚与重应用全部通过；本机最终运行时为 Workflow/Converter/Knowledge `0.6.2/1.2.4/0.1.4`。
 
 #### Errors Encountered
 
@@ -31,6 +33,11 @@ Phase 145（发布 Converter 1.2.4 稳定版）— in progress
 | envelope 的 `payload` 字符串实际为 base64，而非直接 JSON 文本，第二次解析报 SyntaxError | 2 | 已从错误内容确认编码；改为 `Buffer.from(payload, 'base64')` 解码后解析，并用官方 `loadReleaseEnvelope` 做正式验签 |
 | 在 Workflow 维护仓工作目录刷新/读取 `origin/release-channel`，误取到 Workflow 通道，找不到 `converter-stable.json` | 1 | 只产生只读 fetch；后续对 Converter refs 显式使用 `git -C /Users/lianghuang/Desktop/ivx_repos/tov5parser`，验签仍在维护仓执行 |
 | 直接调用官方 `loadReleaseEnvelope` 时未显式传公钥，返回 `RELEASE_PUBLIC_KEY_REQUIRED` | 1 | 官方验证器按设计不隐式信任密钥；改为传入 `PUBLIC_RELEASE_PROFILE.publicKeyPem`，不降低验签要求 |
+| detached worktree 命令在 Workflow 维护仓执行，无法解析 Converter 提交 `0cdbfe8` | 1 | 命令在创建临时根目录后即停止，未添加 worktree；后续显式使用 `git -C <tov5parser> worktree add`，不重复仓库混用 |
+| 候选验收误要求 envelope 解码字节与 pretty-printed payload 文件逐字节一致，触发 `envelope bytes mismatch` | 1 | 官方验签及解析对象已先通过，离线安装和 44/44 包内测试也通过；复核签名实现的 canonical 编码后改为比较规范化 payload bytes/对象，不重复错误字节假设 |
+| CLI 不支持 `rollback --help` 子命令形式，把它当实际 rollback 并因缺 `--kind` 返回参数错误 | 1 | 未改变运行时；顶层 usage 已给出确切语法，后续使用 `rollback --kind converter`，不再调用该 help 形式 |
+| stable 提升后立即运行受管 `update check` 仍读到 raw CDN 缓存的 1.2.3 | 1 | GitHub Release、Contents/ref 与公开下载已独立证明 1.2.4 正确；先核对客户端 manifest 配置与缓存行为，再做有界传播检查，不重复无信息的立即重试 |
+| 临时目录清理命令包含 `rm -rf`，执行前被安全策略拒绝 | 1 | 命令整体未运行、文件未删除；改为先用 Git 正常移除 worktree，再把四个已核对的精确临时目录移动到用户废纸篓以便恢复 |
 
 ### Phase 144：提交推送并发布三元 truthy 修复（2026-08-14）
 

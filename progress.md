@@ -3303,3 +3303,19 @@
 - 正式预检闭合：v1.2.3 Release asset 与 origin/release-channel manifest SHA-256 均为 `2dbe59a6...9162fc`，使用内嵌公钥验签成功；stable 历史完整为 1.2.0–1.2.3、minimum 1.2.0、revoked 空。标签之后只有三元修复产品提交与其发布记录，1.2.4 发布边界清晰。
 - package/package-lock 已精确提升为 1.2.4；完整测试 103/103、production audit 0 vulnerabilities、`npm ci --ignore-scripts --dry-run` 和 diff/sensitive 门禁通过。
 - 1.2.4 npm dry-run 为 164 files / 1,787,691 bytes（unpacked 29,341,202），入口、README、Map 与转换器均存在；仅包含 9 个预期 bundled runtime dependencies，未包含 localCases、release-out、archive、凭证、secret 或用户 VxServer 文档。
+- 版本源提交 `0cdbfe8 chore: prepare converter 1.2.4 release` 已创建并 fast-forward 推送至 origin/main；提交精确包含 package/package-lock 与三份发布记录，用户未跟踪文档未暂存。后续候选资产只从该提交的 detached 干净 worktree 生成。
+- 首次建立 detached worktree 时命令误在 Workflow 仓解析 Converter 哈希，立即失败且未添加 worktree；已记录，改为所有 Git worktree 操作显式绑定 tov5parser 仓库路径。
+- detached worktree 已在 `/tmp/ivx-converter-1.2.4-release.iSl0y7/source` 从 `0cdbfe8` 正确建立；上一版公开 manifest 经官方公钥验签后导出 raw payload。干净 worktree 重新安装依赖、audit 0，并再次通过 103/103 完整测试。
+- 1.2.4 签名候选已生成，计划绑定完整 source `0cdbfe8b201773ff91e5fa9f92f7f4f66a39c6af` 且 dirty=false。候选摘要：tgz `1b51f179...73ebf8`、payload `a08f4a37...6bdc54`、manifest `1f552649...a89984`；尚未创建远端 Release。
+- 候选离线安装成功，导出接口与 1.2.4/UNLICENSED 元数据正确，包内公式回归 44/44。验签校验已通过到对象一致性，但附加的“envelope bytes 等于 pretty payload 文件”假设失败；该文件可能是展示格式而签名使用 canonical bytes，正在按实现复核后修正验收。
+- 已确认签名实现使用 compact canonical `JSON.stringify(payload)` bytes，而 raw payload 文件为 pretty JSON；修正验收假设后，三个摘要、Ed25519、canonical bytes、1.2.0–1.2.3 历史不变、1.2.4 descriptor、164 个安全路径和 source clean 全部通过。候选可进入正式发布。
+- Converter 1.2.4 已由维护者发布器成功完成 Draft→资产核验→公开 Latest→stable 最后提升；Release URL 为 `https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.4`，release-channel commit 为 `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985`。开始从公开端独立复验。
+- 公开端复验通过：v1.2.4 为 immutable Latest、非 draft/prerelease，tag 与 target 均为 `0cdbfe8...c6af`；公开 tgz/manifest 摘要与候选完全一致且签名有效。release-channel 以 `c30bc56→98f4d7b` fast-forward，通道 manifest SHA-256 与 Release asset 一致。
+- 当前受管组合为 Workflow/Converter/Knowledge `0.6.2/1.2.3/0.1.4`，兼容范围允许 1.2.4，Agent protocol 7 current。发布后首次 `update check` 仍读到 raw CDN 缓存的旧 stable 1.2.3；远端权威 refs 已是 1.2.4，开始核对缓存/显式 manifest 路径后再执行升级。
+- 源码复核确认 update check 每次直接拉取配置 URL，不使用本地 manifest cache；`release check/install --kind converter --manifest <url>` 支持显式不可变 manifest。将先用 channel commit URL验证客户端，再等待默认 stable URL 有界传播后执行正式 update apply。
+- commit-specific manifest 已通过受管客户端验签并正确报告 1.2.3→1.2.4 UPDATE_AVAILABLE；默认 branch URL 和附加 query 当前仍返回旧摘要 `2dbe59a6...9162fc`，而 commit URL 返回新摘要 `1f552649...a89984`。进入有界 CDN 传播等待，不改变运行时。
+- stable 分支 URL 在第 7 次有界检查（约 95 秒）刷新到新 manifest；真实 `update check` 随即报告 1.2.3→1.2.4 UPDATE_AVAILABLE，`update apply --kind converter` 成功安装并激活摘要 `1b51f179...73ebf8`，无需重启。
+- 更新后 Workflow/Converter/Knowledge 为 `0.6.2/1.2.4/0.1.4`，三者 CURRENT，Agent protocol 7 current；受管 1.2.4 包内公式回归 44/44。下一步验证 rollback→reapply。
+- rollback→reapply 验收通过：回滚精确恢复 1.2.3/摘要 `71b0d5f9...7769ef`，stable 立即报告 1.2.4 UPDATE_AVAILABLE；重新 apply 后回到 1.2.4/摘要 `1b51f179...73ebf8`。最终 Workflow/Converter/Knowledge `0.6.2/1.2.4/0.1.4` 全部 CURRENT，Agent current。
+- 首次临时目录清理因包含递归删除而在执行前被安全策略拒绝，无文件受影响；改为 Git worktree 正常移除后，将四个精确临时目录移动到废纸篓，保持可恢复。
+- detached worktree 已正常注销，候选/离线安装/公开下载/预检临时目录已移动到 `/Users/lianghuang/.Trash`，可恢复；根仓用户未跟踪文档未改动。Phase 145 完成，准备只提交本阶段发布记录，不混入并发 Phase 146 的未提交诊断记录。

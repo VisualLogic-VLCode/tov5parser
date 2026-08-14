@@ -2653,3 +2653,16 @@
 - v1.2.4 发布安全预检通过：main/origin 0/0，v1.2.4 tag/Release 均不存在；仓库 PUBLIC、immutable releases enabled；branch rules 精确保护 main/release-channel，tag rules 精确保护 v*，均 active 且 bypass=0；私钥权限 0600。
 - v1.2.3 的公开 manifest 与 Converter release-channel 字节一致且官方验签通过，SHA-256 `2dbe59a6123b84d1d81230e0a7212c4b6d633baca2cf9fab0f601db4c89162fc`。继承基线为 latest 1.2.3、minimum 1.2.0、versions 1.2.0–1.2.3、revoked empty。
 - 1.2.4 版本级门禁通过：103/103 tests、0 vulnerabilities；dry-run tarball 为 164 files / 1,787,691 bytes / unpacked 29,341,202 bytes，9 个 bundleDependencies 与必需入口完整，无敏感路径。版本变更仅 package/package-lock 1.2.3→1.2.4，规划文件记录发布审计。
+- 1.2.4 发布 source commit 固定为 `0cdbfe8` 并已在 origin/main 可见；正式计划必须绑定其完整哈希和 `dirty=false`，不能从保留用户未跟踪文档的根工作区直接 prepare/publish。
+- 候选 source worktree 当前 detached 在 `0cdbfe8` 且 `git status` clean；旧 payload 是从 v1.2.3 公开签名 manifest 验签后导出，避免依赖缺失的本地 1.2.3 release-out 缓存。
+- prepare-release 成功生成 1.2.4 计划：source full SHA `0cdbfe8b201773ff91e5fa9f92f7f4f66a39c6af` / dirty=false；tgz SHA-256 `1b51f179a7acce8cb8fd35ad0c93b6be1262f9628de30de46b57698b4b73ebf8`，payload `a08f4a37d471119f8f74c6c40deac6584e8608f3e92f4a8c3f5224b0ee6bdc54`，manifest `1f552649900df477fbe06578a0e8d2c52d1d6352f7b117fac818736aa6a89984`。
+- 候选独立验收通过：官方公钥验签、三个摘要、canonical signed bytes、旧版本 descriptor 不变、latest/minimum/revoked/兼容范围均正确；tgz 164 entries 无路径穿越或敏感目录。在全新 offline 目录安装后可导入三个公开接口，包内公式测试 44/44，包含三元 truthy 回归。
+- 正式 publisher 成功创建 v1.2.4 并最后提升 stable，返回 Release URL `https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.4` 与 channel commit `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985`；下一步必须从公开下载与远端 refs 独立 read-back 后才视为发布闭环。
+- 公开 read-back 已闭合：Release immutable+Latest，tag/target=`0cdbfe8b201773ff91e5fa9f92f7f4f66a39c6af`；GitHub digest 与重新下载 SHA-256 均为 tgz `1b51f179...73ebf8`、manifest `1f552649...a89984`，公开文件与候选逐字节一致。
+- release-channel commit `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985` 的唯一父提交是 v1.2.3 channel `c30bc56c...91633`，证明 stable 以 fast-forward 追加且发布顺序正确；通道 manifest 官方验签后的历史完整为 1.2.0–1.2.4。
+- 本机当前 Workflow 0.6.2 声明 Converter `>=1.2.0 <2.0.0`，Knowledge 0.1.4 声明 Converter `>=1.2.1 <2.0.0`，因此 1.2.4 兼容。受管 stable URL 使用 raw.githubusercontent.com，首次检查仍命中 1.2.3 缓存；这是通道传播问题，不是 Release 或签名资产错误。
+- UpdateManager 的 `loadChannel` 每次调用 `loadReleaseEnvelope` 直接获取远端，没有本地 channel cache。release 子命令允许 `--manifest`，可用 `98f4d7b...` commit-specific raw URL验证客户端签名与兼容性；正式 `update apply` 仍应等待默认 stable URL看到 1.2.4，证明真实用户路径生效。
+- commit-specific raw manifest 已由真实 CLI 验签并评估为 UPDATE_AVAILABLE 1.2.3→1.2.4；默认 stable URL 的短期旧值可明确归因于 GitHub raw branch CDN，而非本地缓存、签名或兼容性问题。
+- 默认 stable URL 在有界等待内完成传播，真实受管 update 正常从 1.2.3 升到 1.2.4；安装 descriptor 的 artifact SHA-256 精确为 `1b51f179a7acce8cb8fd35ad0c93b6be1262f9628de30de46b57698b4b73ebf8`，与公开 Release 一致，restartRequired=false。
+- 受管恢复链通过：1.2.4→1.2.3 rollback 后签名 stable 正确提示 UPDATE_AVAILABLE，reapply 再次安装 1.2.4 且摘要不变。Workflow 0.6.2、Knowledge 0.1.4 与 Agent protocol 7 均保持 current。
+- Phase 145 发布终态：Release `https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.4`，source/tag `0cdbfe8b201773ff91e5fa9f92f7f4f66a39c6af`，channel `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985`；本机 Converter 最终激活 1.2.4，摘要与公开 tgz 完全一致。
