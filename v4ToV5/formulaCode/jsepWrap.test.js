@@ -932,6 +932,70 @@ test('value-or uses the V5 empty-value block while boolean trees keep condition 
   )
 })
 
+test('member access after value-or receivers preserves nested properties', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: '((fParamgroup.row || {}).customerCompany || {}).name',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+
+  const code = ast2js({
+    ast,
+    eventNodeId: 'value-or-member-test',
+    getNodeByIdFunc() {}
+  })
+  const evaluate = row =>
+    new Function('$sys', 'param', `return ${code}`)(
+      {
+        util: {
+          obj_item: (value, key) => value?.[key]
+        }
+      },
+      { row }
+    )
+
+  assert.equal(
+    evaluate({ customerCompany: { name: 'Acme' } }),
+    'Acme'
+  )
+  assert.equal(evaluate({ customerCompany: null }), undefined)
+  assert.equal(evaluate(null), undefined)
+
+  const conditionalAst = new V4FormulaCodeConverter({
+    str: 'fParamgroup.index == "invoiceCode" ? fParamgroup.row[fParamgroup.index] : ((fParamgroup.row || {}).customerCompany || {}).name',
+    getCtx(name) {
+      if (name === 'fParamgroup') return { varType: 'param' }
+    },
+    scope: 'stage'
+  }).exec()
+  const conditionalCode = ast2js({
+    ast: conditionalAst,
+    eventNodeId: 'value-or-member-conditional-test',
+    getNodeByIdFunc() {}
+  })
+  const evaluateConditional = (row, index) =>
+    new Function('$sys', 'param', `return ${conditionalCode}`)(
+      {
+        util: {
+          obj_item: (value, key) => value?.[key]
+        }
+      },
+      { row, index }
+    )
+
+  const row = {
+    invoiceCode: 'D.043847',
+    customerCompany: { name: '特变电工国际工程有限公司' }
+  }
+  assert.equal(evaluateConditional(row, 'invoiceCode'), 'D.043847')
+  assert.equal(
+    evaluateConditional(row, 'customerCompany'),
+    '特变电工国际工程有限公司'
+  )
+})
+
 test('legacy object-array item composes with array search as structured sysutils', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({

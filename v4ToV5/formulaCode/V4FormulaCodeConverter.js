@@ -1155,7 +1155,17 @@ export default class V4FormulaCodeConverter {
           // 判断是否是后台
           let flag = this.isServerCbParamsAST({ ast, property })
           if (!flag) {
-            this.genObjectPropertyAST({ property, objAst: ast, computed })
+            const propertyAST = this.genObjectPropertyAST({
+              property,
+              objAst: ast,
+              computed
+            })
+            if (!propertyAST) {
+              throw new ParseError({
+                message: `not support member receiver: ${object?.exprStr}`,
+                type: 'MemberExprReceiver'
+              })
+            }
           }
         }
         break
