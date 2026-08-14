@@ -1,5 +1,55 @@
 # Progress Log
 
+## 2026-08-14 — Phase 148 发布请求信息 AST 修复
+
+- 用户明确授权推送 tov5parser 产品提交、更新生产 Lambda、发布新 Converter Release，并将修复同步到 VxEditor41 后提交推送。新增 Phase 148；只处理转换器发布链，不写案例平台。
+- 使用 planning-with-files 管理双仓、Lambda 与不可变 Release 门禁；session catchup 已恢复 `6c6d135`、104/104 测试和受保护工作区状态。下一步先做全部只读预检。
+- 首轮只读预检：tov5parser main 相对 origin 为 1/0，v1.2.4 仍是 Latest 且 v1.2.5 不存在；VxEditor41 master/origin 为 0/0，目标转换器无差异，但 `.gitignore`、event store 与多组 UI 目录是用户既有脏文件。维护者发布仓当前 clean。
+- Lambda 发布脚本默认要求干净工作树并从 HEAD 生成描述；根仓保留规划记录和用户文档，因此生产部署将从 `6c6d135` 的 detached 干净 worktree 执行，确保版本精确绑定产品提交。
+- AWS 只读预检通过，账号为授权的 `587849590304`；当前回滚点 `prod→37`，版本 37 Active/Successful，CodeSha256 `rdieo39w...d8xW+I=`，描述指向 `f52304d`。运行参数仍为 nodejs20.x / 2048 MB / 120 s。
+- 发布私钥权限为 0600，仓库 public 且未归档。首次 ruleset 详情 jq 因列表摘要缺少完整 rules 失败，需改为逐 ID 回读；一次 Lambda 脚本末段读取也因工作目录混用失败，两者均无写入。
+- 发布安全基线闭合：immutable Releases enabled；branch ruleset 精确保护 main/release-channel，tag ruleset 精确保护 v*，均 active、包含 deletion/non-fast-forward 且 bypass=0。v1.2.5 tag/Release 不存在，可进入远端发布动作。
+- tov5parser 产品提交 `6c6d135` 已 fast-forward 推送，远端 main 精确回读该完整哈希，main/origin 恢复 0/0。
+- 从 `6c6d135` 建立 detached 干净 worktree 后，首次 Lambda 部署在 `--run-tests` 阶段因干净 `npm ci` 缺少 bundled 运行依赖而停止；尚未打包或执行任何 AWS mutation，prod 仍应为 37。开始检查依赖安装语义。
+- 已定位首次依赖缺失不是 lock/bundle 问题：`git worktree add` 后的 `npm ci` 仍在命令调用的固定根仓 cwd 执行，新 worktree 从未安装依赖。显式切到 detached source 后完整依赖和 104/104 测试均通过；下一步重新执行 lockfile `npm ci` 固定版本后再部署。
+
+## 2026-08-14 — Phase 147 启动
+
+- 用户明确要求修复 Converter；已新增 Phase 147。先建立 requestInfo 特殊族失败回归，再做最小实现，不修改平台案例或发布状态。
+- 当前工作区保留 Phase 146 诊断记录、用户未跟踪文档和一行并发暂存措辞；本轮不清理、不覆盖、不自动提交这些既有状态。
+- 已复核 action 参数类型后处理、V5 CodeEditor requestInfo 规范和 ast2js 输出分支；下一步添加六类特殊值、复合表达式及防误判失败回归。
+- requestInfo 正式回归已添加；修复前 0/1，首个 Header 样本即复现字符串误转。测试同时冻结 sysFunc/sysHelper、cType、运行代码与防误判边界，开始实施最小修复。
+- 首版上下文/AST 映射仍被入口的 V4.1 旧文本判定提前截断；最初将旁路收窄到 `data-service + serviceParam token + 保留标识符`，同名普通文本保持字符串，六类映射与负例回归通过；该组件类型边界随后按用户反馈继续修正为全部后台归属节点。
+- 首次真实案例重转已确认目标 ln 三项正确，但同时发现 3 个 Header 成员访问因旧 requestInfo 容器语义触发 fallback；已改为先生成 Header requestInfo 再追加 `.Host[0]`，并增加结构/运行回归。一次运行代码断言误用了原生属性语法，已按 V5 `obj_item` helper 规范修正。
+- 防误判边界最终收紧：直接 `$serReq*` 与 Body/URL 特殊调用都必须位于后台并具有 `serviceParam` token；同名普通文本、前台节点、带实参调用和无 token 调用均保持旧行为。相邻定向回归 2/2 通过。
+- nid 11023063 已用既有 V4 快照和当前工作区源码完成内存重转：目标 ln 的 UserAgent/IP/Body ref 分别为 `sysFunc/_serviceReqUserAgent`、`sysFunc/_serviceReqIP`、`sysHelper/getInParams_body`。全案可信公式中 UserAgent 46、IP 48、Header 3、Body 42 个引用全部一一生成 requestInfo get；旧 plain val、Body/URL 业务 param ref 和 unknown-requestInfo diagnostic 均为 0。
+- 最终门禁通过：完整测试 104/104、0 fail，`git diff --check` 通过；产品改动仅公式上下文、AST 生成器及一份回归测试，三份规划记录同步更新。没有写平台、提交、推送、部署或发布，用户未跟踪 VxServer 文档保持未触碰。Phase 147 完成，等待用户确认是否创建 Git 提交。
+- 用户指出请求信息对所有后台组件可用，首版 `data-service` 类型门槛确实过窄。已改用 `isServerRootNode` 判断后台归属，并用后台 `data-var` 覆盖六类请求信息、复合值和 Header 成员访问；普通参数分类仍保持原边界。案例目标复验通过，完整测试仍为 104/104。
+- 用户确认创建 Git 提交。远端刷新后 main/origin 为 0/0，仅精确暂存三个产品文件并创建 `6c6d135 fix: convert backend request info parameters`；三份规划记录和未跟踪 VxServer 文档均未进入提交，没有推送。
+
+## 2026-08-14 — Phase 146 启动
+
+- 已读取 `v4-to-v5-workflow` 与 `planning-with-files` 完整指引；确认请求是只读转换器缺陷定位，不含平台写入或代码修复授权。
+- session catchup 未输出未同步摘要；工作区已有 Phase 145 的三份规划记录修改和受保护未跟踪文档，均保持原样。
+- 已把当前排查登记为 Phase 146；下一步运行受管 Workflow 健康检查。
+- `doctor`、`update check`、`runtime status` 全部通过，三个受管运行时均 current；没有执行更新或写模式操作。
+- `platform preflight --nid 11023063` 只读通过并返回 gid 25391、V4.1/后台案例元数据；下一步创建普通只读转换作业以取得受管诊断证据。
+- 创建只读 Job `mig_20260814083418_55f97f4f71`，转换与基础验证完成至 `READY_TO_SAVE`；没有 Save/Refresh/Repair，写模式始终未开启。
+- `job status` 与作业文件清单已核对：bounded validation、conversion manifest、完整 converter diagnostics 以及 V4/V5 快照均存在；下一步只提取目标 BID/ln 的局部对象。
+- 已用 BID/ln 精确提取 V4 动作和 V5 AST，确认用户报告的三处错误在 Converter 1.2.3 可稳定复现，且 converter diagnostics 没有记录该 ln。
+- 初步源码对照发现 Converter 其实有 requestInfo 专用 AST 生成器，但当前 V4 表达式被路由到普通字符串/普通 serviceParam；下一步继续追踪表达式上下文识别和 token 使用边界。
+- 已核对 V4 `data-service` 节点的持久化 `_code` 与 V5 `ast2js` 规则，固定三种输入的正确运行语义；同时确认 requestInfo 现有转换分支不可达，且 Body 需要 `sysHelper` 而不是 `sysFunc`。
+- 已把三处错误分别追到 `getCtx → processIdentifier/genOtherIdentifierAST` 与 `getCtx → processMemberExpression/genServiceParamAST`，确认它们为何静默通过诊断；下一步执行最小独立复现并统计真实案例影响面。
+- 最小合成复现与真实案例计数均完成：132 个确定错误 AST / 56 个动作块；接下来核对 V5 编辑器的规范 AST、现有测试缺口和精确责任行。
+- 已从 VxEditor41 的 V4 参数定义、V5 requestInfo 面板和 CodeEditor AST 处理器取得规范证据；正确映射已固定，下一步核对预处理遗漏、精确行号与定向测试基线。
+- 已确认没有任何请求信息预处理，并记录精确责任行与安全修复边界；下一步运行现有定向测试、检查工作区无代码变更并收尾诊断报告。
+- 受管 validation/manifest/diagnostics 已完整核对：validation passed，唯一 warning 为 560 条 custom-expression fallback，目标 ln 无 diagnostic；转换器 1.2.3 输入/输出摘要与 Job 一致。
+- 现有 server action 参数定向测试 1/1 通过，`git diff --check` 通过；工作区仍只有三份既有规划记录修改和受保护未跟踪文档，没有 Converter 代码改动。
+- Phase 146 诊断完成，归因 `CONVERTER`。Job 保持 `READY_TO_SAVE` 且未保存；Phase 145 的发布状态原样保留，本轮未继续任何发布或平台写操作。
+- planning-with-files stop hook 复核显示总计划 150/151，唯一未完成项是 Phase 145 的最终发布记录提交；已按既有发布授权从该检查点恢复。Phase 146 保持完成，不转入代码修复或案例写入。
+- Phase 145 的 release-only 记录已精确暂存并提交为 `0e39549 docs: record converter 1.2.4 release`，随后 fast-forward 推送到 origin/main；提交只含三份发布记录中的 Phase 145 hunks，Phase 146 诊断记录和用户未跟踪文档均未混入。
+- 收尾期间同一工作区的 Phase 145 记录被并发流程更新，导致一次基于旧上下文的 `apply_patch` 以及一次交互式 staging 末尾报告 patch context 失败；两次均未覆盖工作文件。重新读取并核对 index 后，release-only 暂存内容完整，最终提交/推送成功。
+
 ## 2026-08-14 — Phase 142
 
 - 用户确认发布 Converter 1.2.3，以便 Workflow 通过签名 stable 通道获取本次成员访问修复。
@@ -3319,3 +3369,17 @@
 - rollback→reapply 验收通过：回滚精确恢复 1.2.3/摘要 `71b0d5f9...7769ef`，stable 立即报告 1.2.4 UPDATE_AVAILABLE；重新 apply 后回到 1.2.4/摘要 `1b51f179...73ebf8`。最终 Workflow/Converter/Knowledge `0.6.2/1.2.4/0.1.4` 全部 CURRENT，Agent current。
 - 首次临时目录清理因包含递归删除而在执行前被安全策略拒绝，无文件受影响；改为 Git worktree 正常移除后，将四个精确临时目录移动到废纸篓，保持可恢复。
 - detached worktree 已正常注销，候选/离线安装/公开下载/预检临时目录已移动到 `/Users/lianghuang/.Trash`，可恢复；根仓用户未跟踪文档未改动。Phase 145 完成，准备只提交本阶段发布记录，并保留并发诊断记录为未暂存。
+# 2026-08-14 Phase 148：发布请求信息 AST 修复
+
+- tov5parser 产品提交 `6c6d135fb504aa414f871c26a49659b4e1f4e88d` 已推送到 `origin/main`，提交范围严格为两份转换器源码和一份回归测试。
+- 已从该提交的 detached 干净 worktree 完成 lockfile 依赖安装并重新运行 104/104 测试；首次 worktree 安装目录错误在任何 AWS 写入前停止，未产生半发布版本。
+- 生产 Lambda 已发布版本 38，`prod` 已切到 38；别名冒烟返回 StatusCode 200、ExecutedVersion 38、FunctionError null、业务 code 0。
+- 独立回读确认版本 38 为 Active/Successful，CodeSha256 `6xeHCF9AlDQS+RcFHDxTmUOFbX+97F5FRXE8fLMdVwo=`，描述为 `tov5parser 6c6d135 backend request info AST`，运行参数保持 nodejs20.x / 2048 MB / 120 s。
+- 历史部署包保存在 `s3://vl-case-json-converter/lambda-packages/vl-case-json-converter/archive-6c6d135-20260814T091524Z.zip`（1,975,877 bytes）；版本 37 仍为 Active/Successful，作为回滚点保留。
+- 下一步把同一后台节点 + `serviceParam` token 规则最小同步到 VxEditor41，仅提交目标转换器文件并保留其余用户改动。
+- VxEditor41 同步提交 `277bbb6924df0802b0f9404e302bce22ec39b243` 已推送至 `origin/master`；提交精确包含公式上下文和 AST 转换器两文件，master 与 origin/master 为 0/0。
+- VxEditor41 目标 ESLint 0 warning、Babel parse、diff check 和生产 webpack 构建均通过；构建以 33 类仓库既有 warning、0 error 退出。用户 `.gitignore`、`src/stores/event.js` 和所有未跟踪 UI 目录保持未暂存。
+- 下一步准备 Converter 1.2.5 的版本源提交和签名 Release 资产，不重复 Lambda 或编辑器发布。
+- 已将 package/package-lock 版本从 1.2.4 提升到 1.2.5；完整回归 104/104、production audit 0 vulnerabilities、`git diff --check` 全部通过。
+- 1.2.5 dry-run tarball 为 164 entries / 1,788,091 bytes / unpacked 29,349,189 bytes，9 个运行依赖全部内置；必需入口完整，未包含规划记录、Git/环境文件、密钥或用户 VxServer 文档。
+- 下一步精确提交 package/package-lock 与三份发布记录并推送，随后只从该干净远端提交生成签名资产。

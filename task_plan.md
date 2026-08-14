@@ -5,9 +5,74 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 145（发布 Converter 1.2.4 稳定版）— complete
+Phase 148（发布请求信息 AST 修复）— in progress
 
 ## Phases
+
+### Phase 148：发布请求信息 AST 修复（2026-08-14）
+
+- [x] 复核双仓远端、用户脏文件、生产 Lambda 回滚点与 v1.2.5 发布安全基线
+- [x] 推送 tov5parser 产品提交并从该提交更新生产 Lambda
+- [x] 将最小修复同步至 VxEditor41，完成定向检查/构建并提交推送
+- [ ] 准备 Converter 1.2.5 版本提交，完成测试、打包、依赖和敏感信息门禁
+- [ ] 从干净提交生成签名资产，发布不可变 v1.2.5 并最后提升 stable
+- [ ] 验证公开下载、签名、受管更新、回滚/重应用及最终远端状态
+- [ ] 推送发布审计记录并汇总交付
+
+**Status:** in progress
+
+**授权与范围：** 用户明确要求推送当前修复、更新生产 Lambda、发布新的 Converter Release，并同步 VxEditor41 转换器后提交推送。允许双仓 Git 远端写入、Lambda 版本/`prod` 别名更新、GitHub Release/tag/stable channel 与受管 Converter 更新验证；不写案例平台，不修改 VxEditor41 用户无关文件，不覆盖用户未跟踪 VxServer 文档。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 读取 Lambda 脚本末段时工作目录误设为 Workflow 维护仓，目标路径不存在 | 1 | 仅只读失败；下一次显式从 tov5parser 根读取脚本末段，不重复仓库混用 |
+| ruleset 列表摘要没有完整 `rules`，jq 直接迭代 null 失败 | 1 | 仓库无变更；下一步先读取 ruleset ID/摘要，再逐个调用详情端点验证规则与 bypass |
+| detached worktree 首次缺少依赖，Lambda 前置测试报缺 `xid-js/jsep` | 1 | 根因是创建 worktree 与 `npm ci` 在同一调用中但固定 cwd 仍为根仓，安装没有发生在新 worktree；AWS mutation 前已停止。改为显式以 detached source 为 cwd 执行 lockfile 安装并验证 `npm ls`，不跳过测试 |
+| 部署后的独立 AWS 回读首次未指定项目 profile，CLI 报 `NoCredentials` | 1 | 部署本身及冒烟已成功；按部署脚本默认值显式使用 `vl-case-json-converter-cn` 重新只读校验，别名、版本和 S3 历史包均通过 |
+
+### Phase 147：修复 V4 请求信息入参 AST 转换（2026-08-14）
+
+- [x] 冻结 requestInfo 的 V4→V5 规范映射与防误判边界
+- [x] 为 IP、UserAgent、Header、Cookie、Body、URL 及复合表达式建立失败回归
+- [x] 实施最小公式上下文与 AST 生成修复
+- [x] 重转 nid 11023063，核对目标 ln 与全案同族样本
+- [x] 运行定向/全量测试和最终差异门禁
+- [x] 汇总结果并等待用户确认是否创建 Git 提交
+- [x] 按用户反馈将可信组件边界从 `data-service` 扩展为全部后台节点并复验
+- [x] 按用户确认仅提交转换器与回归测试
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求修复 Converter。本阶段只修改 tov5parser 公式转换器和必要回归测试；不写平台案例，不发布新版本，不继续 Lambda/VxEditor41 发布。现有 Phase 146 诊断记录、并发流程暂存的一行 progress 措辞及用户未跟踪文档均保留，不纳入本次代码提交前的任何自动提交。
+
+**结论：** 请求信息伪参数现只在 `后台归属 + serviceParam token` 的可信上下文中进入 V5 requestInfo，不依赖组件类型：Header/IP/Cookie/UserAgent 使用 `sysFunc`，Body/URL 使用 `sysHelper`，Header 成员访问保留为 requestInfo 后续对象访问。nid 11023063 目标 ln 的三项 ref 已正确；全案 46/48/3/42 个 UserAgent/IP/Header/Body 引用一一转换，错误 plain val 与 Body 业务 param ref 均为 0。定向 2/2、完整 104/104、diff check 全部通过；产品提交为 `6c6d135`，只含转换器与回归测试。未写平台、未推送、未发布。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 新 requestInfo 回归在修复前失败，Header 实际为普通字符串 val | 1 | 预期红色基线，精确命中已诊断缺口；进入最小上下文和 AST 生成修复 |
+| 首版 AST 上下文修复后 Header 仍是普通字符串 val | 1 | 定位到 `getLegacyV41FormulaString` 在 AST 转换前提前返回；增加后台服务 + serviceParam token 的窄范围旁路，并补同名普通文本负例，定向回归通过 |
+| 真实案例全局计数首次把事件树整段 `_code` 与独立公式 `code` 一起统计，UserAgent 46≠44 | 1 | 转换结果本身已正确；改为以独立公式的精确 code 计数，并单独核对复合表达式/目标 ln，避免重复计算运行时代码 |
+| Header 成员回归预期原生 `.Host[0]`，ast2js 实际使用 V5 `obj_item` helper | 1 | AST 的 requestInfo ref 与两级属性访问正确；按 V5 通用对象访问的规范运行代码更新断言 |
+| 首次完成时把可信节点边界收窄为 `data-service` | 1 | 用户指出请求信息对全部后台组件可用；改用仓库权威 `isServerRootNode` 判定，增加后台非 service 组件回归并重新通过案例/全量测试 |
+| 一次文档检索命令中的 Markdown 反引号被 zsh 当作命令替换 | 1 | 只产生 `command not found`，没有文件或仓库副作用；后续不在 shell 双引号参数中放未转义反引号 |
+
+### Phase 146：定位案例 11023063 动作块入参 AST 错误（2026-08-14）
+
+- [x] 运行受管 Workflow 只读健康检查并恢复/创建诊断上下文
+- [x] 提取 `ln=ce02j7ga3j50000evabg` 的 V4 源入参与 V5 AST 实物
+- [x] 沿公式/动作参数转换链追踪 `$serReqUserAgent`、`$serReqIP`、`$cbParams` 的错误来源
+- [x] 构造最小复现并核对现有测试覆盖
+- [x] 给出根因、责任代码位置、影响范围与建议修复，不修改 Converter
+
+**Status:** complete
+
+**授权与范围：** 用户要求定位转换器问题，只授权只读诊断；不保存/刷新/修复平台案例，不修改或发布 Converter。Phase 145 的既有 1.2.4 发布状态与未提交记录保持原样，本阶段不继续远端发布动作。
+
+**结论：** V4 请求信息伪参数未进入 V5 `requestInfo` 映射。单标识符 `$serReqUserAgent/$serReqIP` 被 `genOtherIdentifierAST` 静默当字符串，`param.$SF_getInParams_body()` 被 `serviceParam` 分支错当业务入参；现有 requestInfo 分支不可达且 Body/URL 错用 `sysFunc`。Job `mig_20260814083418_55f97f4f71`、最小复现、V4 `_code`、V5 CodeEditor 规范与真实案例计数共同确认至少 132 个错误 AST / 56 个动作块。未修改 Converter、未写平台。
 
 ### Phase 145：发布 Converter 1.2.4 稳定版（2026-08-14）
 

@@ -1,6 +1,6 @@
 {
   "name": "@visuallogic-vlcode/tov5parser",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "type": "module",
   "description": "Convert VisualLogic 4.x case JSON to 5.x case JSON. Ported from the 4.1 editor's ConvertV4ToV5.",
   "main": "index.js",

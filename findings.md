@@ -1,5 +1,72 @@
 # Findings & Decisions
 
+## Phase 148：请求信息 AST 修复发布
+
+- 本轮产品基线是 tov5parser `6c6d135 fix: convert backend request info parameters`，当前只在本地 main，尚未推送。用户授权范围包括 tov5parser push、生产 Lambda、VxEditor41 同步提交推送及下一补丁 Converter Release。
+- 发布应保持产品提交与版本/审计提交可追溯：生产 Lambda 从已验证产品提交构建；VxEditor41 只同步对应转换器最小差异；Converter Release 使用新补丁版本和干净 source commit，不覆盖不可变 v1.2.4。
+- 工作区保护继续有效：根仓三份规划记录可用于本轮审计，用户未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 始终排除；VxEditor41 的现有用户脏文件必须在写前后逐项核对。
+- 远端基线：tov5parser `main` 只领先 origin 1 个产品提交、无落后；VxEditor41 `master` 与 origin 同步。Converter 最新公开稳定版仍为不可变 v1.2.4，v1.2.5 tag/Release 尚不存在，因此本轮使用 1.2.5，不能覆盖旧资产。
+- VxEditor41 的对应实现位于 `src/utils/convertV4ToV5/utils/formula.js` 与 `src/utils/convertV4ToV5/formulaCode/V4FormulaCodeConverter.js`；两文件当前无本地差异。仓库其他 tracked/untracked 用户改动必须全部排除提交。
+- 生产脚本的 clean-tree 门禁意味着不能直接从保留规划记录的根工作区部署；安全路径是从 `6c6d135` 建 detached worktree，重新安装依赖并执行 `--run-tests --smoke --keep-history`，使 Lambda 描述、S3 历史包和代码哈希可追溯到同一产品提交。
+- 生产 Lambda 的明确回滚点为版本 37（Active/Successful，CodeSha256 `rdieo39wtJRVHotO5h9Zs2QW+00ziJy0SWMU7d8xW+I=`，描述 `tov5parser f52304d normalize ternary truthy conditions`）；本轮不得删除该版本。
+- 发布私钥存在且权限 0600，仓库公开、未归档。GitHub REST 仓库对象对 immutable setting 返回 null，ruleset 列表也只含摘要；必须沿用发布器自身的硬化检查并用逐 ruleset 详情/Release 回读闭合，不能把摘要缺字段误判为保护缺失。
+- 逐 ID 复核已证明发布硬化完整：immutable enabled；branch ruleset 覆盖 `refs/heads/main` 和 `refs/heads/release-channel`，tag ruleset 覆盖 `refs/tags/v*`，两者 active、deletion/non-fast-forward、bypass=0。发布器在任何远端 Release 写入前还会再次执行相同检查。
+- `6c6d135` 已在公开 origin/main 可见。首次 detached Lambda worktree 的 `npm ci --ignore-scripts` 只报告 36 packages，随后测试发现 9 个 bundled production dependencies 全部缺失；这是候选环境安装问题，不是产品测试失败。部署脚本先执行 tests，因此尚未调用 S3/Lambda 写命令。
+- 依赖缺失的精确原因是 unified exec 的工作目录不会因前一条 `git worktree add` 自动切换；同一调用中的 `npm ci` 实际重装了根仓依赖。进入 detached source 后安装可得到全部 prod/dev 依赖，104/104 通过。正式重试必须在 detached source 明确运行 `npm ci` 并用 `npm ls` 验证。
+
+## Phase 147：修复 V4 请求信息入参 AST
+
+- 修复以 Phase 146 已闭合证据为基线：V4 普通后台服务的 `$serReqHeader/$serReqIP/$serCookies/$serReqUserAgent` 应映射 V5 `requestInfo + sysFunc`；`param.$SF_getInParams_body/url()` 应映射 `requestInfo + sysHelper`。
+- 本轮是 Converter 维护，不使用受管案例 repair/write；平台案例和既有 Job 保持只读。目标代码范围先限定为 `v4ToV5/utils/formula.js`、`v4ToV5/formulaCode/V4FormulaCodeConverter.js` 与 `v4ToV5/v4ToV5.test.js`。
+- 防误判原则：只在后台归属上下文识别未加引号的保留请求信息标识符，组件类型不限；字符串字面量和前台节点必须保持原行为。Body/URL 只接受 `param.$SF_getInParams_*()` 的零参数调用形态，普通业务 serviceParam 继续走现有路径。
+- `convertActionParamValue` 会在公式转换后独立补目标 `type`，并用 `applyBackendAstCTypes` 保留已有 `cType`；因此 requestInfo 生成器应表达实际来源类型（Header=JsonObj，其余=String），不能把调用目标类型反写进来源 AST。
+- V5 `toRequestInfoAST` 的规范结构是公式根 `var` 包 `get`，get 带 `_cbParamsGroup:'requestInfo'` 与 `_blockType:'$cbParams'`；内部 ref 对 Header/Cookie/IP/UserAgent 用 `sysFunc`，Body/URL 用 `sysHelper`。现有 `ast2js` 可直接用来做 round-trip 运行代码断言。
+- 回归必须保留两个负例：加引号的 `"$serReqIP"` 仍是字符串；非 `data-service` 节点中的同名标识符维持旧行为。普通 `param.p1` 以及带实参的 `param.$SF_getInParams_body(1)` 不得被特殊映射吞掉。
+- 已新增单一正式回归覆盖六个 requestInfo 输入、各自 ast2js 运行代码、三种值的复合对象，以及字符串/前台/带实参 Body 三类负例。修复前精确在首个 Header 样本失败：实际 `{op:'val',val:'$serReqHeader'}`，预期 `requestInfo/sysFunc`，红色基线成立。
+- AST 上下文分支本身不是单标识符仍失败的唯一原因：`convertEditorValue` 会先调用 V4.1 旧文本判定，四个不含公式符号的 `$serReq*` 值在解析前就作为字符串返回。最终入口旁路要求三项证据同时成立：当前节点由 `isServerRootNode` 判定在后台、code 精确命中保留标识符、token 明确为 `serviceParam`；因此后台节点中 token 为 `str` 的同名普通文本也不会误转。
+- 最小实现已让四个单标识符进入新增 `requestInfo` 上下文，并让 `param.$SF_getInParams_body/url()` 的零参数调用在 `serviceParam` callee 分支进入同一生成器。生成器按 V5 规范分别输出 `sysFunc` 与 `sysHelper`，定向回归及 ast2js 运行语义均通过。
+- 案例另有 3 处 `$serReqHeader.Host[0]`。直接标识符上下文与旧 `<Request>.header` 容器上下文语义不同：前者必须先生成 Header requestInfo，再追加两级通用对象访问；否则会把 `Host` 错当 requestInfo 类型并 fallback。成员分支现按 `ctx.requestInfoName` 区分两种来源，ast2js 使用 V5 通用 `$sys.util.obj_item(...)` 语义。
+- 最终防误判证据链统一为当前节点属于后台且公式 token 含 `extra.type:'serviceParam'`。直接标识符还需精确命中四个保留名，Body/URL 还需精确命中两个保留方法并且是零参数 callee；这使业务 `param.p1`、带实参/无 token 的同名调用、字符串和前台节点均不受影响。
+- 用户反馈确认请求信息不是 `data-service` 专属。仓库的权威后台判定是 `isServerRootNode`，它覆盖 server 树和 `isModServer` 后台小模块；实现已据此扩展。普通 `param` 的既有分类没有整体放宽，只有满足后台 + serviceParam token + Body/URL 保留零参调用时，非 service 后台组件才进入 requestInfo，避免改变其他参数语义。
+- 真实案例的可信公式计数（排除事件树整段运行时 `_code`）为 UserAgent 46、IP 48、Header 3、Body 42；当前重转结果的规范 requestInfo ref/group 计数逐项完全相等。目标 `ln=ce02j7ga3j50000evabg` 三个参数也分别命中 `_serviceReqUserAgent`、`_serviceReqIP`、`getInParams_body`，所有原错误形态计数为 0。
+- 104/104 全量测试与相邻 2/2 定向测试通过，`git diff --check` 通过。已有测试中预期的 parser/fallback 日志仍会输出，但最终 0 fail；验证阶段没有平台写入、推送、部署或 Release。
+- 用户确认后已创建产品提交 `6c6d135`，范围严格为 `V4FormulaCodeConverter.js`、`utils/formula.js`、`v4ToV5.test.js`；没有推送、部署、发布或写平台，规划记录和用户未跟踪文档继续排除。
+
+## Phase 146：案例 11023063 动作块入参 AST 错误定位
+
+- 用户报告 V5 中 `ln=ce02j7ga3j50000evabg` 的动作块入参被错误生成为 `$serReqUserAgent`、`$serReqIP`，以及形如 `$cbParams:{\"args\":[],\"type\":\"serviceParam\",\"val\":\"$SF_getInParams_body\",\"ver\":1}` 的内容。
+- 本轮依照 `v4-to-v5-workflow` 仅做诊断，不直接修改 Converter，也不执行任何平台写入；受管 Workflow 证据优先，仓库源码仅用于把诊断落到具体转换链路。
+- 仓库已有进行中的 Phase 145 规划改动与未跟踪用户文档，本轮必须保留并排除，不覆盖或提交。
+- 受管环境健康：Workflow 0.6.2、Converter 1.2.3、Knowledge 0.1.4 均为当前 stable，agent protocol 7；Token 仅由 `doctor` 以 redacted 状态确认可用，未读取文件；Chromium 已安装。
+- 平台只读 preflight 允许访问源案例，权威元数据为 nid `11023063`、gid `25391`、ntype `1`、edtVer `4.1`、标题“frp-后台”，因此无需猜测 gid；源案例确属 V4.1。
+- 受管只读转换作业 `mig_20260814083418_55f97f4f71` 使用 Converter 1.2.3 完成，状态 `READY_TO_SAVE`；未执行 Save。源/目标各 772 个节点，333 个 V4 event tree 全部转为 333 个 V5 event AST。
+- 基础校验没有 blocker，但 Converter 报告 560 条 custom-expression fallback、0 dropped；这说明结构校验没有捕获用户指出的“AST 合法但语义错误”，需要对目标 ln 做 V4/V5 精确对照。
+- 作业实物固定在受管 Job 目录，源 SHA-256 `759dacd3...0a55`，目标 SHA-256 `2af9f408...919`；后续只读取该快照和 bounded reports，不调用平台写接口。
+- 目标 `ln=ce02j7ga3j50000evabg` 是调用后台函数组 `cbt65j6a3j500001qkjg` 的动作。V4 三个问题参数分别为：`userAgent.code='$serReqUserAgent'`、`ip.code='$serReqIP'`、`params.code='param.$SF_getInParams_body()'`；三者各自的唯一有意义 token 都是 `type:'param'`、`extra.type:'serviceParam'`，显示名依次为“客户端信息”“IP信息”“Body信息”。
+- 同一动作的 V5 结果证实语义分裂：userAgent/ip 变为 `{op:'val', val:'$serReqUserAgent|$serReqIP', cType:'String'}`；params 变为 `$cbParams(serviceParam)` 包装的 `ref(['param','$SF_getInParams_body'])`。这不是展示层问题，而是目标 AST 本身错误。
+- 该 ln 不在 560 条 Converter diagnostics 中，说明当前 converter 在这些分支没有抛出 fallback/dropped 诊断，错误被当作正常转换静默通过。
+- `V4FormulaCodeConverter` 已存在正确的 `genRequestInfoAst` 映射：requestInfo `agent→sysFunc _serviceReqUserAgent`、`ip→_serviceReqIP`、`body→getInParams_body`，并设置 `requestInfo` 分组；但当前三个 V4 表达式没有进入这条路径。
+- 普通 `genServiceParamAST` 会按解析出来的成员名直接生成 `ref(['param', name])`，这解释了 Body 为何把方法名 `$SF_getInParams_body` 错当成业务服务参数名；现有测试只覆盖普通 `param.p1`，未覆盖三个 V4.1 请求信息伪参数。
+- 目标动作所在节点 `cane0wba3j50000762zg` 确为 `data-service`。V4 持久化运行代码 `_code` 给出了权威等价语义：userAgent 是 `_serviceReqUserAgent()`，ip 是 `_serviceReqIP()`，Body 是 `$sys.util.getInParams_body(param)`；因此正确 V5 AST 应分别引用 `sysFunc/_serviceReqUserAgent`、`sysFunc/_serviceReqIP`、`sysHelper/getInParams_body`，而不是字符串或业务 `param`。
+- `ast2js` 契约进一步确认：`ref.val[0]='sysFunc'` 会生成 `${val[1]}()`；`ref.val[0]='sysHelper'` 才会生成 `$sys.util.<helper>(param)`。现有 `genRequestInfoAst` 对 body 却仍用 `sysFunc`，若直接复用会生成 `getInParams_body()`，与 V4 `_code` 少一个 `param`，说明该死分支自身也存在 body kind 错误。
+- `getCtx()` 当前只把标识符 `param` 识别成 `serviceParam`（当所在节点为 `data-service`），完全没有 `$serReqUserAgent`、`$serReqIP` 或请求信息的 token/code 识别；全仓除 Converter 内 switch 外也没有任何地方返回 `varType:'requestInfo'`，所以 `processMemberExpression` 的 requestInfo 分支实际上不可达。
+- 当前公式入口虽然把完整 V4 `formulaValue` 传给 `getCtx`，但 `getCtx` 只在复制函数组参数等少量路径使用 token，serviceParam 请求信息没有使用 `formulaValue.str`。因此根因不是 token 缺失，而是上下文识别遗漏。
+- userAgent/ip 的具体静默路径已闭合：两者被 jsep 解析成单独 `Identifier`；`getCtx` 返回空；`genOtherIdentifierAST` 发现 identifier 名等于整条输入字符串后，主动返回 `{op:'val', val:name}`，所以不会抛错或记录 diagnostic。这条“未知单标识符当文本”兼容分支误吞了请求信息伪变量。
+- Body 的具体静默路径也已闭合：`param.$SF_getInParams_body()` 先因当前节点是 `data-service` 把 receiver `param` 分类为 `serviceParam`，随后 `processMemberExpression` 无条件把 callee 属性名交给 `genServiceParamAST`；调用形态和 `$SF_...` 特征都未校验，于是函数名被当作普通入参名，且同样不报诊断。
+- 当前 server action 参数测试用 `buildV4CaseJson()` 的 `data-service svc1` 只断言普通 `param.p1` 的 cType；测试工装已具备复现条件，但没有保留/传入请求信息 token 的用例，也没有验证 `ast2js` 运行语义。
+- 不依赖案例大 JSON 的最小复现已通过：在仅含一个 `data-service` 的合成环境里，将三份原始 `{code,str}` 直接传给 `convertEditorValue`，输出逐字复现 `{val:'$serReqUserAgent'}`、`{val:'$serReqIP'}` 和 `ref(['param','$SF_getInParams_body'])`。这排除了动作组映射、案例数据损坏或 Workflow 包装层问题，缺陷位于公式上下文转换本身。
+- 真实案例影响面不是单点：V4 快照中精确出现 44 个 `$serReqUserAgent`、46 个 `$serReqIP`、42 个 `param.$SF_getInParams_body()`；V5 快照中恰有 44/46 个错误字符串 val 和 42 个错误 `$SF_getInParams_body` 业务参数 ref，共至少 132 个确定错误 AST，分布于 56 个动作块。另有 Header 与复合表达式同族样本，需在修复时一并纳入兼容设计，但本轮不扩大未经验证的计数。
+- VxEditor41 的 V4 公式面板明确把 `$serReqIP`、`$serReqUserAgent`、`param.$SF_getInParams_body()` 定义为普通后台服务的特殊 `serviceParam/customContent`，并在 V5 公式面板统一归入 `requestInfo` 组；这排除了“源数据把普通文本误标为参数”的可能。
+- V5 CodeEditor 的规范 `toRequestInfoAST` 给出直接证据：Body/URL 用 `ref(['sysHelper','getInParams_body|url'])`；Cookie/Header/IP/UserAgent 用 `ref(['sysFunc','_service...'])`；外层 get 带 `_cbParamsGroup:'requestInfo'`。这与 V4 `_code`、`ast2js` 三方一致。
+- VxEditor41 自带的旧 `FormulaFakeCodeToAST.genRequestInfoAst` 与当前 Converter 同源，仍把 Body/URL 统一写为 `sysFunc`；它不是 V5 CodeEditor 的规范实现，不能直接复制作为修复。修复应以 `toRequestInfoAST` 为准，并区分 sysHelper 与 sysFunc。
+- `replaceSFParamPrompt()` 只删除 `$P_...:` 提示前缀，不会归一化任何请求信息伪代码；因此不存在“预处理本应完成但下游漏接”的隐藏步骤，当前 Converter 从入口到 `getCtx` 都缺少该映射。
+- 精确责任点：公式入口在 `utils/formula.js:42-89` 将 token 传入上下文；遗漏发生在 `utils/formula.js:405-500`，尤其 `param` 分支 479-484 只区分普通 serviceParam；静默 userAgent/IP 发生在 `V4FormulaCodeConverter.js:978-1034` 与 1888-1905；Body 误判发生在 1051-1133；不可达且类型不完整的 requestInfo 生成器位于 2360-2419。
+- 建议修复边界不是简单字符串替换：应以 V4 `serviceParam` token + 正常后台 `data-service` 上下文为证据，将 `$serReqHeader/$serReqIP/$serCookies/$serReqUserAgent` 及 `$SF_getInParams_body/url` 映射为 V5 `requestInfo`；前四者生成 `sysFunc`，后两者生成 `sysHelper`。这样可覆盖独立值和复合表达式，同时避免把用户普通文本或同名业务参数误改。
+- 规范外层应保留 `_cbParamsGroup:'requestInfo'` 和公式根 `var/get` 结构；参数目标的 `type/cType` 仍应交由现有 action 参数后处理，不能粗暴固定为 String，因为调用目标参数可能要求 JsonObj/JsonVal。
+- 受管 validation `passed:true`，唯一 issue 是 `CONVERTER_CUSTOM_EXPR_FALLBACK` warning；目标 ln 不在其 sample/完整 diagnostics 中。故本缺陷属于“合法结构中的静默语义误转”，当前 basic validator/diagnostics 均无规则覆盖。
+- 现有定向测试 `server action parameters retain inferred cType without copying target type` 通过（1/1），证明普通 serviceParam 契约未坏；也反向确认测试缺口仅在请求信息特殊族。建议新增六类特殊值、复合表达式、token 伪造防误判及 ast2js round-trip 回归。
+- 最终诊断归属为 `CONVERTER`：Job 固定 Converter 1.2.3，当前工作树 1.2.4 候选代码也由最小复现得到相同结果。按 Workflow 边界本轮只向维护者报告，不直接修改/发布。
+
 ## Phase 142：Converter 1.2.3 Release
 
 - 指定会话与当前仓库均确认：Workflow 使用签名 stable 通道安装受管 Converter；Lambda 36 和 VxEditor41 提交不会更新该运行时。当前 stable `latest=1.2.2`，不可变 v1.2.2 固定在修复之前，因此必须发布新版本 1.2.3，不能替换旧资产或重用旧标签。
@@ -2666,3 +2733,11 @@
 - 默认 stable URL 在有界等待内完成传播，真实受管 update 正常从 1.2.3 升到 1.2.4；安装 descriptor 的 artifact SHA-256 精确为 `1b51f179a7acce8cb8fd35ad0c93b6be1262f9628de30de46b57698b4b73ebf8`，与公开 Release 一致，restartRequired=false。
 - 受管恢复链通过：1.2.4→1.2.3 rollback 后签名 stable 正确提示 UPDATE_AVAILABLE，reapply 再次安装 1.2.4 且摘要不变。Workflow 0.6.2、Knowledge 0.1.4 与 Agent protocol 7 均保持 current。
 - Phase 145 发布终态：Release `https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.4`，source/tag `0cdbfe8b201773ff91e5fa9f92f7f4f66a39c6af`，channel `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985`；本机 Converter 最终激活 1.2.4，摘要与公开 tgz 完全一致。
+# Phase 148：请求信息 AST 修复发布
+
+- 生产 Lambda 的可追溯产品基线是 `6c6d135fb504aa414f871c26a49659b4e1f4e88d`；版本 38 代码摘要为 `6xeHCF9AlDQS+RcFHDxTmUOFbX+97F5FRXE8fLMdVwo=`，`prod` 已实际执行该版本并通过版本接口冒烟。
+- 保留的直接回滚点是版本 37，代码摘要 `rdieo39wtJRVHotO5h9Zs2QW+00ziJy0SWMU7d8xW+I=`；发布过程使用 `--keep-history`，对应版本 38 的 S3 历史包存在且大小为 1,975,877 bytes。
+- 部署脚本默认注入 AWS profile `vl-case-json-converter-cn`；脚本外独立回读必须显式使用同一 profile，否则当前 shell 的普通 AWS CLI 不会自动获得凭证。
+- VxEditor41 的实现差异只在节点访问入口和缺少 Node 侧诊断包装；按仓库结构手工移植后，`isServerRootNode + serviceParam token` 识别、直接请求信息标识符、Header 成员访问、Body/URL 零参调用和 sysFunc/sysHelper 映射与 tov5parser 一致。
+- VxEditor41 发布提交为 `277bbb6924df0802b0f9404e302bce22ec39b243`，仅含两份目标转换器文件；其余用户 tracked/untracked 状态在提交前后保持原样。
+- Converter 1.2.5 保持既有 `UNLICENSED` 和 9 个 bundled runtime dependencies；版本门禁为 104/104 tests、0 production vulnerabilities，dry-run 包 164 entries、1,788,091 bytes，必需公开入口齐全且敏感/任务记录路径为空。
