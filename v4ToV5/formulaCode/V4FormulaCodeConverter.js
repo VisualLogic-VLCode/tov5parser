@@ -1430,7 +1430,8 @@ export default class V4FormulaCodeConverter {
     let { test, consequent, alternate } = parsed || {}
     let args = []
     if (test) {
-      args.push(this.processParsedTree({ parsed: test }))
+      let conditionAst = this.processParsedTree({ parsed: test })
+      args.push(this.normalizeConditionAST({ ast: conditionAst }))
     }
     if (consequent) {
       args.push(this.processParsedTree({ parsed: consequent }))
@@ -1443,6 +1444,21 @@ export default class V4FormulaCodeConverter {
       args.push(this.processParsedTree({ parsed: alternate }))
     }
     return { op: 'switchexp', args }
+  }
+  // `switchexp.args` 的偶数下标必须是条件 AST，奇数下标是返回值。
+  // JavaScript 允许任意值作为三元 test；V5 用单参数 isTruthy 表示同一语义。
+  normalizeConditionAST = ({ ast }) => {
+    if (this.isConditionAST({ ast })) return ast
+    return {
+      op: 'sysop',
+      val: 'isTruthy',
+      args: [ast]
+    }
+  }
+  isConditionAST = ({ ast }) => {
+    const { op, args } = ast || {}
+    if (op === 'var') return this.isConditionAST({ ast: args?.[0] })
+    return ['sysop', 'and', 'or', '=', '!=', '>', '>=', '<', '<='].includes(op)
   }
   // 只在两侧都能从语法上确定为布尔值时，把独立的 `a || b`
   // 识别成条件 OR；普通值兜底仍交给 `$evc`。

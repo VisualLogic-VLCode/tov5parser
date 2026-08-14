@@ -874,6 +874,60 @@ test('legacy array search full-JS normalization evaluates receiver and target on
   assert.deepEqual(evaluate(), [0, 1, 1, 'kept'])
 })
 
+test('ternary value tests use isTruthy while condition AST stays structured', () => {
+  const getCtx = name =>
+    name === 'fParamgroup' ? { varType: 'param' } : undefined
+  const convert = (str, scope = 'stage') =>
+    new V4FormulaCodeConverter({ str, getCtx, scope }).exec()
+
+  const valueAst = convert(
+    'fParamgroup.orderBy ? "ORDER BY " + fParamgroup.orderBy : ""'
+  )
+  assert.equal(valueAst.op, 'switchexp')
+  assert.equal(valueAst.args.length, 4)
+  assert.equal(valueAst.args[0].op, 'sysop')
+  assert.equal(valueAst.args[0].val, 'isTruthy')
+  assert.equal(valueAst.args[0].args.length, 1)
+  assert.equal(valueAst.args[0].args[0].op, 'var')
+  assert.deepEqual(valueAst.args[2], {
+    op: '=',
+    args: [{ op: 'val' }, { op: 'val' }]
+  })
+  assert.deepEqual(valueAst.args[3], { op: 'val', val: '' })
+
+  const code = ast2js({
+    ast: valueAst,
+    eventNodeId: 'ternary-truthy-test',
+    getNodeByIdFunc() {}
+  })
+  const evaluate = param =>
+    new Function('$sys', 'param', `return ${code}`)(
+      { util: { op_isTruthy: value => !!value } },
+      param
+    )
+  assert.equal(evaluate({ orderBy: 'createdAt' }), 'ORDER BY createdAt')
+  assert.equal(evaluate({ orderBy: '' }), '')
+
+  const comparisonAst = convert(
+    'fParamgroup.count > 0 ? "positive" : "empty"'
+  )
+  assert.equal(comparisonAst.args[0].op, '>')
+  assert.equal(comparisonAst.args[0].val, undefined)
+
+  const booleanTreeAst = convert(
+    '(fParamgroup.a > 0 || fParamgroup.b > 0) ? "yes" : "no"'
+  )
+  assert.equal(booleanTreeAst.args[0].op, 'or')
+  assert.equal(booleanTreeAst.args[0].val, undefined)
+
+  const serverComparisonAst = convert(
+    'fParamgroup.count == 0 ? "empty" : "positive"',
+    'server'
+  )
+  assert.equal(serverComparisonAst.args[0].op, 'sysop')
+  assert.equal(serverComparisonAst.args[0].val, 'equal')
+})
+
 test('value-or uses the V5 empty-value block while boolean trees keep condition or', () => {
   const getCtx = name =>
     name === 'fParamgroup' ? { varType: 'param' } : undefined
