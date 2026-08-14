@@ -14,6 +14,17 @@
 - v1.2.2 基线复验通过：Latest/Release 均 immutable、非 draft、非 prerelease，资产为 tgz + signed manifest，tag 与 targetCommitish 均精确指向 `5572415`。1.2.3 可安全以前一 raw payload 追加版本描述符。
 - 1.2.3 完整测试 102/102、0 fail；production npm audit 0 vulnerabilities。npm dry-run 为 164 files、1,787,580 bytes（unpacked 29,338,734），必需入口/Map/README/package 完整；`node_modules` 是 package.json 明确要求的 9 个 bundled runtime dependencies，不是意外开发依赖。
 - dry-run 文件清单仅含预期 9 个 runtime bundle，无 AWS 开发依赖、无 localCases/release-out/archive/凭证/secret/用户 VxServer 文档；`npm ci --ignore-scripts --dry-run` 与 `git diff --check` 均通过。版本 diff 精确只有 package/package-lock 的三处 1.2.2→1.2.3。
+- 签名候选已从 clean `a06bf918cf076d210c0303008ed2d04bf39822b6` 生成，source.dirty=false：tgz SHA-256 `71b0d5f9...7769ef`，payload `fefc91ed...f7c7b`，manifest `2dbe59a6...89162f`。正式发布前仍需独立验证签名、历史、包内容和离线安装。
+- 候选独立验收全部通过：三个摘要与计划一致、Ed25519 envelope 可由内嵌公钥验证；payload latest/minimum 为 1.2.3/1.2.0，完整保留 1.2.0–1.2.2、revoked 空、compatibleWorkflow `>=0.3.1 <1.0.0`。
+- tgz 164 entries 无不安全路径/敏感内容，package 为 1.2.3/UNLICENSED/bundleDependencies=true；在 npm `--offline --ignore-scripts` 的全新目录安装成功，安装包内公式测试 43/43，通过本次生产形态成员访问回归。
+- Converter 1.2.3 正式发布器成功完成 Draft→资产核验→公开→stable 最后提升；Release URL 为 `https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.3`，channel commit 为 `c30bc56c5fedf15be0351ba95b16446606491633`。
+- 公开端复验通过：v1.2.3 为 Latest/immutable/非 draft/非 prerelease，tag 精确指向 `a06bf918...22b6`；公开 tgz 与 manifest 摘要精确匹配候选，manifest 字节一致且签名有效。
+- `origin/release-channel` 精确为 `c30bc56c...91633`，父提交是上一版 `224b79e3...e11d`，表明 stable 以 fast-forward 追加；通道 manifest 与 Release asset 逐字节一致，历史完整为 1.2.0–1.2.3。
+- 真实受管更新检查正确报告 Converter UPDATE_AVAILABLE 1.2.2→1.2.3，Workflow 0.6.1 与 Knowledge 0.1.4 均 CURRENT 且兼容。`update apply --kind converter` 成功安装摘要 `71b0d5f9...7769ef`，无需重启，Agent 保持 current。
+- 激活后的受管包内公式测试 43/43，通过本次成员访问回归；更新后 `update check` 三运行时全部 CURRENT。仍需执行一次 rollback→reapply，验证稳定通道的恢复链。
+- 回滚验收通过：Converter 精确恢复 1.2.2，Workflow/Knowledge/Agent 保持 0.6.1/0.1.4/current，stable 立即报告 1.2.3 UPDATE_AVAILABLE；重新 apply 后恢复 1.2.3 与摘要 `71b0d5f9...7769ef`，最终三运行时全部 CURRENT。
+- 最终公开 read-back 再次确认 v1.2.3 为 immutable Latest，target 精确为 `a06bf918...22b6`，公开资产摘要保持 `71b0d5f9...7769ef` / `2dbe59a6...89162f`；最终受管组合为 Workflow/Converter/Knowledge `0.6.1/1.2.3/0.1.4`，三项 CURRENT，Agent protocol 7 current。
+- detached 发布 worktree、候选资产、公开下载副本和离线安装目录已从精确临时目录清理；根工作区用户文档保持未跟踪且未改动。Workflow 维护仓最终可见的 `src/validation/basic-validator.js` 与 `test/basic-validator.test.js` 用户改动也均未触碰。
 
 ## Phase 141：提交、Lambda 发布与编辑器同步
 

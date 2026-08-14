@@ -5,20 +5,20 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 142（发布 Converter 1.2.3 并更新受管运行时）— in progress
+Phase 142（发布 Converter 1.2.3 并更新受管运行时）— complete
 
 ## Phases
 
 ### Phase 142: 发布 Converter 1.2.3 并更新受管运行时（2026-08-14）
 - [x] 复核发布脚本、远端保护、v1.2.3 不存在、签名密钥权限和当前 stable 历史
 - [x] 将 package/package-lock 升至 1.2.3，运行完整测试、打包和安全门禁
-- [ ] 提交并推送 1.2.3 版本元数据
-- [ ] 从干净提交生成签名资产并完成离线安装/兼容性验收
-- [ ] 创建不可变 GitHub Release v1.2.3，并最后更新 stable 通道
-- [ ] 从公开端复验标签、资产、摘要、签名和通道历史
-- [ ] 通过受管更新安装 1.2.3，验证 update/rollback/reapply 与 Workflow/Knowledge 兼容性
-- [ ] 完成发布记录提交与最终 read-back
-- **Status:** in progress
+- [x] 提交并推送 1.2.3 版本元数据
+- [x] 从干净提交生成签名资产并完成离线安装/兼容性验收
+- [x] 创建不可变 GitHub Release v1.2.3，并最后更新 stable 通道
+- [x] 从公开端复验标签、资产、摘要、签名和通道历史
+- [x] 通过受管更新安装 1.2.3，验证 update/rollback/reapply 与 Workflow/Knowledge 兼容性
+- [x] 完成发布记录提交与最终 read-back
+- **Status:** complete
 
 #### Errors Encountered
 

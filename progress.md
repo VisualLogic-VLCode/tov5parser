@@ -12,6 +12,16 @@
 - 已将 `package.json` 与 lockfile 根包版本精确升至 1.2.3；依赖、License、发布文件白名单均未改变。下一步运行完整测试、npm pack dry-run、audit 和差异门禁。
 - 1.2.3 发布级基础验证通过：项目测试 102/102、production audit 0 vulnerabilities；npm dry-run 164 files / 1,787,580 bytes，必需文件齐全。测试中的 ParseError 均为 fallback 契约日志，最终 0 fail。
 - 包清单安全门禁通过：仅 9 个预期运行依赖，无 AWS dev 依赖与敏感/案例/发布目录；lockfile dry-run 和 diff check 通过。Phase 142 版本准备完成，进入提交推送。
+- 版本准备提交 `a06bf91 chore: prepare converter 1.2.3 release` 已创建并 fast-forward 推送到 `origin/main`；精确包含 package/package-lock 与三份规划记录，用户文档未暂存。下一步从该提交建立 detached 干净 worktree 生成签名资产。
+- detached worktree 已从 `a06bf91` 建立并重新 `npm ci --ignore-scripts`；audit 0、完整测试 102/102、git status clean。开始用上一版 raw payload 生成 1.2.3 签名候选。
+- 1.2.3 签名候选生成成功，计划绑定完整提交 `a06bf918cf076d210c0303008ed2d04bf39822b6` 且 dirty=false；三个资产摘要已记录，开始执行签名、payload 历史、tgz 安全和离线安装验收。
+- 签名候选验收完成：签名/三摘要、历史与兼容范围、164 个 tgz 路径、版本/License/bundle 配置全部通过；全新 offline 安装成功，安装包公式测试 43/43。进入正式 Release 发布前最终计划复核。
+- Converter 1.2.3 已正式公开发布，发布器二次 hardening/摘要/签名检查通过，并最后把 stable 提升到 channel commit `c30bc56c...91633`。下一步从公开下载端和 Git refs 独立复验。
+- 公开下载/refs 复验全部通过：Release immutable+Latest，tag→`a06bf91`；两个公开资产摘要与本地计划一致，签名有效；channel bytes 与 Release manifest 相同，channel 以 `224b79e3→c30bc56c` fast-forward。进入本机受管更新验收。
+- 本机从签名 stable 正确发现 1.2.2→1.2.3 并成功仅更新 Converter；当前 Workflow/Converter/Knowledge=0.6.1/1.2.3/0.1.4，三者 CURRENT，Agent current，无需重启。受管 1.2.3 包内公式测试 43/43；下一步验证回滚和重应用。
+- rollback→reapply 完整通过：回滚后精确为 1.2.2 且 stable 报 UPDATE_AVAILABLE；重应用后恢复 1.2.3/目标摘要，Workflow 0.6.1、Knowledge 0.1.4、Agent 7 均保持 current。受管更新验收完成。
+- 最终 read-back 通过：GitHub v1.2.3 仍为 immutable Latest、tag/target=`a06bf918...22b6`，资产摘要无漂移；本机 Workflow/Converter/Knowledge=`0.6.1/1.2.3/0.1.4` 且全部 CURRENT，Agent protocol 7 current。
+- 已安全移除 detached worktree 及精确临时发布目录；根仓用户未跟踪文档和 Workflow 维护仓两项用户改动保持未触碰。Phase 142 完成，最后只提交并推送三份发布审计记录。
 
 ## 2026-08-14 — Phase 141
 
