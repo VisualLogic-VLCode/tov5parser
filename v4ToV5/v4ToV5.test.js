@@ -1320,6 +1320,127 @@ test('latest VxJaMap supplies execSql contracts for backend database components'
   }
 });
 
+test('sendApiRequest emits one loading and one error callback placeholder', (t) => {
+  if (!ensureIvxMapNodeEnv()) {
+    t.skip('missing optional fixture: ivxMap.txt');
+    return;
+  }
+
+  const ordinaryParams = {
+    reqUrl: {
+      name: 'reqUrl',
+      type: 'Formula',
+      value: { code: '"https://example.invalid/api"' },
+    },
+    timeout: { name: 'timeout', type: 'Formula', value: { code: '3000' } },
+    method: { name: 'method', type: 'Select', value: 'POST' },
+    reqType: { name: 'reqType', type: 'Select', value: 'JSON' },
+  };
+  const buildAction = (
+    ordinaryNames = ['reqUrl', 'timeout', 'method', 'reqType'],
+  ) => ({
+    name: 'sendApiRequest',
+    callback: true,
+    params: [
+      ...ordinaryNames.map(name => ({ ...ordinaryParams[name] })),
+      {
+        name: 'session',
+        type: 'Formula',
+        value: { code: '"session-value"' },
+        pGroup: 'Body',
+        isApiBody: true,
+      },
+    ],
+  });
+  const v4CaseJson = buildV4CaseJson();
+  const apiNode = {
+    id: 'api1',
+    type: 'data-api',
+    rootId: 'stage1',
+    uis: { name: 'getStyleList' },
+    props: {},
+    children: [],
+  };
+  v4CaseJson.stage.children.push(apiNode);
+  setActiveEnv(createV4ConvertEnv({ v4CaseJson }));
+
+  try {
+    for (const ordinaryNames of [
+      ['reqUrl', 'timeout', 'method', 'reqType'],
+      ['reqUrl', 'timeout', 'method'],
+      ['reqUrl', 'timeout'],
+    ]) {
+      const args = genMethodArgs({
+        action: buildAction(ordinaryNames),
+        scope: 'stage',
+        actionObject: apiNode.id,
+        nodeId: 'txt1',
+        blockId: 'api-action',
+      });
+
+      assert.equal(args.length, 8, ordinaryNames.join(','));
+      assert.deepEqual(
+        args.map(item => item.op),
+        ['dict', 'dict', 'val', 'val', 'val', 'val', 'val', 'val'],
+      );
+    }
+
+    const keyedAction = buildAction(['reqUrl', 'timeout']);
+    keyedAction.paramsAsObj = true;
+    const keyedArgs = genMethodArgs({
+      action: keyedAction,
+      scope: 'stage',
+      actionObject: apiNode.id,
+      nodeId: 'txt1',
+      blockId: 'api-action-keyed',
+    });
+    assert.deepEqual(
+      keyedArgs.map(item => item.key),
+      [
+        'headers',
+        'body',
+        'reqUrl',
+        'timeout',
+        'method',
+        'reqType',
+        'loadingCb',
+        '_ivx_error_cb',
+      ],
+    );
+  } finally {
+    clearActiveEnv();
+  }
+
+  v4CaseJson.stage.children[0].events = {
+    list: [
+      {
+        tree: {
+          bid: 'api-root',
+          type: 'root',
+          name: 'click',
+          children: [
+            {
+              bid: 'api-action',
+              type: 'action',
+              object: apiNode.id,
+              action: buildAction(['reqUrl', 'timeout', 'method']),
+              children: [],
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const converted = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const methods = collectAstNodes(
+    converted,
+    node => node.op === 'method' && node.val === 'sendApiRequest',
+  );
+  assert.equal(methods.length, 1);
+  assert.equal(methods[0].args.length, 8);
+});
+
 test('convertV4CaseJsonToV5CaseJson converts with runtime maps loaded', (t) => {
   if (!ensureIvxMapNodeEnv()) {
     t.skip('missing optional fixture: ivxMap.txt');

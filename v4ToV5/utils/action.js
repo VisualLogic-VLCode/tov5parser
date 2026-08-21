@@ -697,6 +697,22 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
         let _params = params.filter(p => {
           return !p.pGroup
         })
+        if (action.name === 'sendApiRequest') {
+          const methodParams = dealMethodParams({
+            widgetName: objNode?.type,
+            methodName: action.name,
+            inServer: false,
+            preParams: _params
+          })
+          if (methodParams.length > 0) {
+            _params = methodParams
+          } else {
+            _params.push(
+              { name: 'loadingCb', value: null },
+              { name: '_ivx_error_cb', value: null }
+            )
+          }
+        }
         _params.unshift({
           name: 'body',
           type: 'ApiParamsKeyValue',
@@ -711,12 +727,6 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
             return p.pGroup === 'Header'
           })
         })
-        if (action.name === 'sendApiRequest') {
-          _params.push(
-            { name: 'loadingCb', value: null },
-            { name: '_ivx_error_cb', value: null }
-          )
-        }
         params = _params
       }
       args = params.map(param => {
@@ -760,7 +770,7 @@ function genMethodArgs({ action, scope, actionObject, nodeId, blockId }) {
     }
   }
   // 加错误回调
-  if (errorCb) {
+  if (errorCb && action.name !== 'sendApiRequest') {
     let errorCbAst = { op: 'val' }
     if (action.paramsAsObj) {
       errorCbAst.key = '_ivx_error_cb'
