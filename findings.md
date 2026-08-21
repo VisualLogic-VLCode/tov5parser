@@ -2747,3 +2747,59 @@
 - stable channel `e1fae90035573c75b1273d55147ef3cd9033342d` 以唯一父提交 `98f4d7bac1cbafcc5cf632b145b96d16b0c8f985` 追加，证明未改写历史；默认 raw stable 已传播到 1.2.5，且内容与 Release manifest 相同、签名有效。
 - 受管更新、回滚和重应用均通过：1.2.4→1.2.5 后运行包测试 44/44 + 39/39；rollback 回到 1.2.4 时 stable 报 UPDATE_AVAILABLE；最终恢复 1.2.5，Workflow 0.6.2/Knowledge 0.1.4 和 Agent protocol 7 保持 current。
 - Phase 148 终态可追溯链：产品 `6c6d135fb504aa414f871c26a49659b4e1f4e88d` → Lambda 38；Release source/tag `fd6561e15f688a31e4b943c14d6c588108b7477a` → immutable v1.2.5；stable `e1fae90035573c75b1273d55147ef3cd9033342d`；VxEditor41 `277bbb6924df0802b0f9404e302bce22ec39b243`。
+- Workflow 0.12.0 发布起点已独立复核：`ivx-v4-v5-migration` 工作区 clean，HEAD `8f30ab091272b0a23c16635da6691e86fccfb758`，相对 `origin/main` 为 ahead 1 / behind 0；远端为公开仓库 `VisualLogic-VLCode/ivx-v4-v5-migration`。
+- Phase 149 首次组合恢复读取被输出上限截断；截断内容排除，后续只采用拆分命令的保留结果。
+- Phase 150 已有精确根因证据：`genMethodArgs` 的 `sendApiRequest` 特殊分支显式追加 `loadingCb` 与 `_ivx_error_cb`，随后通用 `errorCb` 分支再次追加 `_ivx_error_cb`。迁移 AST 因此产生 9 个固定参数而非 8 个，`funcx` completion 被挤出 Widgets `sendApiRequest` 的正式 `cb` 形参。
+- 只读运行时实验已证明：仅删除重复尾占位即可使 getStyleList/getTemplateList/getDataMap/getBasicInfoMap 全部完成并关闭 loading。产品修复应删除特殊分支中的 `_ivx_error_cb`，保留通用错误回调追加，并补真实转换回归。
+- 主测试文件已直接导入 `genMethodArgs` 和完整案例转换 API，并提供 `collectAstNodes`，因此无需新增测试框架。聚焦回归可以构造最小 data-api + callback action，既断言直接 helper 的固定参数为 8，也断言完整转换输出的 `sendApiRequest` method AST 为 8。
+- test-first 结果为 `AssertionError: 9 !== 8`，落点是 helper 固定参数数量；这排除了完整转换器其它步骤造成额外参数的可能，修复边界可限制在 `genMethodArgs` 特殊 API 分支。
+- 修复后目标参数形态为 `dict,dict,val,val,val,val,val,val`：headers、body、4 个普通方法参数、loading callback、单个 error callback。Player `funcx` 再追加 success completion 后，Widgets 形参位置重新对齐。
+- Widgets `sendApiRequest` 的兼容分支显式覆盖实际 arguments.length 6–10，现代签名 callback 位于第 12；长度 11 没有独立分支且正式 `cb` 仍为 undefined。因此系统性正确条件不是简单“所有调用减一”，而是生成的 fixed arg count 必须避开 7，并对现代动作稳定为 8。
+- 下一步需要按 V4 block bid 对齐 11 条 API 调用，区分原始普通参数数量、是否命中 method metadata errorCb 以及修复前后 fixed count；再决定是条件去重还是对 sendApiRequest 统一补齐现代 8 槽。
+- `genMethodArgs` 当前先按 V4 现存参数顺序构造 headers/body/普通参数，再追加 loading，并由通用分支追加 error；这会让缺失尾参数的旧动作落到 fixed=7。可靠修复需要在具名参数阶段补齐 `reqUrl/timeout/method/reqType/loadingCb/_ivx_error_cb` 的正式槽位，避免依赖参数数量兼容分支。
+- FRP-PAD 的旧形态并非参数乱序：3 条调用只是在尾部缺 `reqType` 或 `method+reqType`，其余 8 条完整。因此按正式顺序 `reqUrl, timeout, method, reqType` 做具名补齐既保留现值，也能让所有调用稳定落到 fixed=8。
+- 最稳妥的回调处理是恢复 `sendApiRequest` 特殊分支中显式的 loading/error 两槽，同时让通用 `errorCb` 分支排除该动作；这样回调槽不依赖组件映射是否声明 Lambda，也不会再重复。普通参数则按 4 个正式名称补空。
+- 仓库现有 `dealMethodParams` 已实现“按 method map 具名排序与补空”，并用于古早方法迁移。对 `sendApiRequest` 复用它比新增常量更能随运行时映射演进；当方法映射存在时，它会连同 loading/error 一次性生成 6 个正式方法槽。
+- 扩展后的 test-first 证明旧形态缺口独立存在：完整参数在临时补丁下已绿，但缺 `reqType` 仍得到 fixed=7。新实现的验收标准必须是三种输入都 fixed=8，而不仅是原始 9→8。
+- 最终实现没有硬编码 4 个普通参数：它复用当前 runtime map 的 6 个方法参数，因此既补齐旧数据，也能保留映射里的类型与未来顺序；headers/body 仍保持现有转换逻辑。通用 error 分支只排除 `sendApiRequest`，其他动作行为不变。
+- 真实案例最终强断言为 11/11 fixed=8；此前的 `{6:1,7:2,8:8}` 已全部消失。两个原故障 ln 与三条旧参数形态均落到现代签名，Player completion 会稳定进入第 12 个实际形参 `cb`。
+- 当前测试已覆盖三种数量形态与完整转换；为防止未来出现“总数仍为 8、但空槽名称错位”的假阳性，将利用 `paramsAsObj` 直接断言键顺序为 `headers/body/reqUrl/timeout/method/reqType/loadingCb/_ivx_error_cb`。
+- keyed 回归已绿色，说明转换器不是通过简单截断凑出 8 个参数，而是按正式名称补齐并只保留一个 `_ivx_error_cb`。
+- 最终验证基线为 105/105 tests、真实案例 11/11 fixed=8、两个目标 ln fixed=8、目标 diff check 与敏感扫描通过。修复可在本地提交，但按用户级 Git 规则必须先取得明确确认。
+- 用户确认后已创建本地提交 `86c95f2`，只含转换器实现与回归测试。远端尚未更新，生产 Lambda、公开 Converter Release 和 VxEditor41 也均未变化。
+- Phase 151 的用户授权覆盖 tov5parser 推送、生产 Lambda 部署以及 VxEditor41 同步提交推送；不包含新的 Converter 稳定版 GitHub Release，也不修改平台案例。
+- tov5parser 的 `86c95f2` 是远端 main 的单一后继，可直接 fast-forward 推送。部署脚本支持 `--run-tests --smoke --keep-history --allow-dirty`；由于仓库保留未提交规划/文档，正式部署需要使用仅放宽 Git 清洁门禁的 `--allow-dirty`，运行时打包仍由固定清单控制。
+- VxEditor41 当前基线提交 `277bbb692`，转换器之外已有用户改动；同步提交必须精确排除 `.gitignore`、event store、`.claude/` 和所有 UI 目录。
+- Lambda 部署脚本会在发布新版本后清空 alias 的额外权重、切换 `prod` 并按新版本做别名冒烟；固定 runtime 清单仅包含入口、映射、转换器、S3 helper 与生产依赖，规划/README/未跟踪文档不会进入 zip。使用 `--allow-dirty` 不改变该清单。
+- 部署产出的版本 39 描述精确绑定 `tov5parser 86c95f2 align sendApiRequest callback arguments`，原版本 38 未删除并可直接回滚。脚本内检查已通过，但仍需用独立 AWS CLI 查询确认 Active/Successful、alias 无权重和摘要一致。
+- 独立查询已确认版本 39 的摘要、描述、运行状态和 `prod` alias 全部一致，版本 38 与历史 S3 包均保留，生产回滚链完整。
+- VxEditor41 的缺陷代码与 tov5parser 修复前完全同形，因此只需同步 `action.js` 的同一局部语义；编辑器没有现成 converter 测试脚本，验证应采用目标 ESLint/Babel parse、结构差异检查和生产 webpack build。
+- VxEditor41 生产构建已证明同步代码能进入现有 webpack/Babel/ESLint 链；33 个 warning 均来自其他既有文件，目标 `action.js` 的独立 ESLint 为零输出。
+- VxEditor41 远端发布前无分叉，提交范围已冻结为单个转换器文件，符合用户“同步VxEditor41”授权且不会夹带工作区既有修改。
+- VxEditor41 最终同步提交为 `3198a15869e3c9b61414cd06a9f570c431f94a56`，只含编辑器侧 `action.js`；远端 master 已可见。
+- 发布链最终闭合：Converter main=`86c95f2`，生产 Lambda=39，VxEditor41 master=`3198a1586`；三个实时读回状态一致，无分叉、无额外 Lambda 流量权重，回滚版本 38 保留。
+- Workflow 发布规范要求：源提交必须先公开；签名候选从上一版 raw payload 追加，发布顺序为 Draft Release→上传并核验资产→公开不可变 Release→最后推进 `release-channel`。私钥固定在维护者目录且须保持 0600，不得打印或打包。
+- 0.12.0 当前状态文案仍有三处待切换：README 仍声明 stable 0.11.0/源码准备 0.12.0；外部验收基线仍为 0.11.0；总设计文档仍称阶段 13/0.12.0 候选。RELEASING 历史段已包含完整 0.12.0 能力说明，不应改写旧版本记录。
+- 0.12.0 稳定版文案已切换：README、外部验收基线、Quickstart 和总设计文档现在一致声明 Workflow 0.12.0 / protocol 9 / Converter 1.2.5 / Knowledge 0.1.6；候选措辞已清除，历史版本说明保留。
+- 发布前完整测试为 251 total / 248 pass / 3 intentional browser skips / 0 fail；production audit 为 0 vulnerabilities；dry-run 包为 0.12.0、340 entries、4,443,546 bytes（unpacked 20,493,652 bytes），5 个生产依赖和 1 个可选依赖，39 个本地 Markdown 链接全部存在。
+- Skill canonical validator 本身可用，但系统 Python 与 Codex bundled Python 都缺少其唯一外部依赖 PyYAML；两次均在读取 Skill 前以 `ModuleNotFoundError: yaml` 停止。Agent Skill 文件自产品提交后未再修改，先前 canonical 验证结果仍适用于其字节；发布前将用隔离临时环境补齐验证，不改系统 Python。
+- 隔离临时 venv 安装 PyYAML 后，Codex/Claude 两份 Skill canonical validation 均返回 `Skill is valid!`；临时环境已整体移入废纸篓，不改变系统或项目依赖。
+- 0.12.0 稳定文档提交为 `fbeede9`（`docs: mark workflow 0.12.0 stable`），只包含四份预期文档；其父链包含产品提交 `8f30ab0`。
+- 公开发布前远端复核：v0.12.0 tag/Release 均不存在；GitHub 维护者身份有效；main 与 release-channel 已取回，旧 stable channel HEAD 为 `069515890b8f3c5556904b7b94df9d7ddd3ae81c`。
+- `main` 已普通 fast-forward 从 `e0afaf5` 推送到 `fbeede92b162c013b37a264691181e19741d643e`；本地 HEAD、origin/main 与 `ls-remote` 完全一致，ahead/behind 0/0，工作区 clean。
+- 公开 v0.11.0 Release 与 stable channel manifest 均为 immutable/signature-valid，字节及 payload 一致，SHA-256 `9603b1d1...e2bca`；raw payload latest 0.11.0、minimum 0.3.1、31 descriptors、revoked empty。
+- 0.12.0 候选从该公开 raw payload 追加生成，source `fbeede92...d643e`/dirty=false；tgz SHA-256 `e7b66b22...6f9a9`，payload `0b9d8121...e088a`，manifest `cc029e3d...e745a`。尚未发生 GitHub Release 或 channel 写入。
+- 候选独立审计通过：manifest 验签有效，旧 31 descriptors 逐项不变，新 payload 共 32 版；minimum 0.3.1/revoked empty；0.12.0 protocol 9、AGENT_NATIVE、Converter `>=1.2.0 <2.0.0`，10 个预期 capability 精确启用。tar 340 entries、无风险路径，离线安装成功、165 个 API export 可导入、两份 Agent Skill 存在，敏感模式扫描通过。
+- GitHub 发布硬化独立通过：仓库 PUBLIC/非归档、immutable Releases 开启、main+release-channel 和 v* ruleset active、deletion/non-fast-forward 均保护、bypass 0；v0.12.0 Release/tag 仍不存在，私钥权限 0600。
+- 正式 publisher 已公开 immutable/Latest v0.12.0，Release/tag target `fbeede92...d643e`，channel commit `51539fa9...1b615` 的唯一 parent 是旧 stable `06951589...81c`，tree 仅含 `workflow-stable.json`。
+- Release 两资产的 GitHub digest、重新下载 SHA-256、候选字节和签名均一致；API 与 commit-pinned channel 已返回 signed latest 0.12.0/32 versions。无版本 raw branch URL 首次仍命中 GitHub CDN 的旧 0.11.0 缓存，需等待传播后完成最终默认入口验收。
+- default raw stable URL 的 300 秒 GitHub CDN 缓存已自然到期；最终 SHA-256 `cc029e3d...e745a` 与候选逐字节相等，签名有效、latest 0.12.0、32 descriptors、minimum 0.3.1、revoked empty。
+- Workflow 0.12.0 最终发布链：main/source/tag `fbeede92...d643e`；immutable Latest Release；tgz `e7b66b22...6f9a9`；manifest `cc029e3d...e745a`；stable `51539fa9...1b615`（唯一 parent `06951589...81c`）。main 0/0 clean；本机 managed Workflow 未更新。
+- Converter 新 Release 起点：产品修复提交 `86c95f2edf9cf2d8fc9bfef74b742c7b1864d336` 已在 origin/main，当前 package 仍为 1.2.5，因此下一 patch 版本为 1.2.6。Lambda 39 与 VxEditor41 `3198a1586` 已完成，不在本阶段重复。
+- 当前工作区有既有 README 链接开发嵌入指南、三份 planning 更新及两个未跟踪文档；全部不得混入发布元数据提交或签名候选。候选应从 detached clean worktree 构建。
+- 仓库根没有本地 `AGENTS.md`；继续遵守线程提供的全局 Git 安全/提交规则。`CLAUDE.md` 的固定修复发布流程已在 Phase 151 完成 Lambda/VxEditor41，不要求 GitHub Release 重复执行这些动作。
+- package `files` 只包含运行入口、转换器、映射、工具和 README，不包含 `docs/`；工作区 README 新增的开发指南链接指向未跟踪 docs，因此必须继续排除，避免签名包出现断链。历史 1.2.5 prep commit 的模式是版本文件 + planning 发布记录，正式 tag 指向 prep commit，发布后再以独立 docs commit 收尾。
+- 公开 Converter 1.2.5 Release 与 stable channel manifest 均 immutable/signature-valid 且逐字节一致，manifest SHA-256 `62d13049...363a4`；payload latest 1.2.5、minimum 1.2.0、6 descriptors（1.2.0–1.2.5）、revoked empty。v1.2.6 tag/Release 均未占用，远端 main 0/0。
+- package.json 与 lockfile 的三个版本字段已最小提升为 1.2.6；未触碰 README、开发指南或产品代码。
+- 1.2.6 完整回归 105/105、fail 0；测试按设计输出大量公式 fallback ParseError，工具显示内容截断警告，但最终 Node test 汇总完整保留且退出成功。
+- production audit 为 0 vulnerabilities；dry-run tarball 为 164 entries / 1,788,833 bytes / unpacked 29,352,917 bytes，版本 1.2.6，风险路径为空；已知 Cookie/private-key/GitHub-token 模式扫描 clean，`git diff --check` 通过。

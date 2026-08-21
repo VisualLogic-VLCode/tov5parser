@@ -3395,3 +3395,55 @@
 - detached release worktree 已正常注销，候选、公开下载与离线安装临时目录整体移动到 `/Users/lianghuang/.Trash/tov5parser-release-1.2.5.CqmAq9`，保持可恢复；Lambda 临时目录同样已移入废纸篓。
 - 最终独立复核通过：tov5 main/origin 0/0，远端 main/tag 指向 `fd6561e`、release-channel 指向 `e1fae900`；VxEditor41 master/origin 0/0；Lambda `prod→38` Active/Successful；v1.2.5 immutable Latest；受管三运行时全部 CURRENT。
 - Phase 148 完成，准备只提交并推送三份最终发布审计记录；用户未跟踪 VxServer 文档继续排除。
+- 2026-08-20 Phase 149 启动：用户授权推送并发布 Workflow 0.12.0；已确认源提交 `8f30ab091272`、工作区 clean、main ahead 1/behind 0。先切换稳定版文档并创建发布元数据提交，再快进推送、生成签名候选、发布不可变 Release，最后推进 stable channel；不更新本机安装。
+- Phase 149 错误记录：首次组合恢复读取被截断；省略输出不作为证据。首次追加计划的补丁包含空 findings 更新块而被拒绝，未改文件；已用有效补丁完成记录。
+- Phase 149 发布规范复核完成：必须先推送 exact source，再从已验签旧 payload 准备新签名候选；stable channel 是最后发布信号。两个脚本不支持 `--help`，只返回缺失必填参数的结构化错误；后续按文档和源码参数执行，不重复 help 探测。
+- Phase 149 文档切换完成，`git diff --check` 通过。一次 stale 文案检索使用双引号包裹含反引号的模式，zsh 将版本片段当作命令并返回 `command not found`；未修改文件，已改为单引号 fixed pattern 重新检索，确认不再存在旧 stable/候选措辞。
+- Phase 149 完整测试/审计/打包/链接门禁通过：248 pass、3 intentional skips、0 fail；0 vulnerabilities；0.12.0 dry-run 340 entries；39/39 本地链接有效。Skill quick validator 分别用系统 Python 和 bundled Python 运行时均因环境缺少 PyYAML 提前失败，未产生文件变更；将改用隔离依赖环境，不安装到系统。
+- Phase 149 Skill canonical validation 已在隔离 venv 对 Codex/Claude 两份 adapter 通过，临时环境移入废纸篓。首次尝试组合隐私扫描与提交时因 shell 字符串未闭合被 zsh 在执行前拒绝，未暂存/修改/提交；已简化为安全 fixed patterns 后重跑。
+- Phase 149 稳定文档提交完成：`fbeede9 docs: mark workflow 0.12.0 stable`，精确 4 files / 8 insertions / 10 deletions。下一步拉取远端引用并确认 fast-forward 后推送 main。
+- Phase 149 main 推送完成：`fbeede92b162c013b37a264691181e19741d643e` 已由本地/remote-tracking/公开 `ls-remote` 三方确认，0/0 且 clean；v0.12.0 tag/Release 仍不存在。开始验签 0.11.0 public stable payload 并准备新候选。
+- Phase 149 公开 0.11.0 基线验签完成：Release/stable 字节一致、immutable、31 个历史 descriptor。已从其 raw payload 生成 0.12.0 签名候选，三摘要为 tgz `e7b66b22...6f9a9` / payload `0b9d8121...e088a` / manifest `cc029e3d...e745a`；进入独立候选审计，未发布。
+- Phase 149 候选与 GitHub 安全门禁全部通过：32-version signed payload、旧历史不变、离线安装/API/Skill/隐私/路径门禁通过；公开仓库 immutable + protected main/channel/tags + bypass 0，v0.12.0 尚未占用。准备执行正式 publisher；stable channel 将按脚本顺序最后推进。
+- Phase 149 正式发布成功：v0.12.0 immutable Latest，source/tag `fbeede92...d643e`，channel `51539fa9...1b615`，资产摘要与候选一致。首次综合公开回读因 default raw branch CDN 仍返回 0.11.0 而候选校验脚本退出 1；其余 Release/commit/API 检查均通过。第二次 API 回读为 0.12.0，但 cache-busted raw 仍旧；继续等待 CDN，不把旧缓存误报为最终成功。
+- Phase 149 最终完成：default raw stable 已在 300 秒缓存到期后返回签名 0.12.0，字节/摘要与 Release 候选一致。main/source/tag `fbeede92...d643e`，stable `51539fa9...1b615`，仓库 0/0 clean。公开验收临时下载与隔离安装目录已整体移入 `/Users/lianghuang/.Trash/ivx-workflow-0.12.0-release-audit.gItN3i`，可恢复；本机受管 Workflow 未激活更新。
+- 2026-08-20 Phase 150 启动：用户明确脱离 V4→V5 Workflow，任务切换为修复 tov5parser 的 `sendApiRequest` 重复回调参数问题。只修改转换器源码/测试；平台案例与已安装签名 runtime 保持只读。
+- session catchup 已同步上一并行任务：Workflow 0.12.0 发布已完成。当前 tov5parser 工作区存在 README、planning 文档和两个未跟踪文档的既有改动；本轮严格排除这些文件。全局 Git 规则要求实现验证后先询问提交确认。
+- 基线确认：`main...origin/main`，产品目标 `v4ToV5/utils/action.js` 与主测试 `v4ToV5/v4ToV5.test.js` 均无既有 diff；package 1.2.5，测试入口会执行全部 `*.test.js`。现有 dirty 文件均不与目标代码重叠。
+- 已在 `v4ToV5.test.js` 新增 test-first 回归，同时覆盖直接 `genMethodArgs` 与完整案例转换输出。未修源码时聚焦测试按预期失败：实际固定参数 9、期望 8，证明测试命中本缺陷而非运行环境问题。
+- 产品代码已做最小一行语义修改：`sendApiRequest` 特殊分支只追加 `loadingCb`，通用 `errorCb` 分支继续负责唯一错误回调。聚焦测试从 0/1 恢复为 1/1，helper 与完整转换 AST 均为 8 个固定参数。
+- FRP-PAD 真实 V4 内存重转确认两个目标 ln 均从 9 降为正确的 8；但全案例统计由原 artifact 的 `{7:1,8:2,9:8}` 变为 `{6:1,7:2,8:8}`。固定参数 7 会使 `funcx` 追加后 `sendApiRequest arguments.length=11`，落入兼容函数未覆盖的空档，说明无条件删除显式 error slot 可能让另外两条旧形态调用退化；需先逐条审计再冻结实现。
+- 规划记录首次追加补丁误把 `task_plan.md` 中的错误记录当作 `progress.md` 锚点，补丁校验失败且未修改文件；已读取真实尾部后改用现有 Phase 150 条目追加，不重复错误锚点。
+- 源码复核确认当前临时补丁只移除了特殊分支中的显式 error 占位，而通用 `errorCb` 仍按方法元数据追加。真实案例中该做法把 11 条调用统一减一，留下 2 条 fixed=7 的非法形态；下一步将按 V4 `bid` 审计原始具名参数，并把 `sendApiRequest` 收敛为稳定的现代 8 槽，而不是继续采用无条件减一。
+- 真实 V4 逐条审计完成：11 条均为 `data-api` 且运行时映射都声明 `_ivx_error_cb:Lambda`；8 条包含完整 `reqUrl/timeout/method/reqType`，`cr36c4ra3j500003qbtg`、`cr372hta3j500003qgrg` 缺 `reqType`，`cr373vqa3j500003qhr0` 同时缺 `method/reqType`。因此旧动作必须按名称补空槽，不能仅依赖现存参数长度。
+- 第二次虽已替换 `console.error/warn`，公式 fallback 仍通过其他日志路径输出并造成截断；最终 11 条结构化审计结果完整保留。后续真实转换验收将把进程输出先定向到临时日志、只提取末尾机器摘要，不再依赖 console monkey-patch。
+- Widgets 权威签名再次确认固定槽为 `headers/body/reqUrl/timeout/method/reqType/loadingCb/_ivx_error_cb`，随后才是 Player completion `cb`。决定由 Converter 对 `sendApiRequest` 显式生成这 8 槽，并跳过该动作的通用 error 追加；其他方法仍维持通用错误回调逻辑。
+- 代码库已有 `dealMethodParams`，会按当前组件方法映射的参数顺序保留现值并补齐缺项；`ivxMap.txt` 对 `sendApiRequest` 的映射正好是 4 个普通参数加 loading/error。实现将复用该 helper，再在前方注入 headers/body，避免新增硬编码参数表。
+- 回归已扩展到完整 4 普通参数、缺 `reqType`、缺 `method+reqType` 三种 V4 形态；当前临时源码在第二种稳定红测 `reqUrl,timeout,method: 7 !== 8`，精确覆盖真实案例另外两条潜在退化路径。下一步实施具名补齐。
+- 已实施映射驱动的具名补齐：`sendApiRequest` 先经 `dealMethodParams` 生成 6 个正式方法槽，再前置 headers/body；该动作跳过通用 error 追加，避免重复。扩展聚焦回归现为 1/1 通过，三种旧/新输入均 fixed=8，完整转换断言也通过。
+- 首次受控真实转换命令在转换完成后误用了 zsh 只读变量名 `status`，因此摘要展示步骤提前退出；产物仍完整保存，未重复转换。改用非保留变量并直接读取既有临时审计目录后成功恢复摘要。
+- FRP-PAD 完整内存重转通过：共 11 条 `sendApiRequest`，参数统计精确为 `{8:11}`、非法调用为空；故障目标 `cr2hq5ma3j50000ttv00` 与 `cr37qdxa3j500003qq20` 均为 8。转换的 9,562 行既有 fallback 日志保存在隔离 `/tmp` 审计目录，不纳入仓库。
+- 全仓 `npm test` 首轮通过 105/105、0 fail；新增回归被完整测试入口执行。正式收尾前再补一项 keyed 参数顺序断言，明确验证 8 槽名称而不只验证数量，然后重跑聚焦与全仓测试。
+- keyed 顺序断言已加入并聚焦通过 1/1：精确顺序为 `headers/body/reqUrl/timeout/method/reqType/loadingCb/_ivx_error_cb`。这同时证明旧数据补空和单一错误回调都落在正确形参位置。
+- 最终门禁通过：全仓 105/105、0 fail；目标文件 `git diff --check` 通过；已知登录 session、云访问键、私钥头和 GitHub token 模式扫描均为 clean。产品改动仅 `v4ToV5/utils/action.js` 与 `v4ToV5/v4ToV5.test.js`，README、规划记录和两个未跟踪文档继续保持独立，未暂存。
+- Phase 150 的实现与验证已完成，当前只剩全局 Git 规则要求的用户提交确认；尚未 commit、push、部署 Lambda 或同步 VxEditor41。
+- 2026-08-21 用户明确回复“是”，授权创建本地 Git 提交。提交范围已冻结为 `v4ToV5/utils/action.js` 与 `v4ToV5/v4ToV5.test.js`；cached diff check、范围核对与敏感扫描通过，README、规划文件和两个未跟踪文档均保持未暂存。下一步创建提交，不推送或部署。
+- Phase 150 本地产品提交已创建：`86c95f2 fix: align sendApiRequest callback arguments`，精确包含两份目标文件（138 insertions / 7 deletions）。当前 main 相对 origin/main ahead 1 / behind 0；未推送、未部署、未同步 VxEditor41，所有其他既有改动仍未暂存。
+- 2026-08-21 Phase 151 启动：用户明确授权推送、生产部署和 VxEditor41 同步。已重新读取 planning skill 与 tov5parser 发布规则；顺序固定为远端核对/推送 → Lambda 基线与部署 → 编辑器移植、验证、精确提交推送，失败时停止且不使用变基或强推。
+- Phase 151 初始远端复核：tov5parser fetch 后 `origin/main=bb2d79a`、本地 `86c95f2`，ahead 1 / behind 0，具备普通 fast-forward 推送条件；工作区仅有既有 README、planning 和两个未跟踪文档。VxEditor41 当前 `master=origin/master=277bbb692`，已有 `.gitignore`、`src/stores/event.js` 与 UI 目录改动，后续只允许触碰对应转换器文件。
+- tov5parser `86c95f2edf9cf2d8fc9bfef74b742c7b1864d336` 已普通 fast-forward 推送；本地 HEAD、origin/main 与公开 `ls-remote` 三方一致，ahead/behind 0/0。
+- 生产回滚基线已读取：`prod→38`、无额外流量权重，版本 38 为 Active/Successful，CodeSha256 `6xeHCF9AlDQS+RcFHDxTmUOFbX+97F5FRXE8fLMdVwo=`，描述绑定旧提交 `6c6d135`，运行参数 nodejs20.x / 2048 MB / 120 s。部署将保留版本 38。
+- VxEditor41 搜索测试入口时附带了不存在的 `test`/`tests` 目录，`rg` 对这两个路径报错但源码与 package 检索均成功；后续只检索已存在目录，不重复该路径写法。编辑器 fetch 后 master 与 origin/master 仍为 0/0。
+- 生产部署脚本成功完成：再次通过 105/105 tests，固定 runtime 包 1.9 MB，历史包为 `archive-86c95f2-20260821T020027Z.zip`；发布 Lambda 版本 39，CodeSha256 `/S/08glfEzzfGrlxzXC5PHSdISSCRSsNJHPVBsNXYhs=`，`prod` 已切至 39。脚本内冒烟返回 StatusCode 200 / ExecutedVersion 39 / FunctionError null / 业务 code 0。下一步独立回读版本与 alias 后才关闭部署门禁。
+- Lambda 独立回读通过：`prod→39` 且 RoutingConfig null；版本 39 为 Active/Successful、nodejs20.x / 2048 MB / 120 s，摘要和描述与发布输出一致。版本 38 仍 Active 且摘要不变；历史 S3 包存在，ContentLength 1,975,944 bytes。生产部署门禁关闭，开始编辑器同步。
+- VxEditor41 目标 `src/utils/convertV4ToV5/utils/action.js` 修改前无自身 diff，且其 `dealMethodParams/genMethodArgs` 结构与 tov5parser 同形。已只移植映射驱动的 sendApiRequest 六槽补齐、headers/body 前置和通用 error 去重；编辑器特有的 `widgets/window.VxJaMap/ConvertV4ToV5.getNodeById` 依赖保持不变。
+- VxEditor41 定向门禁通过：目标文件 `git diff --check`、ESLint、Babel transform/parse、敏感扫描全部绿色，精确 diff 为 1 file / 17 insertions / 7 deletions。生产 webpack 构建 exit 0，用时约 74 秒，33 类仓库既有 warning、0 error；目标文件没有 warning。下一步刷新远端并只暂存该文件。
+- VxEditor41 发布前 fetch 确认 master 与 origin/master 0/0，无需合并；只暂存 `src/utils/convertV4ToV5/utils/action.js`，cached diff check、精确文件范围与敏感扫描通过。`.gitignore`、event store、`.claude/` 和全部 UI 目录均未暂存。
+- VxEditor41 同步提交 `3198a15869e3c9b61414cd06a9f570c431f94a56`（`fix: align sendApiRequest callback arguments`）已创建并普通推送，精确 1 file / 17 insertions / 7 deletions。本地 HEAD、origin/master 与公开 `ls-remote` 一致、ahead/behind 0/0；用户既有改动保持未暂存。
+- Phase 151 最终复核通过：tov5parser `86c95f2edf9cf2d8fc9bfef74b742c7b1864d336` 与 origin/main/公开远端一致；VxEditor41 `3198a15869e3c9b61414cd06a9f570c431f94a56` 与 origin/master/公开远端一致；Lambda `prod→39`、RoutingConfig null、版本 Active/Successful、摘要 `/S/08glfEzzfGrlxzXC5PHSdISSCRSsNJHPVBsNXYhs=`、描述绑定 `86c95f2`。双仓既有无关改动均保持未暂存，Phase 151 complete。
+- 2026-08-21 Phase 152 启动：用户要求把已更新的 Converter 发布为新 Release。确认 main/origin=`86c95f2`、package 1.2.5、下一个 patch 为 1.2.6；工作区既有 README/planning/未跟踪文档继续排除。发布将使用 detached clean worktree，不重复 Lambda 39 或 VxEditor41 同步，也不更新本机 managed runtime。
+- Phase 152 规则/历史复核：根目录无本地 AGENTS，线程 Git 规则继续有效；CLAUDE 固定链的 Lambda/VxEditor41 已完成。1.2.5 历史采用 prep commit→tag/Release/stable→独立发布记录 commit；1.2.6 沿用。当前 README 指向未跟踪开发指南且 docs 不进 npm files，继续排除 README/docs，签名候选仅来自干净提交。
+- Phase 152 公开基线验签完成：v1.2.5 Release/stable 完全一致、6 个历史 descriptor、minimum 1.2.0、revoked empty；v1.2.6 未占用。版本字段已提升到 1.2.6，下一步运行完整测试、production audit、dry-run 包与隐私/范围门禁。
+- Phase 152 测试门禁通过：105/105、0 fail；预期公式 fallback 日志导致工具输出截断提示，但最终汇总保留且进程成功。audit 0 vulnerabilities，敏感扫描和 diff check clean。
+- Phase 152 首次 dry-run 解析尝试把 npm pipe 与 Node heredoc 同时使用，heredoc 占用了 stdin，Node 得到空输入并报 `Unexpected end of JSON input`；npm/package 未修改。已改用 `node -e` 从 pipe 读取，成功确认 164 files / 1,788,833 bytes / forbidden empty，不重复错误写法。
+- Phase 152 发布 prep 提交范围冻结为 package.json、package-lock.json 与三份 planning 发布记录；README、两个未跟踪文档和产品源码均排除。用户要求发布新 Release，已明确授权该必需版本提交和后续推送。

@@ -2389,3 +2389,73 @@ Phase 148（发布请求信息 AST 修复）— complete
 **本阶段错误记录：** 首次组合资产校验命令包含对新建临时目录的 `rm -rf` 清理，执行前被安全策略拒绝；命令未运行、无文件被删。改为分步校验并保留临时验收目录，不重复该命令。验收中尝试读取尚不存在的 `issue-classification.json`，因为 Job 的 `ISSUES_CLASSIFIED` 此时实际表示“等待本地 Agent 分类”；该子命令只读失败，验证/diagnostics 已成功读取，后续改为直接比较 1.2.1 与 1.2.2 validation，不重复缺失路径。
 
 **结论：** Converter 1.2.2 已作为公开、不可变、Latest GitHub Release 发布：tag/source `v1.2.2` → `55724159e8192be4435dac12cf57320ad671447a`，tgz SHA-256 `64631093ef4c735411386697281b8879a8b3a621e2152775ad917efbc9bfb058`，signed manifest SHA-256 `b197d7d912152fd8118e460a877db900cedd85125af1031f94f2ad4f26bbb501`，stable channel commit `224b79e3f694805dc879159e473df3b70c07e11d`。公开下载、验签、离线安装、production audit、受管 1.2.1→1.2.2 更新、真实 V4 dry-run、目标 `$evc`/类型断言、回滚与重新升级均通过；本机最终 runtime 为 Workflow 0.4.3 / Converter 1.2.2 / Knowledge 0.1.2。Lambda 35 与 VxEditor41 未重复发布。
+
+### Phase 149：发布 Workflow 0.12.0 稳定版（2026-08-20）
+
+- [x] 恢复精确工作区状态并确认 0.12.0 产品提交、远端领先关系和发布范围
+- [x] 将当前稳定版文档切换为 0.12.0，运行完整验证并提交发布元数据
+- [x] 快进推送 `main` 并核对公开源提交
+- [x] 验证既有 0.11.0 签名通道，保留全部历史 descriptor，准备 0.12.0 签名候选
+- [x] 发布不可变 GitHub Release `v0.12.0`
+- [x] 最后推进签名 `release-channel` 并独立回读 Release、摘要、签名和通道
+- [x] 汇总公开 URL、提交和摘要；不更新本机已安装 Workflow
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求“推送和发布”，授权完成 Workflow 0.12.0 的公开发布链及必要发布元数据提交。只处理 `ivx-v4-v5-migration`；不更新本机受管运行时，不读取 Token、案例或平台数据，不发布 Converter/Knowledge。
+
+**本阶段错误记录：** 首次将会话恢复、Git 状态、计划和进度组合读取时，输出超过保留上限并被截断；省略部分不作为发布证据。首次用于追加 Phase 149 的补丁因包含空的 `findings.md` 更新块而被工具拒绝，未修改任何文件；已移除空块后重试。
+
+**发布结论：** Workflow 0.12.0 已以 immutable/Latest GitHub Release 公开。source/tag 为 `fbeede92b162c013b37a264691181e19741d643e`，tgz SHA-256 `e7b66b22819c7f804968d8a1ae803f3af4950accaca06465e1d22c234716f9a9`，signed manifest SHA-256 `cc029e3d4cde9c7a07c8df727c29bb8f18a315112765db423ba0e6afab6e745a`，stable channel commit `51539fa94da5d40c0435067a53394aa45d81b615`。公开 Release、资产、tag、按 commit/channel API/default raw URL、签名与历史 descriptor 均独立通过；default raw URL 在 GitHub 300 秒 CDN 缓存自然到期后已返回 0.12.0。未更新本机已安装 Workflow。
+
+### Phase 150：修复 sendApiRequest 重复错误回调参数（2026-08-20）
+
+- [x] 保护现有工作区改动并建立目标源码/测试基线
+- [x] 修复 `genMethodArgs` 对 `_ivx_error_cb` 的重复追加
+- [x] 添加聚焦回归，断言固定参数数量与异步完成回调位置
+- [x] 重转 FRP-PAD 真实案例并审计目标 API AST
+- [x] 运行定向与完整测试、diff/敏感信息门禁
+- [x] 按全局 Git 规则取得用户确认并创建本地提交；推送、Lambda 和 VxEditor41 同步另行执行
+
+**Status:** complete
+
+**授权与范围：** 用户明确将任务从 V4→V5 Workflow 切换为本地 Converter 修复。允许修改 `/Users/lianghuang/Desktop/ivx_repos/tov5parser` 的目标转换源码与回归测试；不修改平台案例、不编辑已安装签名 Converter、不使用迁移 Workflow。全局 Git 规则要求代码修改后先询问是否创建提交，因此本阶段先实现和验证，不提交、不推送、不部署。
+
+**工作区保护：** 当前已有 README、三份 planning 文档及两个未跟踪文档的并行/用户改动；全部保留且不得进入本次产品 diff。目标 `v4ToV5/utils/action.js` 当前无既有差异，修改前需再次确认测试文件也无重叠改动。
+
+**测试先行基线：** 新增聚焦回归后，在未修改产品代码时稳定失败为 `9 !== 8`，精确复现重复占位；失败发生在 helper 断言，尚未进入完整转换断言，符合预期。
+
+**本阶段错误记录：** 首次聚焦测试检索末尾包含未引用的 `test*`，zsh 因仓库根没有匹配路径而让该检索子命令失败；源码读取已成功、未修改文件。后续只使用 `rg --glob '*.test.js'` 或已确认的显式测试路径，不重复该 glob。
+
+真实案例首次内存重转成功产出最终统计，但 Converter 将既有公式 fallback 的大量 `ParseError` 输出到 stderr，导致工具输出严重截断；最终统计仍保留，但不重复无抑制运行。下一次在内存中临时静默 converter 的预期诊断输出，只打印脱敏参数形态。
+
+### Phase 151：推送、生产 Lambda 部署与 VxEditor41 同步（2026-08-21）
+
+- [x] 复核 tov5parser/VxEditor41 工作区、远端分支与生产 Lambda 回滚基线
+- [x] 快进推送 tov5parser 提交 `86c95f2` 并独立核对远端
+- [x] 使用项目脚本发布生产 Lambda，验证新版本、`prod` 别名和业务冒烟
+- [x] 将 `sendApiRequest` 参数对齐修复移植到 VxEditor41，保留编辑器差异与用户改动
+- [x] 完成 VxEditor41 定向检查/测试和可行生产构建
+- [x] 仅提交并推送 VxEditor41 本次同步文件，最终复核两仓与 Lambda 状态
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求“推送、部署、同步VxEditor41”，授权推送已确认的 tov5parser 产品提交、发布生产 Lambda，并把同一修复同步到 VxEditor41 后提交推送。继续排除两个仓库既有无关改动；禁止变基、强推、覆盖或发布 Converter GitHub Release。
+
+**顺序门禁：** 任一步测试、构建、推送或部署失败即停止后续发布，保留现场并记录；生产部署保留当前 `prod` 版本作为回滚点。
+
+### Phase 152：发布 Converter 1.2.6 稳定版（2026-08-21）
+
+- [x] 恢复发布上下文并确认产品提交、远端、现有工作区和版本基线
+- [x] 复核发布规范、兼容范围和当前公开 1.2.5 签名通道
+- [x] 将 package/package-lock 与发布记录提升至 1.2.6，运行完整测试、审计和打包门禁
+- [ ] 只提交并快进推送 1.2.6 发布元数据，不夹带 README、规划或未跟踪文档
+- [ ] 从干净公开源提交和已验签 1.2.5 raw payload 生成、独立审计 1.2.6 候选
+- [ ] 发布不可变 GitHub Release `v1.2.6`，最后推进 signed stable channel
+- [ ] 独立回读 Release、资产摘要、签名、tag、通道与默认 raw URL；不重复 Lambda/VxEditor41 发布
+
+**Status:** in_progress
+
+**授权与范围：** 用户明确说明 tov5parser 已更新并要求发布新的 Converter Release，授权完成版本提升、必要发布记录提交、main 推送、签名候选和不可变 GitHub Release/stable channel 发布。产品修复 `86c95f2` 已独立完成、推送、部署 Lambda 39 并同步 VxEditor41；本阶段不得重复这些动作，也不更新本机 managed runtime、不接触平台案例。
+
+**工作区保护：** README、三份 planning 文件及两个未跟踪文档为既有并行/用户内容。发布提交只允许包含 package/package-lock 和明确的发布记录；候选必须从 detached 干净 worktree 生成，避免 dirty 工作区进入签名源状态。
