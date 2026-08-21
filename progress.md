@@ -3447,3 +3447,8 @@
 - Phase 152 测试门禁通过：105/105、0 fail；预期公式 fallback 日志导致工具输出截断提示，但最终汇总保留且进程成功。audit 0 vulnerabilities，敏感扫描和 diff check clean。
 - Phase 152 首次 dry-run 解析尝试把 npm pipe 与 Node heredoc 同时使用，heredoc 占用了 stdin，Node 得到空输入并报 `Unexpected end of JSON input`；npm/package 未修改。已改用 `node -e` 从 pipe 读取，成功确认 164 files / 1,788,833 bytes / forbidden empty，不重复错误写法。
 - Phase 152 发布 prep 提交范围冻结为 package.json、package-lock.json 与三份 planning 发布记录；README、两个未跟踪文档和产品源码均排除。用户要求发布新 Release，已明确授权该必需版本提交和后续推送。
+- Phase 152 prep commit `8517b14899f786ec60e865a10a31a270c06409ab` 已创建并普通快进推送；HEAD/origin/main/公开远端一致、0/0。README 与两个未跟踪文档保持原样。下一步从该 exact commit 建 detached clean worktree，重新安装/测试后生成签名候选。
+- Phase 152 首次 worktree 建立命令虽创建了正确 detached source，但后续 `npm ci`/status 因工具 `workdir` 仍指向主工作区而在那里执行；只重装相同锁定依赖、未改文件。已改用 exact worktree 路径重新安装，确认 HEAD `8517b148...409ab`、clean，105/105 再次通过；不重复错误 workdir。
+- Phase 152 候选已从 clean `8517b148` 与已验签 1.2.5 raw payload 生成并独立审计：7 版历史、旧 descriptors 不变、tgz/payload/manifest 摘要固定、164 entries、离线安装/API/隐私/96 package tests 全部通过。GitHub immutable/rulesets/bypass/tag 占位/私钥权限门禁同样通过；尚未发布。
+- Phase 152 正式发布成功：v1.2.6 immutable Latest，source/tag `8517b148...409ab`，stable `c5669246...f015c`，资产和签名验证通过。默认 raw stable 在第一次 MISS 时 GitHub 后端仍给出 1.2.5，随后被 CDN 以 300 秒缓存；API/ref/commit 已是 1.2.6。等待缓存自然到期，不重推、不改写 Release。
+- Phase 152 最终完成：default raw stable 已返回签名 1.2.6，字节/摘要与 Release 候选一致；source/tag `8517b148...409ab`，stable `c5669246...f015c`，immutable Latest，7-version history 完整。临时 worktree 已注销，验收目录移入废纸篓。下一步只提交并推送三份最终发布记录，继续排除 README 与两个未跟踪文档。

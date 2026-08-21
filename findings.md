@@ -2803,3 +2803,13 @@
 - package.json 与 lockfile 的三个版本字段已最小提升为 1.2.6；未触碰 README、开发指南或产品代码。
 - 1.2.6 完整回归 105/105、fail 0；测试按设计输出大量公式 fallback ParseError，工具显示内容截断警告，但最终 Node test 汇总完整保留且退出成功。
 - production audit 为 0 vulnerabilities；dry-run tarball 为 164 entries / 1,788,833 bytes / unpacked 29,352,917 bytes，版本 1.2.6，风险路径为空；已知 Cookie/private-key/GitHub-token 模式扫描 clean，`git diff --check` 通过。
+- 1.2.6 prep commit `8517b14899f786ec60e865a10a31a270c06409ab` 精确包含 package/package-lock 与三份 planning 发布记录；README 和两个未跟踪文档未进入提交。
+- main 已普通 fast-forward 推送至 `8517b148...409ab`；本地 HEAD、origin/main、公开 ls-remote 三方一致，ahead/behind 0/0。剩余工作区状态仅为发布前已有 README 与两个未跟踪文档。
+- detached clean worktree 已建立在 `/tmp/tov5parser-release-1.2.6.CZP9VQ/source`，HEAD 精确为 `8517b148...409ab`，锁定依赖安装后 worktree clean。该干净源再次通过 105/105、0 fail。
+- 1.2.6 签名候选摘要：tgz `776c52b6cbed1d049d5d455a643a04561f3c80a86dcd9031428af6e5289d6b6b`；payload `87a0c011a66dbd6a34949139feb72287fcd29bc888d37e5473c006abf5242c0e`；manifest `88e31316aa904d4b86c54181a0d0b4148023e4a7de0a7962f37e36a86c96aafa`。
+- 候选独立审计通过：签名有效，旧 1.2.0–1.2.5 descriptors 逐项不变，新 payload 共 7 版、minimum 1.2.0/revoked empty；compat Workflow `>=0.3.1 <1.0.0`、diagnostics capability 正确。tar 164 entries/forbidden empty；离线安装、两项公开 API import、隐私扫描及包内 96/96 tests 全绿。
+- GitHub 硬化通过：tov5parser PUBLIC/非归档、immutable Releases 开启、main+release-channel 与 v* ruleset active、bypass 0；v1.2.6 Release/tag 不存在，worktree clean，私钥 0600。
+- 正式 publisher 已公开 immutable/Latest v1.2.6，Release/tag target `8517b148...409ab`；channel commit `c566924659d7abd1ba39647ff26c82a2986f015c` 的唯一 parent 是 1.2.5 stable `e1fae900...3442d`，tree 仅含 `converter-stable.json`。
+- Release 资产、commit-pinned channel 和 GitHub contents API 已验证 tgz `776c52b6...d6b6b` / manifest `88e31316...6aafa`，签名 latest 1.2.6/7 versions。默认 raw URL 在发布后首次 MISS 时仍读取 1.2.5，并形成新的 max-age=300 CDN 缓存；需等待到期后最终验收。
+- default raw stable 已刷新为候选 manifest，SHA-256 `88e31316...6aafa`、签名有效、latest 1.2.6、7 descriptors、minimum 1.2.0、revoked empty。main/source/tag `8517b148...409ab`，stable `c5669246...f015c`，worktree 0/0 clean。
+- detached worktree 已正常注销；公开下载、旧 payload、离线安装和验收临时目录整体移入 `/Users/lianghuang/.Trash/tov5parser-release-1.2.6-audit.3FxUds`，可恢复。主工作区只保留原有 README、planning 收尾和两个未跟踪文档。

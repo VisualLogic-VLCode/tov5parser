@@ -2449,13 +2449,17 @@ Phase 148（发布请求信息 AST 修复）— complete
 - [x] 恢复发布上下文并确认产品提交、远端、现有工作区和版本基线
 - [x] 复核发布规范、兼容范围和当前公开 1.2.5 签名通道
 - [x] 将 package/package-lock 与发布记录提升至 1.2.6，运行完整测试、审计和打包门禁
-- [ ] 只提交并快进推送 1.2.6 发布元数据，不夹带 README、规划或未跟踪文档
-- [ ] 从干净公开源提交和已验签 1.2.5 raw payload 生成、独立审计 1.2.6 候选
-- [ ] 发布不可变 GitHub Release `v1.2.6`，最后推进 signed stable channel
-- [ ] 独立回读 Release、资产摘要、签名、tag、通道与默认 raw URL；不重复 Lambda/VxEditor41 发布
+- [x] 只提交并快进推送 1.2.6 版本文件与 planning 发布记录，不夹带 README、产品源码或未跟踪文档
+- [x] 从干净公开源提交和已验签 1.2.5 raw payload 生成、独立审计 1.2.6 候选
+- [x] 发布不可变 GitHub Release `v1.2.6`，最后推进 signed stable channel
+- [x] 独立回读 Release、资产摘要、签名、tag、通道与默认 raw URL；不重复 Lambda/VxEditor41 发布
 
-**Status:** in_progress
+**Status:** complete
 
 **授权与范围：** 用户明确说明 tov5parser 已更新并要求发布新的 Converter Release，授权完成版本提升、必要发布记录提交、main 推送、签名候选和不可变 GitHub Release/stable channel 发布。产品修复 `86c95f2` 已独立完成、推送、部署 Lambda 39 并同步 VxEditor41；本阶段不得重复这些动作，也不更新本机 managed runtime、不接触平台案例。
 
 **工作区保护：** README、三份 planning 文件及两个未跟踪文档为既有并行/用户内容。发布提交只允许包含 package/package-lock 和明确的发布记录；候选必须从 detached 干净 worktree 生成，避免 dirty 工作区进入签名源状态。
+
+**本阶段错误记录：** 仓库根没有本地 `AGENTS.md`，读取命令返回 file not found；继续遵守线程注入的全局 AGENTS 规则并完整读取现有 `CLAUDE.md`。首次 dry-run npm pipe 同时使用 heredoc，Node stdin 被 heredoc 占用并报空 JSON；改用 `node -e` 直接消费 pipe 后通过。首次建立 detached worktree 后，依赖安装仍在主工作区执行；只重装相同 lockfile、未改文件，随后以 exact worktree 路径重新安装和验证。测试的预期公式 fallback 输出造成工具截断提示，但最终 105/105 与包内 96/96 汇总均完整保留。默认 raw stable 在首次 MISS 时取到旧 1.2.5 并缓存 300 秒；API/ref/commit 已正确，不重推，等待传播后最终验证为 1.2.6。
+
+**发布结论：** Converter 1.2.6 已公开为 immutable/Latest GitHub Release。source/tag 为 `8517b14899f786ec60e865a10a31a270c06409ab`，tgz SHA-256 `776c52b6cbed1d049d5d455a643a04561f3c80a86dcd9031428af6e5289d6b6b`，signed manifest SHA-256 `88e31316aa904d4b86c54181a0d0b4148023e4a7de0a7962f37e36a86c96aafa`，stable channel commit `c566924659d7abd1ba39647ff26c82a2986f015c`。公开 Release、资产、tag、签名、历史 descriptor、API/commit/default raw channel 全部独立通过；未重复 Lambda 39、VxEditor41 发布或本机 runtime 更新。
