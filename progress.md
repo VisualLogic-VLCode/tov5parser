@@ -3452,3 +3452,6 @@
 - Phase 152 候选已从 clean `8517b148` 与已验签 1.2.5 raw payload 生成并独立审计：7 版历史、旧 descriptors 不变、tgz/payload/manifest 摘要固定、164 entries、离线安装/API/隐私/96 package tests 全部通过。GitHub immutable/rulesets/bypass/tag 占位/私钥权限门禁同样通过；尚未发布。
 - Phase 152 正式发布成功：v1.2.6 immutable Latest，source/tag `8517b148...409ab`，stable `c5669246...f015c`，资产和签名验证通过。默认 raw stable 在第一次 MISS 时 GitHub 后端仍给出 1.2.5，随后被 CDN 以 300 秒缓存；API/ref/commit 已是 1.2.6。等待缓存自然到期，不重推、不改写 Release。
 - Phase 152 最终完成：default raw stable 已返回签名 1.2.6，字节/摘要与 Release 候选一致；source/tag `8517b148...409ab`，stable `c5669246...f015c`，immutable Latest，7-version history 完整。临时 worktree 已注销，验收目录移入废纸篓。下一步只提交并推送三份最终发布记录，继续排除 README 与两个未跟踪文档。
+- 2026-08-21 Phase 153 启动：已完成双仓只读兼容性与文档审计。确认 Workflow 运行逻辑、验证器、Agent Skill、Knowledge 和 protocol 9 均无需变更；下一步更新 Converter 指南/README，并准备 Workflow 0.12.1 纯文档补丁。现有无关 VxServer 文档继续排除，尚未提交、推送或发布。
+- 2026-08-21 Phase 153 编辑完成：Converter 接入指南已切换至 1.2.6 Release、资产与 SHA-256，README 改为 GitHub 绝对链接；Workflow package/package-lock 已准备为 0.12.1，当前稳定说明和外部验收基线已同步 Converter 1.2.6，并新增纯文档补丁发布说明。历史 0.7.1/0.12.0 发布记录和两处 1.2.5 runtime-pin 测试夹具保持不变。
+- 2026-08-21 Phase 153 验证完成：Converter 105/105、Workflow 251/251 全绿；Workflow dry-run 包 0.12.1/340 entries，Converter dry-run 包 1.2.6/164 entries；Workflow 39 个本地 Markdown 链接无缺失；隔离回读确认 0.12.1 / protocol 9；双仓 diff check 通过。未提交、推送或发布，等待用户确认。

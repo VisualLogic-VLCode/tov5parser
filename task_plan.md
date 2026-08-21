@@ -5,9 +5,31 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 148（发布请求信息 AST 修复）— complete
+Phase 153（同步 Converter 1.2.6 文档并准备 Workflow 0.12.1）— complete
 
 ## Phases
+
+### Phase 153：同步 Converter 1.2.6 文档并准备 Workflow 0.12.1（2026-08-21）
+
+- [x] 审计 Converter 1.2.6 对 Workflow 运行时、验证器、Agent 协议和 Knowledge 的影响
+- [x] 更新 Converter 开发接入指南与公开 README 链接
+- [x] 将 Workflow 版本准备为 0.12.1，并更新当前稳定版本文档
+- [x] 保留历史发布记录与固定运行时测试夹具不变
+- [x] 运行双仓文档、包内容、版本一致性和完整测试门禁
+- [x] 汇总差异并等待用户确认 Git 提交
+
+**Status:** complete
+
+**授权与范围：** 用户确认更新。只准备 Converter 文档和 Workflow 0.12.1 纯文档补丁；不修改转换器/工作流运行逻辑、Schema、Agent Skill、Agent protocol 9、兼容范围或 Knowledge，不提交、不推送、不发布，直至按 Git 规则再次取得用户确认。保留并排除无关的未跟踪 VxServer 文档。
+
+**结论：** Converter README 使用 GitHub 绝对地址链接新增的 1.2.6 开发接入指南，指南固定 Release 资产与 SHA-256；Workflow 已准备为 0.12.1，仅更新 package 版本和签名包内当前稳定说明。Converter 105/105、Workflow 251/251、两仓 dry-run 打包、39 个本地文档链接、版本/protocol 回读和 diff check 全部通过。尚未提交、推送或发布，等待用户确认 Git 提交。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 直接运行本地 Launcher 的 `version` 被本机已激活 Workflow 0.12.0 接管，首次输出不是候选包版本 | 1 | 这是受管 Launcher 的正常委派，不是源码版本遗漏；改用隔离的临时 migration home 验证候选包，正确输出 Workflow 0.12.1 / protocol 9 |
+| 隔离版本检查创建了空的受管目录，`rmdir` 因目录非空失败 | 1 | 只包含 CLI 自动创建的空子目录；已将精确临时根整体移入废纸篓，可恢复，不影响项目或正式受管安装 |
 
 ### Phase 148：发布请求信息 AST 修复（2026-08-14）
 

@@ -2813,3 +2813,8 @@
 - Release 资产、commit-pinned channel 和 GitHub contents API 已验证 tgz `776c52b6...d6b6b` / manifest `88e31316...6aafa`，签名 latest 1.2.6/7 versions。默认 raw URL 在发布后首次 MISS 时仍读取 1.2.5，并形成新的 max-age=300 CDN 缓存；需等待到期后最终验收。
 - default raw stable 已刷新为候选 manifest，SHA-256 `88e31316...6aafa`、签名有效、latest 1.2.6、7 descriptors、minimum 1.2.0、revoked empty。main/source/tag `8517b148...409ab`，stable `c5669246...f015c`，worktree 0/0 clean。
 - detached worktree 已正常注销；公开下载、旧 payload、离线安装和验收临时目录整体移入 `/Users/lianghuang/.Trash/tov5parser-release-1.2.6-audit.3FxUds`，可恢复。主工作区只保留原有 README、planning 收尾和两个未跟踪文档。
+- 2026-08-21 Phase 153：Converter 1.2.6 仍满足 Workflow 0.12.0/0.12.1 的签名兼容范围 `>=1.2.0 <2.0.0`；本次 `sendApiRequest` 参数修复不改变 diagnostics、Job/Review Schema、Agent protocol、平台接口或 Knowledge，因此无需运行时代码同步。
+- 2026-08-21 Phase 153：Workflow 签名包会包含 README/docs，当前三处稳定基线仍写 Converter 1.2.5。依据历史 0.7.1 先例，若要让新安装用户获得正确的签名包内说明，应准备 Workflow 0.12.1 纯文档补丁，同时保持 protocol 9、兼容范围和 capability 不变。
+- 2026-08-21 Phase 153：Converter package 不包含 docs；README 若使用 `docs/...` 相对链接，安装 tarball 后会断链。最小正确方案是改成 GitHub 绝对链接，不为刚发布的 1.2.6 改包内容或重发 Converter。
+- 2026-08-21 Phase 153：从普通本地 Launcher 执行 `version` 会优先委派给本机已激活的受管 Workflow，因此不能用于验证未安装的候选源码版本；在隔离 migration home 中回读才是候选包权威结果，已确认 0.12.1 / protocol 9。
+- 2026-08-21 Phase 153：最终打包边界符合预期：Workflow 0.12.1 为 340 entries，包含 README/RELEASING/总设计文档；Converter 1.2.6 为 164 entries，包含带在线链接的 README 而不捆绑 guide。这样不改变已发布 1.2.6 的资产内容。
