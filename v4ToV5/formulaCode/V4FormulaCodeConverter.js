@@ -9,6 +9,84 @@ import { genXid } from '../env.js'
 // （从 window 读映射），移植后直接使用 vlparser 完整版（支持 Node 的 global 读取）
 import MapCreator from '../../utils/MapCreator.js'
 
+const RECEIVER_KIND_BY_NODE_TYPE = {
+  'data-arr': 'arr',
+  'obj-arr': 'arr',
+  'data-arr-2d': 'arr2d',
+  'obj-arr-2d': 'arr2d',
+  'data-obj-arr': 'objArr',
+  'obj-obj-arr': 'objArr',
+  'data-var': 'var',
+  'obj-var': 'var',
+  'data-bool': 'bool',
+  'obj-bool': 'bool',
+  'data-num': 'num',
+  'data-int': 'num',
+  'obj-num': 'num',
+  'obj-int': 'num',
+  'data-obj-1d': 'obj',
+  'obj-obj-1d': 'obj',
+  'data-obj-json': 'objJson',
+  'obj-obj-json': 'objJson',
+  'data-time': 'time',
+  'obj-time': 'time'
+}
+
+const normalizeReceiverKind = value => {
+  if (!value || typeof value !== 'string') return
+  const kindMap = {
+    JsonArr: 'arr',
+    Array: 'arr',
+    array: 'arr',
+    JsonObj: 'obj',
+    Object: 'obj',
+    object: 'obj',
+    String: 'var',
+    string: 'var',
+    Boolean: 'bool',
+    boolean: 'bool',
+    Number: 'num',
+    number: 'num',
+    double: 'num',
+    long: 'num',
+    int: 'num',
+    integer: 'num',
+    timeDetail: 'time'
+  }
+  return kindMap[value] || value
+}
+
+const getSysutilNameReceiverKind = name => {
+  const prefixKinds = [
+    ['$SF_local_arr_', 'localArr'],
+    ['$SF_objArr_', 'objArr'],
+    ['$SF_arr2d_', 'arr2d'],
+    ['$SF_objJson_', 'objJson'],
+    ['$SF_arr_', 'arr'],
+    ['$SF_var_', 'var'],
+    ['$SF_bool_', 'bool'],
+    ['$SF_num_', 'num'],
+    ['$SF_obj_', 'obj'],
+    ['$SF_time_', 'time'],
+    ['$SF_db', 'db'],
+    ['$SF_type_', 'type']
+  ]
+  return prefixKinds.find(([prefix]) => name?.startsWith(prefix))?.[1]
+}
+
+const getSysutilReceiverContract = info => {
+  const exactKind =
+    normalizeReceiverKind(info?.preType) ||
+    getSysutilNameReceiverKind(info?.name)
+  const supportedKinds = new Set(
+    (Array.isArray(info?.kind) ? info.kind : [])
+      .map(normalizeReceiverKind)
+      .filter(Boolean)
+  )
+  if (exactKind) supportedKinds.add(exactKind)
+  return { exactKind, supportedKinds }
+}
+
 const cloneParsedTree = value => {
   if (Array.isArray(value)) return value.map(cloneParsedTree)
   if (value instanceof RegExp) return new RegExp(value.source, value.flags)
@@ -875,7 +953,10 @@ export default class V4FormulaCodeConverter {
           if (identity === 'callee') {
             return this.genSysutilMethodPrefixAst({
               args,
-              funcArg: this.genSysutilMethodAST({ funcName: parsed?.name })
+              funcArg: this.genSysutilMethodAST({
+                funcName: parsed?.name,
+                callStyle: 'global'
+              })
             })
           } else {
             return this.processIdentifier({ parsed })
@@ -1084,15 +1165,18 @@ export default class V4FormulaCodeConverter {
 
     let ast
     let propertyAST
+    let receiverKinds
     // 处理属性
     switch (objectVarType) {
       case 'actionResult': {
         ast = this.processParsedTree({ parsed: object })
+        receiverKinds = this.inferReceiverKinds({ parsed: object, ast })
         propertyAST = this.genActionResultPropertyAST({
           ...ctx,
           property,
           artAst: ast,
-          identity
+          identity,
+          receiverKinds
         })
         break
       }
@@ -1161,8 +1245,11 @@ export default class V4FormulaCodeConverter {
         // 处理属性
         ast = this.processParsedTree({ parsed: object })
         if (identity === 'callee') {
+          receiverKinds = this.inferReceiverKinds({ parsed: object, ast })
           propertyAST = this.genSysutilMethodAST({
-            funcName: property?.name
+            funcName: property?.name,
+            receiverKinds,
+            callStyle: 'member'
           })
           // 判断 objAst 是否是get ast
           if (V4FormulaCodeConverter.isGetAST({ ast })) {
@@ -1198,7 +1285,9 @@ export default class V4FormulaCodeConverter {
       this.appendFuncArgs({
         sysUtilFuncAST: propertyAST,
         funcArgs: args,
-        funcName: property?.name
+        funcName: property?.name,
+        receiverKinds,
+        callStyle: 'member'
       })
     }
 
@@ -1430,12 +1519,18 @@ export default class V4FormulaCodeConverter {
       this.isTypeof({ parsed: body[0] })
     ) {
       let funcName = body[0].name
+      let sysutilInfo = this.getSysutilInfoFromFuncName({
+        funcName,
+        callStyle: 'global'
+      })
       ast = this.processParsedTree({
         parsed: body[1],
-        sysutilInfo: this.getSysutilInfoFromFuncName({ funcName })
+        sysutilInfo
       })
       let funcArg = this.genSysutilMethodAST({
-        funcName
+        funcName,
+        sysutilInfo,
+        callStyle: 'global'
       })
       if (this.isGetAST({ ast }) && funcArg) {
         let getArgs = ast.args?.[0]?.args
@@ -2027,23 +2122,188 @@ export default class V4FormulaCodeConverter {
     }
   }
 
-  getSysutilInfoFromFuncName = ({ funcName }) => {
+  getReceiverKindFromAst = ({ ast }) => {
+    if (!ast || typeof ast !== 'object') return
+    const directKind = normalizeReceiverKind(ast.cType || ast.type)
+    if (directKind && !['JsonVal', 'Formula'].includes(directKind)) {
+      return directKind
+    }
+
+    let getAst = ast.op === 'var' ? ast.args?.[0] : ast
+    if (getAst?.op === 'list') return 'arr'
+    if (getAst?.op === 'dict') return 'obj'
+    if (getAst?.op !== 'get' || !Array.isArray(getAst.args)) return
+
+    const lastArg = getAst.args[getAst.args.length - 1]
+    if (lastArg?.op === 'list') return 'arr'
+    if (lastArg?.op === 'dict') return 'obj'
+    if (lastArg?.op === 'sysutil' && lastArg.val) {
+      const info = this.getSysutilInfoFromFuncName({
+        funcName: `$SF_${lastArg.val}`
+      })
+      return normalizeReceiverKind(info?.uType)
+    }
+
+    const ref = getAst.args[0]
+    const valueField = getAst.args[1]
+    if (
+      getAst.args.length === 2 &&
+      ref?.op === 'ref' &&
+      ref.val?.[0] === 'var' &&
+      valueField?.op === 'field' &&
+      valueField.val === 'value'
+    ) {
+      const nodeType = this.props.getRefNodeType?.(ref.val[1])
+      return RECEIVER_KIND_BY_NODE_TYPE[nodeType]
+    }
+  }
+  getReceiverKindFromParsed = ({ parsed }) => {
+    if (!parsed || typeof parsed !== 'object') return
+    switch (parsed.type) {
+      case 'ArrayExpression': {
+        const elements = (parsed.elements || []).filter(Boolean)
+        if (
+          elements.length > 0 &&
+          elements.every(item => item.type === 'ArrayExpression')
+        ) {
+          return 'arr2d'
+        }
+        if (
+          elements.length > 0 &&
+          elements.every(item => item.type === 'ObjectExpression')
+        ) {
+          return 'objArr'
+        }
+        return 'arr'
+      }
+      case 'ObjectExpression':
+        return 'obj'
+      case 'Literal':
+        return normalizeReceiverKind(typeof parsed.value)
+      case 'Identifier': {
+        const ctx = this.getCtx(parsed.name)
+        return normalizeReceiverKind(ctx?.receiverKind || ctx?.cType)
+      }
+      case 'ConditionalExpression': {
+        const consequent = this.getReceiverKindFromParsed({
+          parsed: parsed.consequent
+        })
+        const alternate = this.getReceiverKindFromParsed({
+          parsed: parsed.alternate
+        })
+        return consequent && consequent === alternate ? consequent : undefined
+      }
+      default:
+        return
+    }
+  }
+  inferReceiverKinds = ({ parsed, ast }) => {
+    const kinds = [
+      this.getReceiverKindFromParsed({ parsed }),
+      this.getReceiverKindFromAst({ ast })
+    ]
+      .map(normalizeReceiverKind)
+      .filter(Boolean)
+    return [...new Set(kinds)]
+  }
+  resolveSysutilInfo = ({ funcName, receiverKinds = [], callStyle }) => {
     let sysutilMap = MapCreator.genSysutilMap() || {}
-    // 反包函数的别名映射
     funcName = V4FormulaCodeConverter.sfutilAliasMap[funcName] || funcName
-    let sysutilInfo =
-      sysutilMap[funcName] || V4FormulaCodeConverter.legacySysutilMap[funcName]
-    return sysutilInfo
+    const legacyInfo = V4FormulaCodeConverter.legacySysutilMap[funcName]
+    if (funcName?.startsWith('$SF_')) {
+      return {
+        info: sysutilMap[funcName] || legacyInfo,
+        candidates: sysutilMap[funcName] ? [sysutilMap[funcName]] : []
+      }
+    }
+    if (legacyInfo) return { info: legacyInfo, candidates: [legacyInfo] }
+
+    const candidates = MapCreator.getSysutilCandidates({ name: funcName })
+    if (candidates.length === 0) {
+      return { info: sysutilMap[funcName], candidates: [] }
+    }
+    if (candidates.length === 1) {
+      return { info: candidates[0], candidates }
+    }
+
+    const normalizedKinds = [...new Set(receiverKinds)]
+      .map(normalizeReceiverKind)
+      .filter(Boolean)
+    if (normalizedKinds.length > 0) {
+      const scored = candidates
+        .map(info => {
+          const contract = getSysutilReceiverContract(info)
+          const score = Math.max(
+            0,
+            ...normalizedKinds.map(kind => {
+              if (normalizeReceiverKind(info.preType) === kind) return 400
+              if (contract.exactKind === kind) return 300
+              if (contract.supportedKinds.has(kind)) return 200
+              return 0
+            })
+          )
+          return { info, score }
+        })
+        .filter(item => item.score > 0)
+      const maxScore = Math.max(0, ...scored.map(item => item.score))
+      const winners = scored.filter(item => item.score === maxScore)
+      if (winners.length === 1) {
+        return { info: winners[0].info, candidates }
+      }
+    }
+
+    if (callStyle === 'global') {
+      const globalCandidates = candidates.filter(
+        info => info.group === 'type' || info.name?.startsWith('$SF_type_')
+      )
+      if (globalCandidates.length === 1) {
+        return { info: globalCandidates[0], candidates }
+      }
+    }
+
+    const allKinds = new Set()
+    const contracts = candidates.map(info => {
+      const contract = getSysutilReceiverContract(info)
+      for (const kind of contract.supportedKinds) allKinds.add(kind)
+      return { info, contract }
+    })
+    const universalCandidates = contracts.filter(({ contract }) =>
+      [...allKinds].every(kind => contract.supportedKinds.has(kind))
+    )
+    if (allKinds.size > 0 && universalCandidates.length === 1) {
+      return { info: universalCandidates[0].info, candidates }
+    }
+
+    return { candidates }
+  }
+  getSysutilInfoFromFuncName = options => {
+    return this.resolveSysutilInfo(options).info
   }
   // 生成反包函数的arg
-  genSysutilMethodAST = ({ funcName }) => {
+  genSysutilMethodAST = ({
+    funcName,
+    sysutilInfo,
+    receiverKinds,
+    callStyle
+  }) => {
     if (funcName === '$SF_getSelf') return
-    let sysutilInfo = this.getSysutilInfoFromFuncName({ funcName })
+    const resolution = sysutilInfo
+      ? { info: sysutilInfo, candidates: [sysutilInfo] }
+      : this.resolveSysutilInfo({ funcName, receiverKinds, callStyle })
+    sysutilInfo = resolution.info
     let { name } = sysutilInfo || {}
     if (!name) {
       throw new ParseError({
-        message: `not support sysutil method ${funcName}`,
-        type: 'sysutil'
+        message:
+          resolution.candidates?.length > 1
+            ? `ambiguous sysutil alias ${funcName}: ${resolution.candidates
+                .map(item => item.name)
+                .join(', ')}`
+            : `not support sysutil method ${funcName}`,
+        type:
+          resolution.candidates?.length > 1
+            ? 'SysutilAliasConflict'
+            : 'sysutil'
       })
     }
     return {
@@ -2174,18 +2434,26 @@ export default class V4FormulaCodeConverter {
     let [prefixPart, ...restArgs] = args || []
     funcArgs = restArgs
     funcName = property?.name
+    let sysutilInfo = this.getSysutilInfoFromFuncName({
+      funcName,
+      callStyle: 'global'
+    })
     ast = this.processParsedTree({
       parsed: prefixPart,
-      sysutilInfo: this.getSysutilInfoFromFuncName({ funcName })
+      sysutilInfo
     })
     sysUtilFuncAST = this.genSysutilMethodAST({
-      funcName
+      funcName,
+      sysutilInfo,
+      callStyle: 'global'
     })
     this.appendSysutilFuncASTWithFuncArgs({
       ast,
       sysUtilFuncAST,
       funcArgs,
-      funcName
+      funcName,
+      sysutilInfo,
+      callStyle: 'global'
     })
     return ast
   }
@@ -2200,13 +2468,23 @@ export default class V4FormulaCodeConverter {
     funcArgs = restArgs
     funcName = `JSON.${property?.name}`
     ast = this.processParsedTree({ parsed: prefixPart })
-    sysUtilFuncAST = this.genSysutilMethodAST({ funcName })
+    let sysutilInfo = this.getSysutilInfoFromFuncName({
+      funcName,
+      callStyle: 'global'
+    })
+    sysUtilFuncAST = this.genSysutilMethodAST({
+      funcName,
+      sysutilInfo,
+      callStyle: 'global'
+    })
 
     this.appendSysutilFuncASTWithFuncArgs({
       ast,
       sysUtilFuncAST,
       funcArgs,
-      funcName
+      funcName,
+      sysutilInfo,
+      callStyle: 'global'
     })
     return ast
   }
@@ -2215,23 +2493,40 @@ export default class V4FormulaCodeConverter {
     ast,
     sysUtilFuncAST,
     funcArgs,
-    funcName
+    funcName,
+    sysutilInfo,
+    receiverKinds,
+    callStyle
   }) => {
     if (this.isGetAST({ ast }) && sysUtilFuncAST) {
       // 处理函数参数
       this.appendFuncArgs({
         sysUtilFuncAST,
         funcArgs,
-        funcName
+        funcName,
+        sysutilInfo,
+        receiverKinds,
+        callStyle
       })
       let getArgs = ast.args?.[0]?.args
       getArgs.push(sysUtilFuncAST)
     }
   }
   // 将函数参数追加到反包函数ast中
-  appendFuncArgs = ({ sysUtilFuncAST, funcArgs, funcName }) => {
+  appendFuncArgs = ({
+    sysUtilFuncAST,
+    funcArgs,
+    funcName,
+    sysutilInfo,
+    receiverKinds,
+    callStyle
+  }) => {
     if (Array.isArray(funcArgs) && funcArgs.length > 0 && sysUtilFuncAST) {
-      const sysutilInfo = this.getSysutilInfoFromFuncName({ funcName })
+      sysutilInfo ||= this.getSysutilInfoFromFuncName({
+        funcName,
+        receiverKinds,
+        callStyle
+      })
       const hasFuncParam = sysutilInfo?.params?.some(
         param => param?.uType === 'func'
       )
@@ -2497,7 +2792,8 @@ export default class V4FormulaCodeConverter {
     varCompScope,
     action,
     artAst = {},
-    identity // 标识当前的property的类型，eg: callee
+    identity, // 标识当前的property的类型，eg: callee
+    receiverKinds
   }) => {
     let { name } = property || {}
     let ast
@@ -2526,7 +2822,11 @@ export default class V4FormulaCodeConverter {
 
     if (!ast && !singleParam) {
       if (identity === 'callee') {
-        ast = this.genSysutilMethodAST({ funcName: name })
+        ast = this.genSysutilMethodAST({
+          funcName: name,
+          receiverKinds,
+          callStyle: 'member'
+        })
         if (!ast) ast = this.genGetSelfAST()
       } else {
         ast = { op: 'field', val: name }

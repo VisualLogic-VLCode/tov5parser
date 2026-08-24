@@ -5,6 +5,7 @@ import V4FormulaCodeConverter from './V4FormulaCodeConverter.js'
 import ExprAstToString from './ExprAstToString.js'
 import { loadRuntimeMaps } from '../../index.js'
 import { ast2js } from '../ast2js.js'
+import MapCreator from '../../utils/MapCreator.js'
 
 const assertSingleLineJsfn = jsfn => {
   assert.equal(/[\r\n]/.test(jsfn.val[0]), false)
@@ -60,6 +61,16 @@ const assertJsfnArgumentsComplete = ast => {
   }
 }
 
+const withoutSysutilMap = callback => {
+  const previous = MapCreator.sysutilMap
+  MapCreator.sysutilMap = {}
+  try {
+    return callback()
+  } finally {
+    MapCreator.sysutilMap = previous
+  }
+}
+
 test('jsepWrap registers the v4 formula syntax plugins', () => {
   const arrowAst = jsep('items.find(item => item.id === 1)')
   assert.equal(arrowAst.arguments[0].type, 'ArrowFunctionExpression')
@@ -80,18 +91,161 @@ test('jsepWrap registers the v4 formula syntax plugins', () => {
   assert.equal(templateAst.type, 'TemplateLiteral')
 })
 
-test('custom fallback preserves the JavaScript in operator inside callbacks', () => {
-  const parsed = jsep('key in value')
-  assert.equal(parsed.type, 'BinaryExpression')
-  assert.equal(parsed.operator, 'in')
+test('sysutil English aliases preserve every typed candidate', () => {
+  loadRuntimeMaps()
+  const findCandidates = MapCreator.getSysutilCandidates({ name: 'find' })
 
+  assert.deepEqual(
+    findCandidates.map(item => item.name),
+    ['$SF_arr2d_find', '$SF_arr_find', '$SF_objArr_find']
+  )
+  assert.deepEqual(
+    findCandidates.find(item => item.name === '$SF_arr_find')?.kind,
+    ['arr', 'arr2d', 'objArr']
+  )
+  assert.equal(
+    MapCreator.getSysutilCandidates({ name: 'filter' }).find(
+      item => item.name === '$SF_objArr_filter'
+    )?.preType,
+    'objArr'
+  )
+  assert.deepEqual(
+    MapCreator.getSysutilCandidates({ name: '$SF_objArr_find' }).map(
+      item => item.name
+    ),
+    ['$SF_objArr_find']
+  )
+})
+
+test('sysutil English alias resolution follows the receiver contract', () => {
+  loadRuntimeMaps()
+  const getRefNodeType = id =>
+    ({
+      cd7nepta3j50000hz9r0: 'data-arr',
+      ccpn5n6a3j50000c5kg0: 'data-arr-2d',
+      ccv8rk2a3j50000k6ab0: 'data-obj-arr',
+      cemmpcsa3j500007x1q0: 'data-var'
+    })[id]
+  const convert = str =>
+    new V4FormulaCodeConverter({
+      str,
+      getCtx() {},
+      getRefNodeType,
+      scope: 'stage'
+    }).exec()
+  const sysutilValues = ast =>
+    collectAst(ast, item => item.op === 'sysutil').map(item => item.val)
+
+  assert.ok(
+    sysutilValues(
+      convert('$refs.cd7nepta3j50000hz9r0.p_value.map(item => item)')
+    ).includes('arr_map')
+  )
+  assert.ok(
+    sysutilValues(
+      convert('$refs.ccpn5n6a3j50000c5kg0.p_value.filter(item => !!item)')
+    ).includes('arr2d_filter')
+  )
+  assert.ok(
+    sysutilValues(
+      convert('$refs.ccv8rk2a3j50000k6ab0.p_value.find(item => !!item)')
+    ).includes('objArr_find')
+  )
+  assert.ok(
+    sysutilValues(
+      convert('$refs.cemmpcsa3j500007x1q0.p_value.indexOf("x")')
+    ).includes('var_indexOf')
+  )
+})
+
+test('sysutil English aliases ignore the legacy last-write winner', () => {
+  loadRuntimeMaps()
+  const sysutilMap = MapCreator.genSysutilMap()
+  const previousFindWinner = sysutilMap.find
+  const convert = () =>
+    new V4FormulaCodeConverter({
+      str: 'fParamgroup.items.find(item => item.id === 1)',
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    }).exec()
+
+  try {
+    sysutilMap.find = sysutilMap.$SF_objArr_find
+    const first = findAst(convert(), item => item.op === 'sysutil')
+    sysutilMap.find = sysutilMap.$SF_arr2d_find
+    const second = findAst(convert(), item => item.op === 'sysutil')
+    assert.equal(first?.val, 'arr_find')
+    assert.equal(second?.val, 'arr_find')
+  } finally {
+    sysutilMap.find = previousFindWinner
+  }
+})
+
+test('ambiguous scalar-or-array aliases preserve unknown receivers as JavaScript', () => {
+  loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
-    str: 'fParamgroup.items.find(i => fParamgroup.key in i) && true',
+    str: 'fParamgroup.value.indexOf(fParamgroup.search) >= 0',
     getCtx(name) {
       if (name === 'fParamgroup') return { varType: 'param' }
     },
     scope: 'stage'
   }).exec()
+
+  assert.equal(
+    findAst(
+      ast,
+      item => item.op === 'sysutil' && /(?:var|arr)_indexOf/.test(item.val)
+    ),
+    undefined
+  )
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.match(jsfn?.val?.[0] || '', /\.indexOf\(/)
+  assertJsfnArgumentsComplete(ast)
+})
+
+test('exact sysutil names and global call contracts bypass English ambiguity', () => {
+  loadRuntimeMaps()
+  const convert = str =>
+    new V4FormulaCodeConverter({
+      str,
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    }).exec()
+
+  assert.equal(
+    collectAst(
+      convert('fParamgroup.items.$SF_objArr_find(item => !!item)'),
+      item => item.op === 'sysutil'
+    ).some(item => item.val === 'objArr_find'),
+    true
+  )
+  assert.equal(
+    collectAst(
+      convert('parseFloat(fParamgroup.value)'),
+      item => item.op === 'sysutil'
+    ).some(item => item.val === 'type_parseFloat'),
+    true
+  )
+})
+
+test('custom fallback preserves the JavaScript in operator inside callbacks', () => {
+  const parsed = jsep('key in value')
+  assert.equal(parsed.type, 'BinaryExpression')
+  assert.equal(parsed.operator, 'in')
+
+  const ast = withoutSysutilMap(() =>
+    new V4FormulaCodeConverter({
+      str: 'fParamgroup.items.find(i => fParamgroup.key in i) && true',
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    }).exec()
+  )
 
   const jsfn = findAst(ast, item => item.op === 'jsfn')
   assert.match(jsfn.val[0], /\.find\(\(i\) => \$v2 in i\)/)
@@ -106,13 +260,15 @@ test('custom fallback preserves the JavaScript in operator inside callbacks', ()
 })
 
 test('custom fallback preserves computed object property keys', () => {
-  const ast = new V4FormulaCodeConverter({
-    str: 'fParamgroup.items.map(i => ({[i.name]: i.value})) || []',
-    getCtx(name) {
-      if (name === 'fParamgroup') return { varType: 'param' }
-    },
-    scope: 'stage'
-  }).exec()
+  const ast = withoutSysutilMap(() =>
+    new V4FormulaCodeConverter({
+      str: 'fParamgroup.items.map(i => ({[i.name]: i.value})) || []',
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    }).exec()
+  )
 
   const jsfn = findAst(ast, item => item.op === 'jsfn')
   assert.match(jsfn.val[0], /\(\{\[i\.name\]: i\.value\}\)/)
@@ -287,7 +443,7 @@ test('legacy multi-object-list conversion becomes a structured V5 sysutil call',
             )
           )
         },
-        objArr_map: (value, callback) => value.map(callback),
+        arr_map: (value, callback) => value.map(callback),
         obj_item: (value, key) => value[key]
       }
     },
@@ -439,7 +595,7 @@ test('nested array callbacks keep outer and inner item references distinct', () 
     if (!value || typeof value !== 'object') return
     if (
       value.op === 'sysutil' &&
-      ['objArr_filter', 'objArr_find'].includes(value.val)
+      ['arr_filter', 'arr_find'].includes(value.val)
     ) {
       callbacks.push(value)
     }
@@ -450,8 +606,8 @@ test('nested array callbacks keep outer and inner item references distinct', () 
   }
   collectCallbacks(ast)
 
-  const filter = callbacks.find(item => item.val === 'objArr_filter')
-  const find = callbacks.find(item => item.val === 'objArr_find')
+  const filter = callbacks.find(item => item.val === 'arr_filter')
+  const find = callbacks.find(item => item.val === 'arr_find')
   assert.equal(typeof filter?._blockId, 'string')
   assert.equal(typeof find?._blockId, 'string')
   assert.notEqual(filter._blockId, find._blockId)
@@ -468,8 +624,8 @@ test('nested array callbacks keep outer and inner item references distinct', () 
   const result = new Function('$sys', 'param', `return ${code}`)(
     {
       util: {
-        objArr_filter: (value, fn) => value.filter(fn),
-        objArr_find: (value, fn) => value.find(fn),
+        arr_filter: (value, fn) => value.filter(fn),
+        arr_find: (value, fn) => value.find(fn),
         obj_item: (value, key) => value[key],
         arr_includes: (value, item) => value.includes(item)
       }
@@ -1210,7 +1366,7 @@ test('structured callback locals become explicit jsfn arguments across shadowed 
   const result = new Function('$sys', 'param', `return ${code}`)(
     {
       util: {
-        objArr_find: (value, callback) => value.find(callback),
+        arr_find: (value, callback) => value.find(callback),
         obj_item: (value, key) => value[key]
       }
     },
@@ -1248,7 +1404,7 @@ test('nested callback locals stay in the owning jsfn scope', () => {
   const result = new Function('$sys', 'param', `return ${code}`)(
     {
       util: {
-        objArr_filter: (value, fn) => value.filter(fn),
+        arr_filter: (value, fn) => value.filter(fn),
         arr_every: (value, fn) => value.every(fn),
         arr_includes: (value, item) => value.includes(item),
         obj_item: (value, key) => value[key]

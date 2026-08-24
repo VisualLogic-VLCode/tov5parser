@@ -789,12 +789,23 @@ function genSysUtilMap(VxExLoc, VxSfMap) {
   };
   return sfMapKeys.reduce((prev, key) => {
     let item = sfMap[key];
-    let { name, uType, params, locale } = item || {};
+    let { name, uType, params, locale, preType, kind, group, propType } =
+      item || {};
     let localItem = descMap[key];
     let { en, zh } = localItem || {};
     zh = zh || locale?.zh || '';
     en = en || locale?.en || '';
-    let info = { name, uType, params, zh, en };
+    let info = {
+      name,
+      uType,
+      params,
+      preType,
+      kind,
+      group,
+      propType,
+      zh,
+      en,
+    };
     prev[name] = info; // 原始：$SF_xxxx
     // eg: JSON转字符串(JSON.stringify)
     var reg = /^.*[\(\（](.*?)[\)\）]$/;
@@ -807,6 +818,37 @@ function genSysUtilMap(VxExLoc, VxSfMap) {
     Object.assign(info, { nameEN });
     return prev;
   }, {});
+}
+
+const sysutilCandidateMapCache = new WeakMap();
+
+function getSysutilCandidateMap(sysutilMap) {
+  if (!sysutilMap || typeof sysutilMap !== 'object') return {};
+  let cached = sysutilCandidateMapCache.get(sysutilMap);
+  if (cached) return cached;
+
+  cached = Object.entries(sysutilMap).reduce((prev, [key, info]) => {
+    if (
+      !key.startsWith('$SF_') ||
+      key !== info?.name ||
+      !info?.nameEN
+    ) {
+      return prev;
+    }
+    let candidates = Object.prototype.hasOwnProperty.call(prev, info.nameEN)
+      ? prev[info.nameEN]
+      : [];
+    if (!candidates.some(item => item.name === info.name)) {
+      candidates.push(info);
+      candidates.sort((a, b) =>
+        a.name === b.name ? 0 : a.name < b.name ? -1 : 1,
+      );
+    }
+    prev[info.nameEN] = candidates;
+    return prev;
+  }, Object.create(null));
+  sysutilCandidateMapCache.set(sysutilMap, cached);
+  return cached;
 }
 // 去除名称中特殊字符
 function replaceSpecialChars({ nameEN }) {
@@ -1021,6 +1063,18 @@ class MapCreator {
       return MapCreator.sysutilMap;
     }
     return {};
+  };
+
+  // 英文名称可能对应多个接收者类型不同的 sysutil。原始 `$SF_*` 名称
+  // 始终精确返回；英文名称从全部原始键建立候选集，避免 alias key 的
+  // last-write-wins 顺序影响转换结果。
+  static getSysutilCandidates = ({ name } = {}) => {
+    if (!name) return [];
+    let sysutilMap = MapCreator.genSysutilMap() || {};
+    if (name.startsWith('$SF_')) {
+      return sysutilMap[name] ? [sysutilMap[name]] : [];
+    }
+    return getSysutilCandidateMap(sysutilMap)[name] || [];
   };
 
   // 获取前台组件动作的英文翻译map

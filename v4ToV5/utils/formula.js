@@ -107,6 +107,7 @@ function convertEditorValue({
     const converter = new V4FormulaCodeConverter({
       str: editorCode,
       getCtx: wrapCtx,
+      getRefNodeType: refId => getNodeById(refId)?.type,
       scope
     })
     const ast = converter.exec()
