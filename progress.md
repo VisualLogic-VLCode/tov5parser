@@ -3706,3 +3706,11 @@
 - 真实回滚验收通过：Launcher 从 1.2.8 回滚到 1.2.7，stable 正确报告更新可用；再次 apply 恢复 1.2.8，最终 update status CURRENT、Doctor artifact SHA/Agent/Token/平台均正常，无需重启。
 - 集成指南已同步为 Converter 1.2.8、正确 Release/资产 URL 和 SHA-256。Phase 169 所有发布动作及验收完成，准备精确提交指南与三份审计文档并普通快进推送；未跟踪 VxServer 文档继续排除。
 - 最终审计提交 `c76c48280a489cba68a818b50190dba0571b8537` 已普通快进推送，local/origin/ls-remote 一致；发布临时 worktree、离线安装副本和公开下载副本已删除。最终回读仍为 immutable/latest Release v1.2.8、`prod→41`、本机 Converter 1.2.8 CURRENT；仅用户原有未跟踪/未提交文件保留。
+
+# 2026-08-25：回溯 Converter 1.2.7 的 8 条公式降级位置
+
+- 只读使用 Job `mig_20260825092541_03cdabba49` 的 `converter-diagnostics.json` 与原始 V4 JSON反查，没有重新转换、修改 Job 或写平台。
+- 8 条 dropped 分布在 7 个组件 ID：函数组 `cbb0ehta3j50000dahc0`、布局列 `d05k99da3j50000tyj5g`/`ch4dwd1a3j500001myq0`、data-if `crb3ncna3j50000q1vs0`/`crb3ncna3j50000q1vsg`、函数组 `cr2hpeha3j50000ttt1g`、按钮 `d34cwcsa3j50000ff7c0`（两条）。
+- 对应实际事件块为 `cbb0ehta3j50000dahd0`、`d05k99da3j50000tyjb0`、`ch4dwd1a3j500001myx0`、条件 `cr37nt7a3j500003qnyg`、`d34g5q6a3j50000s8gd0`、`d34j2j2a3j500008b58g`；两个 data-if 公式直接位于 `props.conditionVal[0][0]`，没有事件 BID。
+- 分类与根因闭合：5 条 `hasOwnProperty`、3 条 `toString`；`nodeId` 是公式所属组件/函数组 ID，事件内公式另有上述动作/条件 BID。
+- 规划钩子持续显示 174/175 的原因不是业务待办，而是 `task_plan.md` 中 Phase 168 标题意外重复，形成一个无状态的空阶段；已删除重复标题。单独检索确认没有未勾选项、in-progress/pending/blocked 状态或非 complete 的 Current Phase。

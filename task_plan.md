@@ -38,8 +38,6 @@ Phase 169（提交、推送、部署并发布 Converter Release）— complete
 
 ### Phase 168：修复 sysutil 别名表原型键冲突回归（2026-08-25）
 
-### Phase 168：修复 sysutil 别名表原型键冲突回归（2026-08-25）
-
 - [x] 先增加 `hasOwnProperty`、`toString` 及其他 Object 原型键的失败回归，确认修复前稳定失败
 - [x] 在独立 Converter 中让 `sfutilAliasMap` 只匹配自身键，保持合法旧别名行为
 - [x] 运行公式定向测试、完整项目测试和 nid 11064050 Job 快照重转，确认 8 条 dropped 清零
