@@ -5,9 +5,363 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 153（同步 Converter 1.2.6 文档并准备 Workflow 0.12.1）— complete
+Phase 169（提交、推送、部署并发布 Converter Release）— complete
 
 ## Phases
+
+### Phase 169：提交、推送、部署并发布 Converter Release（2026-08-25）
+
+- [x] 复核两仓远端、脏文件隔离、当前版本、Release/签名规则和 Lambda 回滚点
+- [x] 确定下一版本并更新受管包版本元数据，执行发布级测试、审计与包清单门禁
+- [x] 精确提交并普通快进推送 tov5parser，排除用户无关文件
+- [x] 从精确提交部署生产 Lambda，验证新版本、prod 别名、代码摘要和冒烟结果
+- [x] 精确提交并普通快进推送 VxEditor41，仅包含同步转换器文件
+- [x] 生成、签名、发布不可变 Converter Release，提升 stable 并完成公开下载/摘要验证
+- [x] 用 Launcher 更新本机受管 Converter，执行回滚/重应用与真实快照验收
+- [x] 提交并推送最终发布审计记录，汇报两个仓库、Lambda 与 Release 状态
+
+**Status:** complete
+
+**授权与范围：** 用户明确授权“提交、推送、部署并发布 release”。允许提交/推送两仓本次精确修复，更新 Converter 版本、部署生产 Lambda、发布签名不可变 Converter Release、提升 stable 和更新本机受管 Converter。不得混入 tov5parser 未跟踪 VxServer 文档或 VxEditor41 原有 `.gitignore`、event store、`.claude`、UI 目录；禁止变基、强推或历史重写。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 发布级并行门禁中的测试日志脚本包含被环境拒绝的 `rm -f` 临时清理，整个编排未返回可采信结果 | 1 | 不使用临时文件或删除命令；改为 `pipefail + tail` 保留退出码和最终汇总，audit/pack 分别重新运行 |
+| Lambda 独立回读首次误用默认国际区环境，AWS CLI 无凭证 | 1 | 按项目部署脚本的固定 profile `vl-case-json-converter-cn` 与区域 `cn-northwest-1` 重新只读回读；没有发生 AWS 写入 |
+| 首次 Release prepare 前置检查在 Workflow 仓执行了裸 `git rev-parse HEAD`，错误地拿 Workflow commit 与 Converter commit 比较，链式命令安全停止且未创建产物 | 1 | 所有 source gate 改为显式 `git -C /tmp/tov5parser-1.2.8-release.qJCbC7`；随后 prepare 成功并锁定正确 commit/clean 状态 |
+| Release 发布后首次 Launcher `update check` 命中 GitHub Raw 的 `max-age=300` 旧缓存，仍显示 Converter 1.2.7 | 1 | 不绕过正式 stable URL、不强制安装；公开 Release/tag/branch 已独立验证，等待 CDN 自然刷新后再执行用户侧更新/回滚验收 |
+| 为查询 Job ntype 运行的 `rg` 未排除 41.7 MB 单行 app.json，导致工具输出被截断 | 1 | 只采用截断前由小型 `version-classification.json`/`state.json` 明确显示的 `ntype=1`；后续真实快照探针直接使用该值，不再扫描大 JSON |
+
+**结论：** Converter 1.2.8 已完成两仓提交推送、生产 Lambda 41 部署、不可变签名 GitHub Release/stable 提升和本机正式 Launcher 验收。公开与本机资产摘要一致；回滚至 1.2.7 后可再次识别更新并恢复 1.2.8。真实 nid 11064050 Job 快照在受管 1.2.8 上为 0 dropped、0 目标 TypeError。没有创建或修改平台案例，所有用户无关工作树文件保持原状。
+
+### Phase 168：修复 sysutil 别名表原型键冲突回归（2026-08-25）
+
+### Phase 168：修复 sysutil 别名表原型键冲突回归（2026-08-25）
+
+- [x] 先增加 `hasOwnProperty`、`toString` 及其他 Object 原型键的失败回归，确认修复前稳定失败
+- [x] 在独立 Converter 中让 `sfutilAliasMap` 只匹配自身键，保持合法旧别名行为
+- [x] 运行公式定向测试、完整项目测试和 nid 11064050 Job 快照重转，确认 8 条 dropped 清零
+- [x] 按项目固定流程将同一最小修复同步到 VxEditor41 转换器并运行定向检查/可行构建
+- [x] 准备精确改动和验证报告；遵循上层 Git 规则，将提交、推送、部署留待用户确认
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求修复已确认的 Converter 回归，允许修改独立 Converter、回归测试和项目固定流程要求的 VxEditor41 对应转换器。不得手工修改案例 JSON 或写平台；在用户确认 Git 提交前不得提交、推送、部署或发布 Release。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 启动修复时一次组合读取 CLAUDE、计划、发现和进度，输出超过上下文并截断 | 1 | CLAUDE 38 行和当前 Phase 167/关键尾部内容已完整出现；省略的历史内容不作为新证据，后续只读取单个必要窗口 |
+| 首版回归错误地要求所有 Object 原型同名都无 sysutil 候选；`toString` 实际有合法 `$SF_num_toString` 候选 | 1 | 保留“不得读到继承函数”的真实合同，允许 own sysutil 候选；公式断言改为不得 dropped 且必须保留相应方法语义 |
+| 完整 `npm test` 的预期 ParseError/fallback 日志超过工具输出上限并被截断 | 1 | 省略日志不作断言依据；最终 Node test 汇总完整显示 111/111、0 fail、exit 0，后续验证只记录机器汇总 |
+| VxEditor41 生产构建包含大量仓库既有 warning，工具输出截断 | 1 | 只使用完整末尾汇总：webpack exit 0、compiled with 33 warnings；目标转换器单文件 ESLint 独立为 0 warning |
+
+**结论：** 回归已在独立 Converter 与 VxEditor41 两端修复。所有直接 map 查询只接受 own-property，字符串 API/候选查询有显式类型边界；合法别名和 `$SF_num_toString` 候选继续工作。新增回归修复前稳定失败、修复后通过；公式套件 50/50、项目套件 111/111。真实 nid 11064050 Job 快照从 8 dropped/目标 TypeError 变为 0 dropped/0 TypeError，5 条 `hasOwnProperty` 完整回退、3 条 `toString` 正常结构化。VxEditor41 同步片段与独立实现逐字一致，单文件 ESLint 0 warning，生产构建 exit 0（33 个既有 warning）。两仓 diff check 通过，用户无关改动未触碰；尚未提交、推送、部署或发布。
+
+### Phase 167：定位会话 01a0383c 的转换错误责任边界（2026-08-25）
+
+- [x] 读取目标 Codex 会话的完整相关执行记录，提取 nid、Job/Review ID、错误现象和已生成诊断
+- [x] 仅通过受管 CLI 清单及成功的 status/recover 核对正式对象，不从规划文本推断状态
+- [x] 检查该 Job 的 V4 输入、V5 候选、validation、Converter diagnostics 与 manifest
+- [x] 必要时在当前独立 Converter 1.2.7 上做无平台写入的最小复现和源码定位
+- [x] 按 CONVERTER / SOURCE / PLATFORM / TEST_HARNESS / UNKNOWN 证据边界给出结论；不直接修复
+
+**Status:** complete
+
+**授权与范围：** 用户要求定位目标会话中的转换错误是否属于 Converter。仅允许读取会话、受管本地 Job/Review 及必要的本地 Converter 源码/测试，进行无平台写入复现；不修改 Converter、V5 JSON、Workflow、平台案例，不提交、不推送、不部署。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 首次同时追加 task plan 与 progress 的补丁使用了错误的 `progress.md` 阶段标题上下文，补丁整体被拒绝 | 1 | 精确读取三份 planning 文件的现有标题后，分别更新；没有产品或 planning 文件发生部分修改 |
+| 目标会话的结构化摘要尝试把 Codex 工具包装字符串直接当 JSON 解析，得到 `Unexpected token` | 1 | 保留已成功显示的会话事实；先检查返回类型和前缀，再按实际包装提取，避免再次打印完整长输出 |
+| Job 文件盘点按旧假设读取 `job.json`，实际受管状态文件名为 `state.json` | 1 | 其他报告路径和 key 读取均成功；后续只读取已枚举存在的 `state.json`，不重复不存在路径 |
+| 首次诊断聚合把 `code` 也作为 group key，导致 1,267 个自定义回退几乎逐条展开，输出过长并截断 | 1 | 仅保留截断前完整显示的 validation 摘要与 8 条 dropped 样本；后续按 phase/errorType/message 聚合并剔除 code，不使用省略内容 |
+| 一次同时读取当前源码大段、旧版源码与多个检索结果，输出超过上下文并截断 | 1 | 省略内容不作为证据；改为每次只读取一个 40–60 行源码窗口，随后分别执行版本差异与最小复现 |
+
+**结论：** 已确认唯一阻断项属于 `CONVERTER`，且是 Converter 1.2.7 的确定回归，不是源案例、平台、Workflow validator 或测试驱动问题。`sfutilAliasMap` 是带 `Object.prototype` 原型的普通对象，却用 `sfutilAliasMap[funcName]` 做无 own-property 门禁的别名读取；当普通方法名为 `hasOwnProperty` 或 `toString` 时，读取到继承的原生函数，后续 `funcName?.startsWith(...)` 对函数调用字符串方法并抛 TypeError。8 条 dropped 精确由 5 个 `hasOwnProperty` 与 3 个 `toString` 公式构成。相同输入在 1.2.6 为 0 dropped，并将这 8 条完整保留为 custom-expression/jsfn fallback；1.2.7 则全部降成空 `{op:'val'}`。1,267 条其他 custom-expression fallback 仍保留语义，仅是 WARNING，不能据此一并判为 Converter 缺陷。本阶段未修改产品代码、案例或平台状态。
+
+### Phase 166：再次清理新增 Workflow 案例转换记录（2026-08-25）
+
+- [x] 只读盘点新增 Job、Refresh、Review、workspace 引用及占用空间
+- [x] 将新增案例状态移入独立废纸篓归档并重建合法空 registry
+- [x] 用 CLI、文件系统和 doctor 验证记录清空且安装、Token、配置保持可用
+- [x] 记录清理数量、归档路径和可恢复性
+
+**Status:** complete
+
+**授权与范围：** 用户说明上次清理后又有新增转换记录，要求再次清理。沿用 Phase 165 的边界：只处理案例状态和工作目录引用，保留 Workflow/Converter/Knowledge、agents、current、平台配置、0600 Token、更新通道和浏览器运行时；采用新的废纸篓归档目录，避免覆盖上次归档。
+
+**执行说明：** 首次只读盘点误用 zsh 特殊变量 `path`，导致该子进程找不到 `jq/wc/sed`；未发生文件修改。随后一次预检错误使用不存在的 `/usr/bin/test`，同样在任何移动前终止。两处均改为任务专用变量与 `/bin/test` 后通过，未重复风险动作。
+
+**结论：** 已清理新增 1 个 Migration Job、0 个 Refresh、1 个 Review及其案例 JSON/测试证据，共约 83 MB；归档位于 `/Users/lianghuang/.Trash/ivx-v4-v5-case-records-20260825-repeat.dci52v`。三个 registry 已重建为 schemaVersion 1、0600、记录数 0，状态目录为 0700 且为空；CLI 列表为空，`doctor` 通过。Workflow 0.12.3、Converter 1.2.7、Knowledge 0.1.6、Agent protocol 9、`https://dev.ivx.cn` 和文件 Token 均保持可用。
+
+### Phase 165：清理本机 Workflow 案例转换记录（2026-08-25）
+
+- [x] 只读确认 Job、Refresh、Review、workspace 引用及占用空间
+- [x] 精确区分案例状态与安装包、配置、Token
+- [x] 将案例状态移入废纸篓并重建空目录/合法 registry
+- [x] 用 CLI 和文件系统回读确认清理完成、运行环境仍健康
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求删除本机用工作流测试产生的全部案例转换记录和文件。只清理 `~/.ivx-v4-v5` 下的 jobs/refreshes/reviews、三个对应 registry，以及工作目录中的 `.ivx-migration` 引用；保留 Workflow/Converter/Knowledge 安装、agents、config、current、Token、更新通道和浏览器运行时。采用移入废纸篓的可恢复方式，不永久擦除归档。
+
+**结论：** 已清理 3 个 Migration Job、1 个 Refresh、3 个 Review、其 V4/V5 JSON、诊断/修复/Agent Native 证据，以及 `/Users/lianghuang/Documents/ChatGPT/ivx-v4-v5-test/.ivx-migration`。约 2.7 GB 原始状态位于 `/Users/lianghuang/.Trash/ivx-v4-v5-case-records-20260825.6uh2XQ`；三个 registry 均为 schemaVersion 1 且记录数 0，三个状态目录为空。`refresh list`、`review list` 均为空，`doctor` 通过，Workflow 0.12.3 / Converter 1.2.7 / Knowledge 0.1.6、平台地址与 Token 仍可用。
+
+### Phase 164：提交并推送 VxEditor41 空映射容错修复（2026-08-24）
+
+- [x] 刷新远端并确认 `master` 可普通快进推送
+- [x] 仅暂存 `formulaCode/MapCreator.js`，排除全部用户既有改动
+- [x] 创建精确修复提交并推送 `origin/master`
+- [x] 独立回读本地、tracking ref 与公开远端哈希
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求“提交并推送”。只允许提交 Phase 163 已验证的 VxEditor41 两行 MapCreator 容错；不得提交 `.gitignore`、`src/stores/event.js`、`.claude/` 或未跟踪 UI 目录，不修改/提交 tov5parser 产品代码，不部署、不发布 Release、不写平台案例。
+
+**结论：** VxEditor41 提交 `7c86122fc9be0e9ee78169d0bc36f2e3586a70f1`（`fix: tolerate incomplete Java action maps`）已普通快进推送到 `origin/master`。本地 HEAD、tracking ref 与公开远端三方一致，ahead/behind 0/0；提交精确包含 `src/utils/convertV4ToV5/formulaCode/MapCreator.js` 的 2 insertions / 2 deletions，所有用户既有改动保持未暂存。
+
+### Phase 163：复现 localhost 实际 saveDealCase 转换空入参（2026-08-24）
+
+- [x] 从当前 Chrome/local editor 确认刚创建的新目标 nid、revision 与两处 AST
+- [x] 比较平台 V4 raw、编辑器 `saveDealCase` candidate 与 converter `exec` 接收数据的目标事件链
+- [x] 建立浏览器真实输入的先失败回归并定位宿主差异
+- [x] 实施 VxEditor41 最小修复，并判断共享 tov5parser 是否需要同步
+- [x] 用当前真实输入重转验证两处及全案动作返回引用/sysutil特征
+- [x] 运行目标检查/构建，汇报后按 Git 规则等待提交确认
+
+**Status:** complete
+
+**授权与范围：** 用户明确反馈从当前 `https://localhost:8090/#11064050` 重新执行转换后仍为空，要求继续排查。以实际编辑器 `saveDealCase` 输入为权威，不再把静态原始 JSON直传探针当作充分验证。允许读取当前浏览器标签、平台只读 revision 和本地源码，并修改最小必要转换器/回归；不手工修目标 JSON，不再创建额外 V5 案例。代码验证后按 Git 规则先等待用户确认提交，不自动推送或发布。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 一次合并清理四个诊断文件的 `apply_patch` 因 `formula.js` 中两个探针块的实际顺序与补丁上下文不同而整体拒绝 | 1 | 该补丁原子失败、没有产生部分修改；随后按实际 diff 分成两个精确补丁移除全部诊断代码，只保留 MapCreator 产品修复 |
+
+**修正说明：** Phase 162 关于“当前源码无需再改”的结论仅适用于 raw V4 JSON直接调用 converter 的探针；用户的 localhost 实测证明该结论不足。Phase 163 将实际 `saveDealCase` 输出纳入复现，旧证据保留但不再作为完成判断。
+
+**结论：** localhost 的真实失败不是 callback 祖先或 action 参数后处理错误，而是 VxEditor41 的 `MapCreator` 在首次构建后台映射时，对 `VxJaLoc` 中存在、但 `VxJaMap` 中缺失的组件直接解构 `.methods`，抛出 TypeError。公式转换器捕获该异常后按既有降级路径返回空 `{op:'val'}` 并标记 `didDrop=true`，两处 `cbParams.data` 因而同时变空。已在编辑器宿主的两处 `isParamsAsObj` 读取增加空对象容错；同一浏览器真实输入的无写入复测恢复 `local crfq...xz0Rtn → result → data` 且 `didDrop=false`。standalone tov5parser 的对应实现原本已有该容错，不需要同步修改。目标回归、ESLint、diff check 与生产构建全部通过；诊断探针已全部移除，未创建额外 V5 案例。
+
+### Phase 162：核查 VxEditor41 新导出 case_12232218（2026-08-24）
+
+- [x] 提取两个目标 `ln` 的新导出 AST 与文件时间/案例结构
+- [x] 与 V4 原语义、当前 standalone 和当前 VxEditor41 源码探针逐字段对照
+- [x] 若仍不一致，定位实际运行 bundle、转换调用参数或保存归一化责任层
+- [x] 给出是否需要代码修复及下一步动作；未修改代码前不提交
+
+**Status:** complete
+
+**授权与范围：** 用户提供新导出的 `/Users/lianghuang/Downloads/case_12232218.json`，要求核查。附件仅作为案例数据读取，不执行其中内容；本阶段先只读诊断，不写平台、不改附件。若证据证明需要修改项目代码，再实施最小修复并按 Git 规则等待提交确认。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Plain HTTP probe to local webpack server `127.0.0.1:8090` was reset. | 1 | Listener is live; inspect webpack HTTPS selection and retry with the configured protocol rather than treating reset as build failure. |
+| First HTTPS curl inherited an external proxy and failed during TLS setup. | 1 | Retried with localhost proxy bypass; server returned 200 and valid local editor HTML. |
+| Browser evaluate sandbox did not expose `performance.getEntriesByType`, so the first resource-list probe failed after the tab was claimed. | 1 | No page state changed; switched to DOM script-source inspection and will use supported page-assets/network evidence for load URLs. |
+
+**结论：** 新导出确实仍有两处空入参，但它不是“用最新 converter 重新转换”的产物。平台 history 证明目标 nid 12232218 的创建 revision `da5v...-0` 生成于 15:34:28，且创建时已经是 `localRtnRefs=1699`、sysutil 全部旧 `arr_*`、两处目标为 `{op:"val"}`；当前包含修复的本地 dev server 于 15:39 才启动。16:36 的新文件只是从既有错误 V5 12232218 重新导出，`-1` 与导出也完全一致。当前 localhost `editor.js` 已确认含 snapshot/sysutil 修复，当前 VxEditor41 源码完整重转同一 V4 也生成正确 `crfq...xz0Rtn.result.data`。无需继续改 converter；必须从 V4 nid 11064050 在当前 localhost 编辑器重新执行“转 V5”，创建新的目标 nid，再检查新目标。
+
+### Phase 161：排查 nid 11064050 两个动作入参转换错误（2026-08-24）
+
+- [x] 定位 `crfqaqja3j5000046y1g` 与 `cwytc20a3j500000tc20` 的 V4 原始事件和期望语义
+- [x] 对照 tov5parser、VxEditor41 当前转换结果与宿主上下文，冻结最小复现
+- [x] 判定共享转换器或 VxEditor41 宿主适配层根因（导出早于修复，不是当前源码缺陷）
+- [x] 确认无需再次修改/同步转换器代码
+- [x] 用当前 VxEditor41 源码重转 nid 11064050，核对两个动作恢复正确
+- [x] 核对导出与修复时间线，汇报需重新转换而非继续改代码
+
+**Status:** complete
+
+**授权与范围：** 用户报告刚修复的 VxEditor41 转换器在 nid `11064050` 上仍把两个指定 `ln` 的动作入参转错，要求继续定位和修复。允许读取本地 V4/V5 案例、tov5parser 与 VxEditor41 转换实现和测试，并修改最小必要转换器代码/回归；不得手工改生成 V5 结果，不写平台案例。按当前 Git 规则，代码修改验证完成后先汇报并等待用户确认提交；未获后续明确授权前不推送、部署 Lambda 或发布 Release。两仓现有用户改动和本仓规划文件/未跟踪 VxServer 文档必须排除在产品改动之外。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Session catch-up detected six unsynced messages belonging to the just-completed Workflow release and the new user report. | 1 | Reconciled against both repositories' actual Git state; recorded only the new converter investigation in Phase 161 and did not copy Workflow release state into converter product files. |
+| A combined search across clothing, localCases, Downloads, and all Workflow Jobs exceeded the output/context limit and was truncated. | 1 | Discarded that output as evidence; rerun bounded searches against known case files and one `ln` at a time. |
+| A VxEditor41 search included nonexistent sibling path `v4ToV5`, so `rg` emitted one path error. | 1 | Valid `src/utils/convertV4ToV5` results were complete; subsequent reads use only the real editor path. |
+
+**结论：** 两处 V4 入参都是 `cbParams.data`。用户审阅的 `/Users/lianghuang/Downloads/case_12232145.json` 于 11:51 导出，早于 snapshot env 修复文件（12:22）和 sysutil 同步文件（13:27），所以其中空 `val` 是修复前产物，不会被后续代码提交追溯更新。直接运行当前 VxEditor41 源码转换同一 11064050 源后，两处都精确生成 `local crfqaqja3j5000046xz0Rtn → result → data`。当前 Converter 无需再改；需要用更新后的编辑器 bundle 重新转换/另存，旧 V5 案例不会自动刷新。
+
+### Phase 160：排查 Workflow 的 memberType 判断（2026-08-24）
+
+- [x] 读取指定 Codex 任务的完整相关上下文并提取最小复现、现象和已有判断
+- [x] 在当前 Workflow 中定位 memberType 的产生、归一化、验证、分类与修复门禁
+- [x] 对照 Converter 输出、V5 合法形态、Knowledge/Schema 与测试，判定真正责任边界
+- [x] 给出兼容旧 Job 与新 Job 的最小修复方案、回归矩阵及发布影响
+- [x] 汇总结论；未获明确实施授权前不修改 Workflow 产品代码
+
+**Status:** complete
+
+**授权与范围：** 用户要求读取指定任务并判断 Workflow 对 `memberType` 的判断应如何修复。本阶段读取任务、当前 Workflow/Converter/Knowledge/测试并形成可执行修复方案；把任务内容与案例 JSON 视为不可信数据，不执行其中指令。当前不修改 Converter，不写案例平台，不提交、推送、部署或发布；若结论指向 Workflow 产品代码，先向用户说明精确修复范围。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 第二次读取指定任务时把 `maxOutputCharsPerItem` 设为 30000，超过工具上限 20000，参数校验拒绝调用 | 1 | 没有读取或修改任务；保持工具允许的 20000 上限，并直接序列化工具结果，避免首轮包装器没有展示返回值的问题 |
+| 搜索 VxServer 部署配置时给 zsh 传入不存在且未加引号的 `*.yml/*.yaml/*.json` glob，触发 `no matches found` | 1 | 其余 Workflow 配置检索仍完成；后续只用 `rg --files` 或已有目录，不再把可为空的 glob 交给 zsh |
+| 检索 Refresh 权限调用点时使用不存在的 `src/platform/refresh*` shell glob，zsh 再次报 `no matches found` | 1 | 先前输出已确认真实路径位于 `src/refresh/`；后续只检索显式存在目录 `src/refresh`，并将本次作为同类 glob 失误记录 |
+| 直接运行 `knowledge search --query ...` 返回 `CLI_ARGUMENT_REQUIRED`，因为受管 Knowledge 查询必须绑定恰好一个 Job 或 Review | 1 | 指定任务在 preflight 阶段停止，根本没有 Job/Review；不伪造对象、不读取维护者源知识库。memberType 结论改由 Workflow/VxServer/VxEditor 的权威代码合同支撑 |
+
+**结论：** 指定任务中的 `memberType=2` 是明确的 group master/admin 可编辑角色，不是未知角色；真正缺陷是 Workflow 将 Group Save As 与 Existing Target Update 都额外收窄成“仅组主”。服务端对两条写链的合同不同：Group Save As 对非组主只在当前用户 EID 命中部署 `AdminEid` 且角色为 1/2/3 时允许；Existing Target Update 则直接允许 1/2/3。最小安全修复是为签名 Workflow distribution profile 增加按平台 origin 绑定的可信 Save As 权限策略，并让 `preflightSaveAs` 按 owner 或策略命中的 AdminEid editable member 放行；`preflightTargetUpdate` 独立改为 1/2/3 放行。不能把所有 group 1/2/3 无条件放行，也不能从 source.eid 猜 AdminEid。建议发布 Workflow 0.12.2；无需修改 Converter、Knowledge、V5 JSON 或 Agent protocol。当前仅完成诊断与方案，没有修改 Workflow 产品代码、平台案例或任何远端状态。
+
+
+### Phase 159：部署生产 Lambda 并发布 Converter Release（2026-08-24）
+
+- [x] 复核 main/远端、版本、发布规范、签名资产和生产 Lambda 回滚基线
+- [x] 从已推送产品提交部署生产 Lambda，并独立回读 alias、版本、摘要和业务冒烟
+- [x] 确定下一个 Converter patch 版本并完成版本提升、完整测试、打包与隐私门禁
+- [x] 创建并推送精确 Release 源提交，从干净 detached source 生成签名候选
+- [x] 独立验签候选、历史 descriptor、离线安装与 GitHub 保护门禁
+- [x] 发布不可变 GitHub Release，最后推进 signed stable channel
+- [x] 独立回读 Release、资产摘要、tag、stable/default raw，并清理临时发布环境
+- [x] 汇总 Lambda 回滚点、Release URL、提交和摘要
+
+**Status:** complete
+
+**授权与范围：** 用户在 sysutil 英文别名修复已提交并推送后明确要求“部署lambda并发布Converter Release”，授权生产 Lambda 发布与必要的 Converter 版本提升/发布提交、推送、签名 Release 和 stable channel 推进。不得重复修改或推送 VxEditor41，不写平台案例，不更新本机受管 Workflow/Converter；现有三份 planning 改动和未跟踪 VxServer 文档必须与产品/版本提交分开处理。生产部署保留当前 `prod` 指向版本作为回滚点；Release 一旦公开必须保持不可变，stable channel 最后推进。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Lambda 部署返回的是持续运行的 unified exec `session_id=68360`，误把该 ID 传给只接受 `functions.exec` cell 的 wait 工具，得到 `exec cell not found` | 1 | 部署进程未受影响；改用 `write_stdin(session_id=68360)` 回收剩余输出，成功得到版本 40、alias 和冒烟结果，不重复混用两类等待接口 |
+| 公钥指纹探针从 tov5parser 根导入仅存在于维护仓的 `./src/distribution-profile.js`，Node 返回 `ERR_MODULE_NOT_FOUND` | 1 | 该失败发生在只读本地预检且没有远端副作用；改从 `ivx-v4-v5-migration` 根派生同一私钥的公钥并与发布 profile 比较，不重复错误工作目录 |
+| 创建 detached Release worktree 后，首轮 `npm ci/test/status` 未显式切换目录，实际再次验证了主工作区而非新 worktree | 1 | 测试仍为 110/110 且没有产品变更，但不能作为 clean source 证据；保留已创建 worktree，并在后续命令显式使用其绝对 `workdir` 重新安装、测试和回读 clean 状态 |
+| 最终 Lambda 回读先遗漏 `--region` 得到 `NoRegion`，补 region 后又遗漏部署脚本使用的 profile 而得到 `NoCredentials` | 2 | 两次都只是只读调用且远端没有变更；从部署脚本固定配置确认 `region=cn-northwest-1`、`profile=vl-case-json-converter-cn`，最终回读同时显式传入两者 |
+
+
+### Phase 158：修复 sysutil 英文别名冲突解析（2026-08-24）
+
+- [x] 枚举 `nameEN` 冲突族并冻结接收者类型到 sysutil 的解析契约
+- [x] 为当前错误建立冲突、非冲突和未知接收者失败回归
+- [x] 在 tov5parser 共享公式转换层实施确定性候选解析
+- [x] 同步 VxEditor41 等价逻辑并保留两边宿主适配差异
+- [x] 重转 nid 11064050，核对 sysutil 差异、语义和诊断变化
+- [x] 运行双仓测试、静态检查、构建与最终范围门禁
+- [x] 汇总结果并等待用户确认 Git 提交
+
+**Status:** complete
+
+**授权与范围：** 用户要求修复 sysutil 英文别名冲突解析。允许修改 tov5parser 的共享 MapCreator/公式转换逻辑、必要测试，以及 VxEditor41 的等价转换器文件；不写平台案例，不提交、不推送、不部署，直至按当前 Git 规则获得用户确认。不得把冲突改成依赖映射枚举顺序的固定排序，也不得混入上一阶段已经提交的 snapshot 修复或用户其他工作区改动。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 冲突枚举探针误从不存在的 `./v4ToV5/loadRuntimeMaps` 导入，Node 返回 `MODULE_NOT_FOUND` | 1 | 已用源码检索确认公开加载入口是根 `index.js` 的 `loadRuntimeMaps()`；后续只经根 API 初始化 runtime maps，不重复错误路径 |
+| 早期只读探针尝试把 `ivxMap.txt` 当 CommonJS 模块 `require`，Node 报 JSON/JS 解析错误 | 1 | `ivxMap.txt` 是由根加载器解析的资产，不是模块；后续统一调用公开 `loadRuntimeMaps()` |
+| 首次给 findings 追加精确冲突清单时使用了不存在的二级 Markdown 标题，`apply_patch` 上下文校验失败 | 1 | 已定位实际标题为一级 `# Phase 158...` 并按精确上下文追加；未产生部分写入 |
+| 初版候选索引用普通对象按 alias 聚合，遇到继承自 `Object.prototype` 的英文名时取到非数组，定向测试报 `candidates.some is not a function` | 1 | 候选索引改为 `Object.create(null)`，并用 own-property 检查读取；五组定向回归随后全部通过 |
+| 第一轮完整 `npm test` 为 104/110：新增测试先加载 runtime map，改变了既有“无 map”用例的进程全局状态；另有运行时 stub 仍只接受旧的 `objArr_*` winner | 1 | 用例通过 `withoutSysutilMap()` 隔离全局 map 状态，并将通用未知数组回调的 stub/期望更新为合同支持的 `arr_*`；公式测试随后 49/49 通过，待重跑全套 |
+| nid 11064050 首次整案重转仍输出大量既有公式 fallback 日志，工具结果超过上下文后进程会话已关闭，最终机器摘要未能回读 | 1 | 不复用丢失会话；下一次仅在进程内临时抑制转换日志并输出末尾 JSON 摘要，避免把日志截断误作验收证据 |
+| 一次根入口检索命令附带未加引号的 `test*`，zsh 在仓库根无匹配项时返回 `no matches found`，该组合命令未提供可用检索结果 | 1 | 去掉 shell glob，后续只使用 `rg --glob` 或显式存在路径；未修改文件 |
+
+**结论：** 两个宿主不再用 `nameEN` 的最后写入项决定 sysutil。MapCreator 保留 34 个冲突族的全部原始候选及 runtime 类型合同；公式层对原始 `$SF_*` 精确解析，对英文 member/global 调用结合接收者节点类型、字面量/AST 返回类型和 `preType/kind/group` 选择唯一候选。只有一个通用合同覆盖全部数组族时才允许未知数组结构归一到 `arr_*`；其余歧义抛 `SysutilAliasConflict` 并完整 jsfn 保义。nid 11064050 的 find/filter/map 数量保持不变并按 `arr/objArr` 稳定拆分，41 处无类型证据的位置得到显式诊断。tov5parser 110/110、VxEditor41 目标 ESLint、13/13 共享方法 AST parity、生产构建和双仓 diff check 全部通过。用户确认后已分别创建并推送精确提交：tov5parser `a00185f`、VxEditor41 `ac6ac3476`；未部署 Lambda、发布 Release 或写平台案例。
+
+### Phase 157：修复 VxEditor41 转换 snapshot 宿主上下文（2026-08-24）
+
+- [x] 冻结 snapshot 节点、事件块、类作用域和后台作用域索引契约
+- [x] 在 VxEditor41 转换入口建立并托管独立 snapshot 环境
+- [x] 将转换期节点/事件块/continuation 查询切换至 snapshot 环境
+- [x] 增加定向回归并用 nid 11064050 验证动作返回值引用恢复
+- [x] 运行目标解析、静态检查、构建和最终差异门禁
+- [x] 汇总修复结果并等待用户确认是否创建 Git 提交
+
+**Status:** complete
+
+**授权与范围：** 用户要求修复 VxEditor41 的转换宿主上下文。本阶段只修改 VxEditor41 转换器宿主适配及必要回归；不修改 tov5parser 产品转换逻辑，不写案例平台，不提交、不推送、不部署，直至按当前 Git 规则取得用户确认。VxEditor41 既有 `.gitignore`、`src/stores/event.js` 与未跟踪 UI 目录必须保持原样。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 真实 nid 11064050 snapshot 索引探针与 ESLint/Babel 并行运行时进程被系统以 137 终止 | 1 | 其余并行检查均成功，探针没有断言失败或文件副作用；改为单独提高 Node 内存上限运行，避免多个大进程争用内存 |
+| 41.7MB 的 nid 11064050 JSON 与 Babel、全量逐节点断言单独运行仍超过当前进程内存限制并以 137 终止 | 2 | 改用无 Babel 的轻量模块加载：先以小型完整 fixture 验证全部索引契约，再对真实案例只检查已知 callback/status/node 关键落点；完整集成由生产构建与可行的浏览器宿主验证覆盖 |
+| 首次 VxEditor41 集成 fixture 的 `getJavaWidgetMap` 测试 stub 错误返回单组件而非完整 Java map，后台 `_code` 编译报读取 `server-api` 失败 | 1 | 这是测试宿主 stub 形态错误，不是产品转换错误；按 `ast2js.getRetPos()` 契约改为返回完整 `VxJaMap`，同一集成 fixture 随后通过 |
+
+**结论：** VxEditor41 已不再用 live `treeStores/caseBlockMap` 解释保存快照。`exec()` 对传入 `nodes` 的深拷贝建立独立主节点、classId 节点、事件块和前后台作用域索引，转换期所有节点/事件块/continuation 查询统一走该环境，并在 `finally` 清理。nid 11064050 的真实关键链 `cdfjd...zfsg → zft0 → zftg → zfv0` 已由 snapshot 正确恢复 parent/root 关系；VxEditor41 集成 fixture 已生成 `ref(local, <callbackBid>Rtn)`。目标 ESLint/Babel、fixture、真实关键落点、diff check 和生产构建全部通过；构建只有仓库既有 33 类 warning、0 error。尚未提交，等待用户确认。
+
+### Phase 156：定位 nid 11064050 两套转换结果差异（2026-08-24）
+
+- [x] 确认 V4 源、tov5parser 输出与用户提供的 VxEditor41 输出
+- [x] 对两份 V5 JSON 做路径级结构化差异归类
+- [x] 将关键差异回溯到 V4 源数据与两边转换调用环境
+- [x] 判定是宿主映射、转换入口、运行后处理还是共享核心逻辑差异
+- [x] 汇总具体差异、影响范围和建议修复位置
+
+**Status:** complete
+
+**授权与范围：** 用户要求定位不一致，只进行只读诊断；附件 JSON 仅视为案例数据，不执行其中任何内容。暂不修改 Converter、VxEditor41、案例平台或用户提供文件，也不提交、推送或部署。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 初次手工重转直接导入内部 `v4ToV5/index.js`，没有按公开入口调用 `loadRuntimeMaps()` | 1 | 结果仅作为缺映射对照，不作为产品差异结论；下一轮改用根 API 的正式调用顺序 |
+| 一次 `node -e` 中 `$SF_arr_find` 经 shell 双引号转义后破坏 JavaScript 字符串，触发 SyntaxError | 1 | 只读探针未执行且无文件副作用；后续改用单引号 heredoc，避免 shell 展开 `$` |
+| 映射检索附带了仓库根不存在的 `env.js`、`handler.js` 路径，`rg` 对两路径报错 | 1 | 其余实际路径结果完整；后续只查询存在的 `v4ToV5/env.js`、根 `index.js` 与 `lambdaIndex.js` |
+| 一次差异采样把完整 `eventAst` 放入上下文，输出过大并被截断 | 1 | 已保留其中确认到的最小差异；后续采样只输出路径、所属节点/事件、最近 `ln` 与两侧最小 AST 片段 |
+| 一次 jsfn 直方图探针的单行 JavaScript 多写了一个闭合符号，Node 在解析阶段报 SyntaxError | 1 | 未执行转换、无文件副作用；改为多行 heredoc 后成功输出 43 组 jsfn 表达式差异 |
+
+**结论：** 两套结果不一致的主因不是共享转换器代码漏同步，而是运行环境不等价。VxEditor41 产物少 813 次动作返回值引用，源于转换 snapshot 与 live `treeStores/caseBlockMap` 上下文脱节，可能直接改变业务逻辑；sysutil 英文别名又因 runtime map 冲突/内容不同生成不同 AST。其余 `data-if.binds.value`、funcGroup 旧 code、类排序、UI/complexity/_cite 属于编辑器保存归一化。建议优先让 VxEditor41 转换也使用基于本次 `nodes` snapshot 的自包含索引，再把 sysutil alias 改成按接收者类型解析。
+
+### Phase 155：审计 tov5parser 与 VxEditor41 转换器同步状态（2026-08-24）
+
+- [x] 确认双仓当前分支、工作区、远端状态及目标转换器目录
+- [x] 建立 tov5parser 产品修复提交与 VxEditor41 同步提交对照表
+- [x] 对对应源码执行结构化差异与关键语义检查
+- [x] 运行只读解析/测试门禁，区分独立项目适配差异与漏同步
+- [x] 汇总是否全部同步、遗漏文件/逻辑及建议动作
+
+**Status:** complete
+
+**授权与范围：** 用户要求检查同步状态，只授权只读审计；不修改、提交、推送或部署任何转换器文件。tov5parser 中 Phase 154 发布审计记录和无关 VxServer 文档保持原样；VxEditor41 的用户既有改动不得触碰。
+
+**结论：** 自 2026-07-22 起，tov5parser 的 43 个转换器相关提交中，42 个产品逻辑提交全部可追溯到 VxEditor41 的 40 个同步提交（最早 4 个源提交合并为 2 个编辑器提交）；唯一没有编辑器对应提交的是独立转换器专属的 structured diagnostics。当前共享转换语义未发现漏同步：公式转换器 103 个方法中 100 个 AST 完全相同，剩余 3 个只差诊断/日志；其余差异均为浏览器宿主、映射来源、节点索引、诊断或文件布局适配。tov5parser 105/105 测试通过，两边转换器目录 25/25 与 17/17 文件均可解析，当前两仓转换器目录均无未提交改动，最新 `86c95f2` 已由 VxEditor41 `3198a1586` 覆盖。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| zsh 默认不对带空格的标量执行 shell word splitting，首轮循环把两条文件路径当成一个参数交给 `git diff --no-index` | 1 | 只读命令失败且没有文件副作用；改为对四组精确路径逐条调用 diff，后续比对完成 |
+| 搜索 VxEditor41 映射加载点时包含仓库不存在的 `public` 目录，`rg` 报路径不存在 | 1 | 已从实际 `src` 结果确认转换器通过 `window.VxJaMap` 消费平台注入映射；不再重复不存在路径 |
+
+### Phase 154：发布 Workflow 0.12.1 稳定版（2026-08-21）
+
+- [x] 复核 Workflow 源提交、远端、v0.12.1 占用情况、发布保护和签名环境
+- [x] 从干净源码完成测试、打包、依赖、文档和敏感信息门禁
+- [x] 基于公开 0.12.0 payload 生成并独立验证 0.12.1 签名候选
+- [x] 创建并验证不可变 GitHub Release v0.12.1，最后推进 stable channel
+- [x] 验证公开下载、签名、Latest、通道历史及受管更新可见性
+- [x] 记录发布结果并汇总交付
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求发布 Workflow 0.12.1。允许创建 v0.12.1 GitHub Release/tag、上传签名资产并在最终门禁通过后快进 `release-channel`；不重新发布 Converter 1.2.6 或 Knowledge 0.1.6，不修改运行逻辑、Agent protocol 9、capability 或兼容范围，不更新正式案例平台。
+
+**结论：** Workflow 0.12.1 已作为 immutable Latest Release 发布，source/tag 为 `e6c9604765b05c6c14cc80b479b63a635ad76570`，stable channel 为 `cc048ed8a109de9e7acd556f7ddde5b4f13a65f4`。公开 tgz/manifest/default raw 与候选逐字节一致且签名有效；33 个版本历史、minimum 0.3.1、revoked empty、protocol 9、Converter 兼容范围和 capabilities 均正确。受管 `update check` 已看到 0.12.0→0.12.1 UPDATE_AVAILABLE；本机未自动应用更新。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 候选 tar 路径门禁把所有含 `token` 的文件名视为秘密，误中合法产品模块 `src/platform/token-source.js` | 1 | 候选签名/历史审计未受影响；收窄为真实秘密载体（私钥、`.env`、规划文件、`.git`、`release-out`），Token 源码继续由内容敏感模式扫描覆盖 |
+| 离线安装检查从安装根 `node_modules/playwright` 导入，但 bundleDependency 实际位于 Workflow 包内 `node_modules/playwright` | 1 | 改为按签名包的真实嵌套布局导入；同时启用 `set -e`，确保任一检查失败不会被后续临时目录移动掩盖 |
+| 离线审计误断言公开 API 必须导出 `createContext`，实际当前包有 165 个公开导出但没有该名称 | 1 | 改为验证整个入口可导入、导出数量基线、两份 Agent Skill 以及四个 bundled runtime 依赖的精确版本，不虚构 API 名称 |
+| `npm ls` 将 `/tmp` 与 macOS 实际 `/private/tmp` 的本地 tgz file spec 视为 invalid | 1 | 依赖文件实际完整且可导入；不以本地 file-spec 路径身份代替包内容验证，改为直接回读并导入嵌套依赖，随后可恢复清理临时根 |
+| 发布后验签的一次性 Node 命令遗漏把已创建的 audit root 作为位置参数传入，尝试读取 `undefined/workflow-stable.json` | 1 | Release/下载/摘要未受影响；使用输出中已知的精确临时目录重新运行官方验签和候选字节比较，不重新下载或发布 |
 
 ### Phase 153：同步 Converter 1.2.6 文档并准备 Workflow 0.12.1（2026-08-21）
 
