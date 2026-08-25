@@ -3705,3 +3705,4 @@
 - 使用本机受管 Converter 1.2.8 对 Job `mig_20260825092541_03cdabba49` 的 V4 快照内存重转：转换成功，diagnostics total/custom 1,272、dropped 0、目标 TypeError 0。
 - 真实回滚验收通过：Launcher 从 1.2.8 回滚到 1.2.7，stable 正确报告更新可用；再次 apply 恢复 1.2.8，最终 update status CURRENT、Doctor artifact SHA/Agent/Token/平台均正常，无需重启。
 - 集成指南已同步为 Converter 1.2.8、正确 Release/资产 URL 和 SHA-256。Phase 169 所有发布动作及验收完成，准备精确提交指南与三份审计文档并普通快进推送；未跟踪 VxServer 文档继续排除。
+- 最终审计提交 `c76c48280a489cba68a818b50190dba0571b8537` 已普通快进推送，local/origin/ls-remote 一致；发布临时 worktree、离线安装副本和公开下载副本已删除。最终回读仍为 immutable/latest Release v1.2.8、`prod→41`、本机 Converter 1.2.8 CURRENT；仅用户原有未跟踪/未提交文件保留。
