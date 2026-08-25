@@ -56,6 +56,17 @@ const normalizeReceiverKind = value => {
   return kindMap[value] || value
 }
 
+const getOwnMapValue = (map, key) => {
+  if (
+    !map ||
+    typeof key !== 'string' ||
+    !Object.prototype.hasOwnProperty.call(map, key)
+  ) {
+    return
+  }
+  return map[key]
+}
+
 const getSysutilNameReceiverKind = name => {
   const prefixKinds = [
     ['$SF_local_arr_', 'localArr'],
@@ -2208,19 +2219,28 @@ export default class V4FormulaCodeConverter {
   }
   resolveSysutilInfo = ({ funcName, receiverKinds = [], callStyle }) => {
     let sysutilMap = MapCreator.genSysutilMap() || {}
-    funcName = V4FormulaCodeConverter.sfutilAliasMap[funcName] || funcName
-    const legacyInfo = V4FormulaCodeConverter.legacySysutilMap[funcName]
-    if (funcName?.startsWith('$SF_')) {
+    funcName =
+      getOwnMapValue(V4FormulaCodeConverter.sfutilAliasMap, funcName) ||
+      funcName
+    const legacyInfo = getOwnMapValue(
+      V4FormulaCodeConverter.legacySysutilMap,
+      funcName
+    )
+    const exactInfo = getOwnMapValue(sysutilMap, funcName)
+    if (typeof funcName === 'string' && funcName.startsWith('$SF_')) {
       return {
-        info: sysutilMap[funcName] || legacyInfo,
-        candidates: sysutilMap[funcName] ? [sysutilMap[funcName]] : []
+        info: exactInfo || legacyInfo,
+        candidates: exactInfo ? [exactInfo] : []
       }
     }
     if (legacyInfo) return { info: legacyInfo, candidates: [legacyInfo] }
 
-    const candidates = MapCreator.getSysutilCandidates({ name: funcName })
+    const candidates =
+      typeof funcName === 'string'
+        ? MapCreator.getSysutilCandidates({ name: funcName })
+        : []
     if (candidates.length === 0) {
-      return { info: sysutilMap[funcName], candidates: [] }
+      return { info: exactInfo, candidates: [] }
     }
     if (candidates.length === 1) {
       return { info: candidates[0], candidates }

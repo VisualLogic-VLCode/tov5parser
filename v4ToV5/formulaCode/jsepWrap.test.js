@@ -183,6 +183,64 @@ test('sysutil English aliases ignore the legacy last-write winner', () => {
   }
 })
 
+test('sysutil alias lookup ignores Object prototype property names', () => {
+  loadRuntimeMaps()
+  const createConverter = str =>
+    new V4FormulaCodeConverter({
+      str,
+      getCtx(name) {
+        if (name === 'fParamgroup') return { varType: 'param' }
+      },
+      scope: 'stage'
+    })
+  const resolver = createConverter('0')
+
+  for (const funcName of [
+    'hasOwnProperty',
+    'toString',
+    'constructor',
+    '__proto__',
+    'valueOf'
+  ]) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        V4FormulaCodeConverter.sfutilAliasMap,
+        funcName
+      ),
+      false
+    )
+    const resolution = resolver.resolveSysutilInfo({
+      funcName,
+      callStyle: 'member'
+    })
+    assert.notEqual(typeof resolution.info, 'function')
+    assert.equal(Array.isArray(resolution.candidates), true)
+    assert.equal(
+      resolution.candidates.every(item => item && typeof item === 'object'),
+      true
+    )
+  }
+
+  for (const str of [
+    'fParamgroup.value.hasOwnProperty("ch")',
+    'fParamgroup.value.toString()'
+  ]) {
+    const converter = createConverter(str)
+    const ast = converter.exec()
+    assert.equal(converter.didDrop, false)
+    const jsfn = findAst(ast, item => item.op === 'jsfn')
+    const hasExpectedJsfn = /\.(?:hasOwnProperty|toString)\(/.test(
+      jsfn?.val?.[0] || ''
+    )
+    const hasToStringSysutil = collectAst(
+      ast,
+      item => item.op === 'sysutil' && item.val === 'num_toString'
+    ).length
+    assert.equal(hasExpectedJsfn || hasToStringSysutil > 0, true)
+    if (jsfn) assertJsfnArgumentsComplete(ast)
+  }
+})
+
 test('ambiguous scalar-or-array aliases preserve unknown receivers as JavaScript', () => {
   loadRuntimeMaps()
   const ast = new V4FormulaCodeConverter({
