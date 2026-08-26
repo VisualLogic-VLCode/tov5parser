@@ -1193,9 +1193,11 @@ export default class V4FormulaCodeConverter {
       }
       case 'curObj':
         ast = this.genCurObjCompPropertyAST({ property, varCompId })
+        propertyAST = this.getGetASTArgs({ ast })?.slice(-1)[0]
         break
       case 'constSys': // 应用系统
         ast = this.genConstSysPropertyAST({ property })
+        propertyAST = this.getGetASTArgs({ ast })?.slice(-1)[0]
         break
       case 'serverSys': // 后台系统
         ast = this.genServerSysAST()
@@ -1359,6 +1361,12 @@ export default class V4FormulaCodeConverter {
       '-': 'neg'
     }
     let op = opMap[operator]
+    if (!op) {
+      throw new ParseError({
+        message: `not support unary operator ${operator}`,
+        type: 'UnaryExpression'
+      })
+    }
     switch (op) {
       case 'not':
       case 'neg':

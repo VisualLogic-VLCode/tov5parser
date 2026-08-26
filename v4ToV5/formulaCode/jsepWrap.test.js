@@ -1835,3 +1835,87 @@ test('full parser keeps block callbacks nested in conditional branches', () => {
     'A、B'
   )
 })
+
+test('leading unary plus preserves numeric coercion and the referenced stage field', () => {
+  const stageId = 'cbx1ewka3j50000c35w0'
+  const ast = new V4FormulaCodeConverter({
+    str: `+$refs.${stageId}.p_pageCustomId+2`,
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+  assert.ok(jsfn, 'unary plus should use a semantics-preserving jsfn fallback')
+  assertSingleLineJsfn(jsfn)
+  assert.match(jsfn.val[0], /^\+\$v1 \+ 2$/)
+  assert.deepEqual(jsfn.val.slice(1), ['$v1'])
+  assert.equal(jsfn.args.length, 1)
+  assert.deepEqual(jsfn.args[0], {
+    op: 'var',
+    args: [
+      {
+        op: 'get',
+        args: [
+          { op: 'ref', val: ['var', stageId] },
+          { op: 'field', val: 'pageCustomId' }
+        ],
+        _blockType: '$refs'
+      }
+    ]
+  })
+  assert.equal(
+    collectAst(ast, item => item.op === 'val' && !('val' in item)).length,
+    0
+  )
+
+  const evaluate = new Function(
+    ...jsfn.val.slice(1),
+    `return (${jsfn.val[0]});`
+  )
+  assert.equal(evaluate('3'), 5)
+})
+
+test('$curObj component methods preserve left and top call arguments', () => {
+  const currentComponentId = 'current-component'
+  const convert = direction =>
+    new V4FormulaCodeConverter({
+      str: `$curObj.m__elAbsoluteDistance('${direction}')`,
+      getCtx(name) {
+        if (name === '$curObj') {
+          return { varType: 'curObj', varCompId: currentComponentId }
+        }
+      },
+      scope: 'stage'
+    }).exec()
+
+  for (const direction of ['left', 'top']) {
+    const ast = convert(direction)
+    const method = findAst(
+      ast,
+      item => item.op === 'method' && item.val === '_elAbsoluteDistance'
+    )
+    assert.deepEqual(method?.args, [{ op: 'val', val: direction }])
+    assert.deepEqual(findAst(ast, item => item.op === 'ref')?.val, [
+      'var',
+      currentComponentId
+    ])
+  }
+})
+
+test('$constSys application environment method preserves userAgent argument', () => {
+  const ast = new V4FormulaCodeConverter({
+    str: "$constSys.f__appEnv('userAgent')",
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+
+  const method = findAst(
+    ast,
+    item => item.op === 'method' && item.val === '_appEnv'
+  )
+  assert.deepEqual(method?.args, [{ op: 'val', val: 'userAgent' }])
+  assert.deepEqual(findAst(ast, item => item.op === 'ref')?.val, [
+    'sobj',
+    'base'
+  ])
+})
