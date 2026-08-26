@@ -3080,3 +3080,29 @@
 - GitHub Raw stable URL具有 300 秒 CDN 缓存；Release 刚提升后的首次 Launcher 检查可能短暂看到上一版 1.2.7。验收必须等待固定 URL 自然刷新，不应通过改配置、无签名本地源或 force 绕过真实用户路径。
 - 固定 stable URL 自然刷新后，Launcher 能正确识别并安装 1.2.8，最终受管 descriptor/artifact SHA 与公开 Release 完全一致；实际 1.2.8→1.2.7 rollback 与 1.2.7→1.2.8 re-apply 均成功且无需重启。
 - 受管 1.2.8 对 nid 11064050 的原 Job V4 快照重转保持 11,581 节点案例可转换，诊断为 1,272 个保义 custom-expression fallback、0 dropped、0 `funcName?.startsWith` TypeError；这闭合了从源码修复、发布资产到真实用户安装包的同一缺陷验收链。
+
+# Phase 170：三类静默公式 AST 错误
+
+- 审计目标是 nid 11064050→V5 12232779；三类错误均未进入 converter-diagnostics，说明当前转换流程返回了结构合法但语义不完整的 AST，回归不能只断言 `droppedTotal=0`，必须直接断言引用链与方法实参数组。
+- 初始根因假设分为两条：前导一元 `+` 可能在 UnaryExpression→binary `+` 适配时构造了空左值；`$curObj` 与 `$constSys` 可能共用特殊 receiver 分支，该分支生成 sysutil 但未把 CallExpression arguments 传给 AST 节点。必须以修复前失败测试和源码路径证明，不能仅凭输出形状修改。
+- 完整审计报告确认 11,581 个节点、2,858 个事件根和 1,272 个 fallback 对应关系均通过，错误只落在事件公式：6 个前导一元 `+` block、14 次 `$curObj` 方向调用、2 次 `$constSys` 环境调用，共 16 个 action/22 个丢失槽位或实参。
+- 深度证据明确显示错误 V5 形状：一元 `+` 为 `{op:"+",args:[{op:"val"},{op:"val",val:2}]}`；特殊 receiver 仍生成 `_blockType:"$curObj"`/`_elAbsoluteDistance` 与 `_appEnv` 方法节点，但方法节点没有 args。普通 `$refs`/系统节点同方法可以保留参数，支持“特殊 receiver 分支丢参”的差异归因。
+- 临时汇总把受影响范围固定为 10 个组件、16 个 block：前导 `+` 6 block；`$curObj` 8 block/14 次，其中 6 个 fireFuncGroup 计算弹层 x/y；`$constSys` 2 个日志 block。测试至少要覆盖引用保留、left/top 两种参数与 userAgent 参数，不能只比较 op/val 名称。
+- 源码已证明特殊 receiver 两类问题共用同一根因：`processMemberExpression()` 的普通/default receiver 会设置 `propertyAST`，随后统一 `appendFuncArgs({sysUtilFuncAST: propertyAST,...})`；`curObj` 和 `constSys` case 只把完整 get AST 赋给 `ast`，从未设置其末级 method 节点 `propertyAST`，所以统一追加参数收到 `undefined`，方法本体保留但 args 全丢。
+- 前导一元 `+` 是独立根因：`processUnaryExpression()` 的 opMap 只有 `!→not`、`-→neg`，`+` 未匹配时直接返回初始化的 `{op:'val'}`；外层二元 `+2` 仍正常，因此形成空左值加 2。需要先确定 V5 对 unary plus 的正式表示；不能把它误当可无条件删除，因为 JavaScript `+value` 包含数值转换语义。
+- 现有回归已有普通系统节点 `f__appEnv('appType')` 保留 args 的正例，可作为 `$constSys` 差异对照；公式测试也已有 unary 语义/字符串拼接测试，但没有前导 `+`。新增测试应放在最接近 `V4FormulaCodeConverter` 的公式套件，真实全案再作为集成验收。
+- `genCurObjCompPropertyAST()` 和 `genConstSysPropertyAST()` 当前都调用 `genRefsCompPropertyAST()` 把末级 `method` 推入内部 get，却只返回 compAst；最小修复可以让这两个 helper 同时返回/暴露 propertyAST，或在 special case 从 get 尾节点取回并传给统一 append。应优先采用不改变既有返回合同、且与普通 `$refsComp` 分支一致的显式 propertyAST 方案。
+- `appendFuncArgs()` 本身正确：只要 method AST 与原始 CallExpression args 到位，就会对每个参数以 gateway 模式转换并写入 `method.args`。因此 `$curObj/$constSys` 不需要新增专用参数转换逻辑，修复调用边界即可同时覆盖 left/top/userAgent。
+- 在 tov5parser 产品/测试（排除 localCases）中未找到 `pos/positive/toNumber` 等明确 unary-plus AST op；现有正式一元操作只有 `not` 与 `neg`。下一步必须从 V5 编辑器/AST 编译器或 sysutil 契约确认数值转换的正式表达，避免臆造 op。
+- VxEditor5 的公式保存/渲染/编译链同样只识别 unary `neg` 与 `not`，没有 positive op；这排除了新增自定义 `pos` AST 的方案。正确策略应利用现有 V5 可编译结构表达 JavaScript 数值强制转换，或在无法结构化时完整 jsfn fallback，同时保留 stage ref。
+- VxEditor5 的 `FormulaFakeCodeToAST`、当前 VLang parser 与 AST→VLang compiler 都只编译 `neg/not`；未知 unary plus 会落空。相较用 `0 + value`（字符串时语义错误）或臆造 op，最稳妥的保义方案是让 unsupported unary `+` 明确触发 gateway custom-expression fallback，使整条 `+$refs...+2` 变为带参数化 ref 的 jsfn；这完整保留 JavaScript ToNumber 与后续加法语义，并使用现有受支持 `jsfn` AST。
+- 若最小回归证明 full expression fallback 生成 `jsfn.val` 含 `+$v1 + 2`（或等价格式）、`jsfn.args` 含 stage ref→pageCustomId，则该方案满足“保留引用并正确表达数值转换”。直接返回 `{op:'val'}` 必须被禁止；不应使用乘 1 等近似变换。
+- Converter 的 gateway 异常边界支持该方案：根表达式以 `gateway:true` 进入 `processParsedTree`；嵌套 unary `+` 若抛 `ParseError`，会向上冒泡到根 gateway，并对整条外层二元表达式执行 `processCustomExpr`。因此不需要把 `+` 加入 full-parser 正则，也不会只 fallback 左子树。
+- `$curObj` 的最小测试需提供真实 `varCompId` 上下文，否则默认 ctx 只有 `varType:'curObj'`，会产生 `ref(['var',undefined])`，掩盖参数修复断言。`$constSys` 的默认 ctx 已足够，预期 ref 为 `['sobj','base']`、末级 method `_appEnv` 带 `userAgent`。
+- 修复前直接探针与审计完全一致：一元表达式输出空左值 `+ 2`；`$curObj` 的 `_elAbsoluteDistance`、`$constSys` 的 `_appEnv` method 节点均存在但无 `args`，而 `$curObj.m__boundHeight()` 的零参方法形状正常。这证明回归测试可以用公式转换器最小输入稳定命中，无需先构造整案 fixture。
+- 三个先失败回归均稳定命中：unary 测试失败于缺少 jsfn；curObj/constSys 测试失败于 method.args 实际 undefined。回归同时断言 ref 身份和参数值，修复不能通过仅添加空 args 或改变 method 名称蒙混通过。
+- 最小实现已被定向测试证明：unary `+` 通过既有 jsfn 保留精确 JS ToNumber 语义和外层加法；special receiver 只恢复 propertyAST 引用并复用现有参数转换，没有复制或分叉 args 逻辑。三类修复后 3/3，且 ref 身份分别保持 `['var',stageId]`、`['var',currentComponentId]`、`['sobj','base']`。
+- 完整公式套件 53/53 通过。真实 nid 11064050 快照重转将 6 个 unary block 全部转换为参数化 `jsfn`，代码为 `+$v1 + 2`，每个参数 AST 都是 stage `cbx1ewka3j50000c35w0` 的 `pageCustomId` 字段，未再出现无 val 的空左值。
+- 真实 special receiver 计数与审计逐块一致：`ct8anvza3j50000cptpg` 1、`ct8ay08a3j50000cpvk0` 2、`ct8cewva3j50000a20bg` 2、`d0dcr6ra3j5000080qqg` 1、`d0dcr6ra3j5000080qr0` 2、`d0dcr6ra3j5000080sx0` 2、`ct8d144a3j50000a21fg` 2、`ct8dbjya3j50000a23y0` 2，共 14 个 left/top；`crfqktza3j50000476d0` 与 `cev2bwqa3j500002h2sg` 各 1 个 userAgent。不存在漏块或多生成参数。
+- 修复会改变目标 AST；既有 V5 nid 12232779 不会被源码更新自动修正，因此部署新 Converter 后必须重新转换（按用户意图可创建新 V5，或通过受管 Refresh 更新既有目标）才能获得修复结果。
+- 生产部署结果为 Lambda `prod→42`，CodeSha256 `p3Ffw39y3U0HF7KPVj4vbBZcIf2+sxaziwi8iJ3LSkc=`，运行包继续报告 packageVersion 1.2.8；这是 Lambda 代码版本更新，不等同于公开签名 Converter Release。需要 Launcher/Workflow 用户自动获得修复时，仍需另行发布下一版不可变 Release。

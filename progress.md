@@ -3714,3 +3714,21 @@
 - 对应实际事件块为 `cbb0ehta3j50000dahd0`、`d05k99da3j50000tyjb0`、`ch4dwd1a3j500001myx0`、条件 `cr37nt7a3j500003qnyg`、`d34g5q6a3j50000s8gd0`、`d34j2j2a3j500008b58g`；两个 data-if 公式直接位于 `props.conditionVal[0][0]`，没有事件 BID。
 - 分类与根因闭合：5 条 `hasOwnProperty`、3 条 `toString`；`nodeId` 是公式所属组件/函数组 ID，事件内公式另有上述动作/条件 BID。
 - 规划钩子持续显示 174/175 的原因不是业务待办，而是 `task_plan.md` 中 Phase 168 标题意外重复，形成一个无状态的空阶段；已删除重复标题。单独检索确认没有未勾选项、in-progress/pending/blocked 状态或非 complete 的 Current Phase。
+
+# 2026-08-26 Phase 170：修复三类未被 diagnostics 捕获的公式 AST 错误
+
+- 用户委派要求修复 nid 11064050→V5 12232779 审计确认的三类静默错误：前导一元 `+` 丢失 stage 引用、`$curObj.m__elAbsoluteDistance(left/top)` 丢参、`$constSys.f__appEnv(userAgent)` 丢参，并为每类增加回归。
+- 已完整读取 planning-with-files，运行 session catchup，并确认 tov5parser 当前产品代码与 origin/main 一致；仅保留用户原有未跟踪 VxServer 文档。
+- 项目 CLAUDE 固定流程要求修复验证后自动提交/推送 tov5parser、部署生产 Lambda、同步并提交/推送 VxEditor41；本轮不手工修改 Job、既有 V5 或平台案例。
+- 启动时一次组合读取规划文件输出被截断；只使用完整显示的 CLAUDE/plan 顶部，省略历史不作为新证据，已在 Phase 170 errors 记录并改用有界读取。
+- 已在 `jsepWrap.test.js` 增加三类最小回归；修复前定向运行精确为 0/3：一元 `+` 找不到 jsfn，`$curObj` method.args 为 undefined，`$constSys` method.args 为 undefined。三个失败分别命中审计问题，不是测试环境或 fixture 偏差。
+- 已实现最小修复：unsupported unary（含前导 `+`）不再静默返回空 val，而是触发根 gateway 的完整 jsfn fallback；`curObj/constSys` 分支从已构建 get AST 取回末级 propertyAST，复用统一 appendFuncArgs。
+- 修复后同一组定向回归 3/3 通过：unary jsfn 保留 `+$v1 + 2`、stage/pageCustomId ref，并以字符串 `"3"` 求值得到 5；`$curObj` 保留 left/top；`$constSys` 保留 userAgent。未新增未知 V5 op。
+- 完整公式测试 53/53、0 fail；随后用 Job `mig_20260825092541_03cdabba49` 的 nid 11064050 原始 V4 快照和当前源码执行纯内存重转。转换仍为 11,581 节点案例，diagnostics 1,278、dropped 0；新增 6 条 `not support unary operator +` 均进入保义 fallback。
+- 真实落点复验全部闭合：6/6 前导 `+` block 均生成 `+$v1 + 2`，并各保留一个 `cbx1ewka3j50000c35w0.pageCustomId` 引用、空 val 0；8/8 `$curObj` block 精确保留 14 个 left/top 实参；2/2 `$constSys` block 各保留一个 userAgent 实参。该验证只读取 V4 快照并在内存转换，没有改写 Job、V5 文件或平台案例。
+- 项目完整回归 114/114、0 fail，`git diff --check` 通过。VxEditor41 已只同步同一转换器源文件；目标 ESLint 0 error/0 warning，生产 webpack 构建 exit 0（33 类仓库既有 warning），且同步片段与独立 Converter 完全一致。编辑器仓原有 `.gitignore`、event store 和未跟踪 UI 目录均未修改。
+- tov5parser 产品提交 `edbc4ff fix: preserve unary and special receiver arguments` 已创建并普通快进推送 `origin/main`，精确只含转换器与三条回归测试；规划记录和用户未跟踪 VxServer 文档未进入提交。
+- 首次 detached worktree 部署在 AWS mutation 前被测试门禁停止：建 worktree 与 `npm ci` 的组合命令仍在根仓 cwd 安装依赖，导致 worktree 无 node_modules。独立 read-back 确认 `prod→41`、代码摘要和时间均未改变。随后以 worktree 为明确 cwd 重新 `npm ci`，114/114 通过，准备重试部署。
+- 生产 Lambda 重试成功：部署脚本内再次通过 114/114，发布版本 42 并将 `prod` 原子切换至 42；冒烟 StatusCode 200、ExecutedVersion 42、FunctionError null。独立 read-back 为 Active/Successful，CodeSha256 `p3Ffw39y3U0HF7KPVj4vbBZcIf2+sxaziwi8iJ3LSkc=`，描述精确绑定 `edbc4ff`，回滚点为版本 41。
+- VxEditor41 同步提交 `75a2ba26b fix: preserve unary and special receiver arguments` 已创建并普通快进推送 `origin/master`，精确只含目标转换器文件；仓库原有 `.gitignore`、`src/stores/event.js` 与未跟踪 UI/.claude 内容保持未暂存。
+- Phase 170 完成。现有 V5 nid 12232779 仍保存旧错误 AST，必须使用部署后的 Converter 重新转换（新建 V5 或受管 Refresh）才会获得修复；本轮未写平台案例。未新建 GitHub Converter Release，公开 Latest 仍为 v1.2.8。

@@ -5,9 +5,30 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 169（提交、推送、部署并发布 Converter Release）— complete
+Phase 170（修复静默公式 AST 丢参与一元加号引用丢失）— complete
 
 ## Phases
+
+### Phase 170：修复静默公式 AST 丢参与一元加号引用丢失（2026-08-26）
+
+- [x] 核对审计报告、深度证据、真实 V4/V5 位置，并建立三类最小失败回归
+- [x] 定位前导一元 `+` 丢失引用左值的独立根因并修复
+- [x] 定位 `$curObj.m__elAbsoluteDistance(...)` 与 `$constSys.f__appEnv(...)` 丢参的共同根因并修复
+- [x] 运行定向公式测试、完整项目测试，并重转 nid 11064050 快照验证所有指定位置
+- [x] 同步同一修复至 VxEditor41，执行目标检查与可行构建，保护用户既有改动
+- [x] 按项目固定流程精确提交/推送两仓、部署生产 Lambda，并汇报是否需要重新转换目标案例
+
+**Status:** complete
+
+**授权与范围：** 用户通过委派明确要求修复三类 Converter 错误并补充回归测试。允许修改独立 Converter、测试及 VxEditor41 对应转换器，并按项目 CLAUDE 固定流程在验证通过后自动提交、推送和部署 Lambda；不得修改既有 Job/V5 JSON、手工补丁平台案例或混入两仓用户无关改动。本轮未明确要求新建签名 Converter Release，因此除非项目发布规则或后续用户指示，不自动发布 GitHub Release。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 启动时组合读取 CLAUDE、plan、findings、progress 的输出超过工具上限并截断 | 1 | CLAUDE 固定流程与 plan 顶部完整显示；截断部分不作新证据，后续按审计文件、源码和规划尾部分开有界读取 |
+| 查询本仓 AST compiler 时使用未匹配的 zsh `server*` glob，命令在该子步骤报 `no matches found` | 1 | 仓库列表结果已完整取得；后续使用显式目录或 `rg -g`，不再依赖可能为空的 shell glob |
+| 首次干净 worktree 部署在测试门禁报生产依赖缺失 | 1 | 建立 worktree 与安装依赖写在同一 shell 中，但安装仍在根仓 cwd 执行；AWS 尚未写入且 `prod` 保持 41。改为以 worktree 为工具级 `workdir` 单独执行 lockfile `npm ci`，114/114 通过后再部署 |
 
 ### Phase 169：提交、推送、部署并发布 Converter Release（2026-08-25）
 
