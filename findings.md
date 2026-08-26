@@ -3115,3 +3115,4 @@
 - 1.2.9 发布资产固定为 tarball `3f47d744…61b85`、raw payload `407cb838…f8a7f`、signed manifest `34fb08da…be155`；清单新增第 10 个版本条目且完整继承 1.2.0 minimum 和空 revoked 列表。离线安装内的三条新增公式回归也全部通过，证明打包资产实际包含修复源码。
 - GitHub 公开面已闭合：Release v1.2.9 immutable，两个 asset digest 与本地计划一致；受保护 tag 直指 `3be995fd…`，stable channel commit `751159ce…` 是上一 stable `aa4af927…` 的普通快进，没有历史重写。
 - Launcher 的安装、回滚和重应用均消费真实签名 stable 通道；1.2.9 激活不需要重启，也不改变 Workflow、Knowledge 或 Agent 适配器。现有 1.2.8 仍可作为即时本地回滚点。
+- 最终交付链为 source/tag `3be995fd…`、审计文档 `237c175`、release-channel `751159ce…`；Release 与 stable 已公开且本机已消费。临时签名计划副本已清理，权威副本是 immutable GitHub Release 资产与受保护 stable branch。

@@ -3750,3 +3750,5 @@
 - 受管 1.2.9 对 nid 11064050 原 Job V4 快照内存重转成功：diagnostics 1,278、dropped 0，6 个 unary block、14 个 curObj left/top 参数、2 个 constSys userAgent 参数全部闭合。首轮脚本从整个动作块计数引用产生假阳性，收窄到唯一目标 jsfn.args 后通过。
 - 真实 rollback→reapply 通过：回滚精确恢复 1.2.8，stable 报 UPDATE_AVAILABLE 1.2.8→1.2.9；重新 apply 后当前为 1.2.9、artifact SHA `3f47d744…61b85`、restartRequired=false。最终 Doctor 确认 Workflow 0.12.4、Knowledge 0.1.6、Agent 配置均 current。
 - 开发嵌入指南已更新为 1.2.9 的不可变 Release、tgz URL 和正式 SHA；不修改 Workflow/Agent 协议或平台案例。下一步提交最终文档与审计记录。
+- 发布审计提交 `237c175 docs: record converter 1.2.9 release` 已普通快进推送 origin/main，精确包含集成指南与三份规划记录；用户未跟踪 VxServer 文档未进入提交。
+- detached release worktree 已通过 Git 安全移除；私有 previous-payload、离线安装、公开下载和 release-out 临时副本均已按精确白名单删除。Phase 171 完成，最终本机 Converter 1.2.9 CURRENT。
