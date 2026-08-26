@@ -5,9 +5,32 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 170（修复静默公式 AST 丢参与一元加号引用丢失）— complete
+Phase 171（发布 Converter 1.2.9）— in progress
 
 ## Phases
+
+### Phase 171：发布 Converter 1.2.9（2026-08-26）
+
+- [x] 复核发布手册、远端/Release/stable/保护规则、签名密钥和本机受管版本
+- [x] 将包版本提升至 1.2.9，执行完整测试、audit、pack 与发布清单门禁
+- [x] 精确提交版本准备并普通快进推送 main，从该提交生成签名发布计划
+- [x] 校验 tarball、manifest、签名、历史与离线安装后发布不可变 v1.2.9 Release
+- [x] 最后普通快进 stable release-channel，并完成公开下载、Launcher 安装/回滚/重应用验收
+- [ ] 更新集成指南和发布审计记录，提交推送并汇报 Release 与本机状态
+
+**Status:** in progress
+
+**授权与范围：** 用户明确要求发布刚完成修复的 Converter。按补丁版本发布 v1.2.9，允许更新 package/package-lock、创建不可变 GitHub Release/tag、上传签名资产并在全部门禁通过后最后快进 Converter `release-channel`；允许通过 Launcher 安装、回滚和重应用验证。不得改写历史、强推、削弱保护规则、修改平台案例或混入用户未跟踪的 VxServer 文档。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 首次读取上一 stable 时把签名 envelope 的 Base64 `payload` 当作已解析对象 | 1 | 未生成任何发布产物；检查 envelope schema 后改为提取并解码 payload |
+| 工具编排 JS 隔离环境没有浏览器式 `atob` | 1 | 未写文件；改用系统 `base64 -D` 解码公开 payload，再通过 apply_patch 创建 0600 临时输入 |
+| 离线验收的编排脚本在嵌套 heredoc 中包含模板字符串，导致外层 JS 解析失败 | 1 | 没有启动任何子命令或修改状态；改用字符串连接构造 Node 导入路径，同一验收随后通过 |
+| 一次规划更新 patch 对同一文件写了两个 Update 区块，被 apply_patch 拒绝 | 1 | 无文件被修改；合并为单个 Update 区块后重试 |
+| 受管真实案例首轮审计从整个动作块统计 stage ref，混入同块其他公式并报 ref=2 | 1 | Converter 输出未失败；把范围收窄到唯一目标 unary `jsfn.args` 后，6/6 引用、14/14 curObj 参数、2/2 constSys 参数全部通过 |
 
 ### Phase 170：修复静默公式 AST 丢参与一元加号引用丢失（2026-08-26）
 

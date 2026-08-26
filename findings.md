@@ -3106,3 +3106,12 @@
 - 真实 special receiver 计数与审计逐块一致：`ct8anvza3j50000cptpg` 1、`ct8ay08a3j50000cpvk0` 2、`ct8cewva3j50000a20bg` 2、`d0dcr6ra3j5000080qqg` 1、`d0dcr6ra3j5000080qr0` 2、`d0dcr6ra3j5000080sx0` 2、`ct8d144a3j50000a21fg` 2、`ct8dbjya3j50000a23y0` 2，共 14 个 left/top；`crfqktza3j50000476d0` 与 `cev2bwqa3j500002h2sg` 各 1 个 userAgent。不存在漏块或多生成参数。
 - 修复会改变目标 AST；既有 V5 nid 12232779 不会被源码更新自动修正，因此部署新 Converter 后必须重新转换（按用户意图可创建新 V5，或通过受管 Refresh 更新既有目标）才能获得修复结果。
 - 生产部署结果为 Lambda `prod→42`，CodeSha256 `p3Ffw39y3U0HF7KPVj4vbBZcIf2+sxaziwi8iJ3LSkc=`，运行包继续报告 packageVersion 1.2.8；这是 Lambda 代码版本更新，不等同于公开签名 Converter Release。需要 Launcher/Workflow 用户自动获得修复时，仍需另行发布下一版不可变 Release。
+# Phase 171：Converter 1.2.9 发布
+
+- 当前源码 main 已包含修复提交 `edbc4ff` 和审计提交 `5081919`，包版本/公开 Latest/stable 仍为 1.2.8；因此下一补丁版本应为 1.2.9。发布必须以新的版本准备提交为 source，不能复用已发布 v1.2.8 tag。
+- GitHub 发布安全基线完整：immutable Releases 已启用；ruleset `20699647` 保护 main/release-channel，`20699656` 保护 v*，均无 bypass actor。v1.2.8 是 immutable Latest，目标提交 `69cbfa84…`；v1.2.9 尚无 tag 或 Release。
+- Launcher 当前签名通道仍解析 1.2.8，artifact SHA `100e1b59…`；Workflow 0.12.4 对 1.2.9 仍在既有 `<2.0.0` 范围内，不需要发布 Workflow 或调整 Agent protocol。
+- 1.2.9 仅包含已完成审计的公式修复与补丁版本元数据；包清单仍为 164 个文件，新增修复测试不在发布 `files` 白名单中，运行源码与九个 bundled 生产依赖保持完整。Release 兼容范围继续使用 `>=0.3.1 <1.0.0`。
+- 1.2.9 发布资产固定为 tarball `3f47d744…61b85`、raw payload `407cb838…f8a7f`、signed manifest `34fb08da…be155`；清单新增第 10 个版本条目且完整继承 1.2.0 minimum 和空 revoked 列表。离线安装内的三条新增公式回归也全部通过，证明打包资产实际包含修复源码。
+- GitHub 公开面已闭合：Release v1.2.9 immutable，两个 asset digest 与本地计划一致；受保护 tag 直指 `3be995fd…`，stable channel commit `751159ce…` 是上一 stable `aa4af927…` 的普通快进，没有历史重写。
+- Launcher 的安装、回滚和重应用均消费真实签名 stable 通道；1.2.9 激活不需要重启，也不改变 Workflow、Knowledge 或 Agent 适配器。现有 1.2.8 仍可作为即时本地回滚点。

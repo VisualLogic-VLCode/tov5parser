@@ -3732,3 +3732,21 @@
 - 生产 Lambda 重试成功：部署脚本内再次通过 114/114，发布版本 42 并将 `prod` 原子切换至 42；冒烟 StatusCode 200、ExecutedVersion 42、FunctionError null。独立 read-back 为 Active/Successful，CodeSha256 `p3Ffw39y3U0HF7KPVj4vbBZcIf2+sxaziwi8iJ3LSkc=`，描述精确绑定 `edbc4ff`，回滚点为版本 41。
 - VxEditor41 同步提交 `75a2ba26b fix: preserve unary and special receiver arguments` 已创建并普通快进推送 `origin/master`，精确只含目标转换器文件；仓库原有 `.gitignore`、`src/stores/event.js` 与未跟踪 UI/.claude 内容保持未暂存。
 - Phase 170 完成。现有 V5 nid 12232779 仍保存旧错误 AST，必须使用部署后的 Converter 重新转换（新建 V5 或受管 Refresh）才会获得修复；本轮未写平台案例。未新建 GitHub Converter Release，公开 Latest 仍为 v1.2.8。
+# 2026-08-26 Phase 171：发布 Converter 1.2.9
+
+- 用户明确要求发布已修复并部署的 Converter；按语义化补丁版本进入 v1.2.9 不可变 Release 流程。使用 planning-with-files 管理版本、签名、stable 与 Launcher 验收，不修改平台案例。
+- session catchup 仅回放已同步的 Phase 170 完成记录与当前发布请求；`git diff --stat` 无 tracked 产品差异，工作区仅保留用户未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md`。
+- 发布手册与 prepare/publish 实现已完整复核：v1.2.9 必须从已推送且 clean 的精确 source commit 准备，继承上一 raw payload；publisher 会在任何 mutation 前复验签名、摘要、公开仓、immutable Releases 与无 bypass 保护，并以 Draft→资产校验→公开→stable last 顺序发布。
+- 只读预检通过：main/origin 0/0，v1.2.9 tag/Release 均不存在；仓库 public、未归档、immutable Releases enabled。branch ruleset 精确保护 main/release-channel，tag ruleset 精确保护 v*，两者 active、含 deletion/non-fast-forward 且 bypass=0；私钥权限 0600。
+- 当前公开/latest/stable 与本机受管 Converter 均为 1.2.8，本机 Workflow 0.12.4、Knowledge 0.1.6、Agent protocol 9 均 current，兼容 Converter `>=1.2.0 <2.0.0`。下一步准备 1.2.9 版本元数据与发布级验证。
+- package/package-lock 根版本已精确提升至 1.2.9。发布级门禁通过：完整测试 114/114、production audit 0 vulnerabilities、`git diff --check` 通过；npm dry-run 164 files、1,792,956 bytes、unpacked 29,371,982 bytes，入口/公式/ivxMap 齐全且敏感、案例、release-out、VxServer 路径为 0。
+- 版本准备提交 `3be995f chore: prepare converter 1.2.9 release` 已创建并普通快进推送 origin/main，精确只含 package/package-lock；规划记录与用户文档未进入提交。已从该提交建立 detached clean worktree。
+- 上一 stable envelope 的 payload 是 Base64 字符串而非对象；首次对象读取和一次不可用 `atob` 尝试均在产物生成前停止。现已从受保护 release-channel 解码出 raw payload：latest 1.2.8、minimumSupported 1.2.0、9 个历史版本、revoked 为空，并以 apply_patch 写入私有临时输入。
+- 官方 prepare 已从 clean `3be995fd…` 成功生成 1.2.9 计划：tarball SHA `3f47d744b0135ae5189d59b0fdbdc96d7b6c528db5ca45223af77a3bfe861b85`，payload SHA `407cb8389fbb71252cfd08c6866fc46ba9a10edf23c798126af66018750f8a7f`，signed manifest SHA `34fb08da04dd7a9b46c689a3215877e19f3bc63b8f16e2121d4d29b014cbe155`；source dirty=false。
+- 签名计划验收闭合：公钥验签通过；latest 1.2.9、minimum 1.2.0、10 个历史版本、revoked 空、兼容 Workflow 范围未变。tarball 164 entries、路径安全、UNLICENSED、9 个生产依赖完整；全新离线安装可导入三个公开 API，包内公式测试 53/53。
+- 官方 publisher 成功完成 Draft→资产校验→公开→stable last；v1.2.9 Release 已公开，release-channel 普通快进 `aa4af927…→751159ce…`。公开 API 确认 Release immutable/latest、非 draft/prerelease，tag/target 直接指向 `3be995fd…`。
+- 独立公开下载复验通过：tarball `3f47d744…61b85`、manifest `34fb08da…be155` 与计划完全一致；GitHub asset digest、release-channel bytes、公钥签名、10 版本历史均一致。进入真实 Launcher 更新验收。
+- Launcher 正确报告 1.2.8→1.2.9 UPDATE_AVAILABLE 并成功安装签名 1.2.9，无需重启；current artifact SHA 精确为 `3f47d744…61b85`，Workflow/Knowledge/Agent 保持 current。安装包公式测试 53/53。
+- 受管 1.2.9 对 nid 11064050 原 Job V4 快照内存重转成功：diagnostics 1,278、dropped 0，6 个 unary block、14 个 curObj left/top 参数、2 个 constSys userAgent 参数全部闭合。首轮脚本从整个动作块计数引用产生假阳性，收窄到唯一目标 jsfn.args 后通过。
+- 真实 rollback→reapply 通过：回滚精确恢复 1.2.8，stable 报 UPDATE_AVAILABLE 1.2.8→1.2.9；重新 apply 后当前为 1.2.9、artifact SHA `3f47d744…61b85`、restartRequired=false。最终 Doctor 确认 Workflow 0.12.4、Knowledge 0.1.6、Agent 配置均 current。
+- 开发嵌入指南已更新为 1.2.9 的不可变 Release、tgz URL 和正式 SHA；不修改 Workflow/Agent 协议或平台案例。下一步提交最终文档与审计记录。
