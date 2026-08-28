@@ -17,6 +17,7 @@ Phase 173（发布函数组生命周期修复）— complete
 - [x] 将版本提升为 1.2.10，从 clean source 生成验签候选并发布 immutable GitHub Release，最后快进 stable channel
 - [x] 将 Converter 生命周期修复同步至 VxEditor41，运行定向检查/可行构建，仅提交并推送相关转换器文件
 - [x] 独立复核两仓远端、Lambda `prod`、Release/tag/签名/stable 与本机可更新性，汇总交付
+- [x] 从 1.2.10 Release 精确 source 再发布 Lambda，使线上 `packageVersion` 与签名 Release 对齐
 
 **Status:** complete
 

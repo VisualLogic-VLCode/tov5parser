@@ -3789,3 +3789,6 @@
 - VxEditor41 精确提交 `e406122e464ed3413d0fbbe1b22af02b89a1668b fix: restore function-group local initialization` 已普通快进推送；仅含转换器 index 与新 helper，local/origin/ls-remote 一致，原有 `.gitignore`、event store、`.claude` 与 UI 目录改动仍未暂存。
 - 本机正式 Launcher 已从签名 stable 通道处于 Converter 1.2.10 CURRENT，artifact SHA 精确为 `4a27ce99...e576b`；Workflow 0.12.4、Knowledge 0.1.6 和 Agent protocol 9 均保持 current。
 - 最终独立复核闭合：tov5parser main/tag 均为 `b47dc7c...`，stable 为 `9298ddc...`；VxEditor41 master 为 `e406122e4...`；Lambda `prod→43` 无 routing weights且版本 Active/Successful；Release 签名与 11 版本历史有效。全部发布/安装临时 worktree 和临时副本已按精确路径清理。
+- 最后一致性探针发现 Lambda 43 虽包含同一代码修复，但因部署早于版本元数据提交，其只读 `action=version` 仍报告 packageVersion 1.2.9。为避免与签名 Release 1.2.10 标识不一致，将从 Release tag 精确 source `b47dc7c` 再发布并切换别名。
+- 已从 Release 精确 source `b47dc7c` 重新执行 128/128 tests、打包和生产部署，发布 Lambda 不可变版本 `44` 并切换 `prod→44`；脚本冒烟返回 ExecutedVersion 44、FunctionError null、packageVersion 1.2.10。
+- 独立回读确认版本 44 为 Active/Successful、无 routing weights，描述绑定 `1.2.10 b47dc7c`，CodeSha256 `u9iPEY7FpMoVknxSjHc8ulyjASuJX03TCJ2Gd2Wa0pQ=`。最终 Lambda/Release/Launcher 三处版本标识均为 1.2.10，临时部署 worktree 已清理。
