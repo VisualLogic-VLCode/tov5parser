@@ -6,14 +6,14 @@
 
 | 项目 | 值 |
 |---|---|
-| Converter 版本 | `1.2.9` |
+| Converter 版本 | `1.2.10` |
 | npm 包名 | `@visuallogic-vlcode/tov5parser` |
 | Node.js | `>=18` |
 | 模块格式 | ES Module |
 | 许可证状态 | `UNLICENSED` |
-| Release | <https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.9> |
-| Release 包 | <https://github.com/VisualLogic-VLCode/tov5parser/releases/download/v1.2.9/tov5parser-1.2.9.tgz> |
-| Release 包 SHA-256 | `3f47d744b0135ae5189d59b0fdbdc96d7b6c528db5ca45223af77a3bfe861b85` |
+| Release | <https://github.com/VisualLogic-VLCode/tov5parser/releases/tag/v1.2.10> |
+| Release 包 | <https://github.com/VisualLogic-VLCode/tov5parser/releases/download/v1.2.10/tov5parser-1.2.10.tgz> |
+| Release 包 SHA-256 | `4a27ce99ff2d1892920f64a9a49be0256256264125a75307833d053bab8e576b` |
 | 签名稳定通道 | <https://raw.githubusercontent.com/VisualLogic-VLCode/tov5parser/release-channel/converter-stable.json> |
 
 发布包是可独立安装的 npm tarball，已包含转换代码、组件映射和运行依赖。
@@ -36,7 +36,7 @@
 
 ```bash
 npm install --save-exact \
-  https://github.com/VisualLogic-VLCode/tov5parser/releases/download/v1.2.9/tov5parser-1.2.9.tgz
+  https://github.com/VisualLogic-VLCode/tov5parser/releases/download/v1.2.10/tov5parser-1.2.10.tgz
 ```
 
 安装后，应用通过包名导入，不要引用 `node_modules` 内部文件：

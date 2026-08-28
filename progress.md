@@ -3771,3 +3771,21 @@
 - session catchup 确认 Phase 172 已完整记录；`tov5parser main/origin` 同为 `a3d780f`，生命周期修复仍仅在工作区，包版本仍为 1.2.9。原有未跟踪 VxServer 文档继续排除。
 - 两仓 fetch 后均 0 ahead/0 behind；VxEditor41 原有 tracked/untracked 用户改动已记录并排除。GitHub immutable/rulesets/tag/Release 与私钥权限门禁通过；AWS 账号匹配，生产回滚点为 `prod→42`。
 - 提交前门禁通过：`npm test` 128/128，corpus 为 3,949/11,052/0 且 FRP 真实整案 356/1,244/0，production audit 0 vulnerabilities，`git diff --check` 和变更敏感字段扫描通过。当前只将精确产品/测试/规划文件纳入提交，未跟踪 VxServer 文档排除。
+- Converter 修复提交已创建：`77f8368 fix: restore function-group local initialization`，精确包含 10 个本轮产品/测试/审计文件，未跟踪 VxServer 文档未进入提交。提交后本地 main 仅领先 origin 1。
+- `77f8368dbabd0baba4affe9ed806c41b637d64e6` 已普通快进推送到公开 `origin/main`，local/origin/ls-remote 一致。生产部署将从该精确提交的 detached clean worktree 执行。
+- 首次 worktree 命令误在未挂载的临时目录 cwd 中执行并安全终止；未产生任何 Git/依赖/AWS mutation，已改用主仓创建、新目录安装的两步流程。
+- 已从 `77f8368...` 成功建立 detached clean worktree `/tmp/tov5parser-lambda-1.2.10.kpCEcu/checkout`，`npm ci` 按 lockfile 安装 36 个包并审计 0 vulnerabilities。
+- 正式生产部署已从该 clean commit 完成：部署脚本内 128/128 tests 通过，发布 Lambda 不可变版本 `43`，并原子切换 `prod→43`；脚本冒烟返回 StatusCode 200、ExecutedVersion 43、FunctionError null。
+- Lambda 独立回读首次因未显式载入固定中国区 profile 返回 `NoCredentials`，没有发生 AWS 写入；按项目配置重试后确认版本 43 为 Active/Successful、无 routing weights，描述绑定 `77f8368`，CodeSha256 为 `OAaaKgoNzeL1+uJUod0l2MIXf/WWrtjDQwzIdvbMiVM=`，运行时 nodejs20.x。
+- package/package-lock 已提升至 1.2.10，发布门禁再次通过：128/128 tests、production audit 0 vulnerabilities、npm dry-run 166 entries / 1,801,870 bytes；版本提交 `b47dc7c chore: prepare converter 1.2.10 release` 已普通快进推送，local/origin/ls-remote 一致。
+- 上一 stable envelope 已用正式公钥验签通过，payload 为 latest 1.2.9、minimumSupported 1.2.0、10 个历史版本、revoked 为空；已建立 `b47dc7c` detached clean release worktree，并以 0600 previous-payload 输入准备继承历史。
+- 首次 prepare 误从 Converter worktree 调用，因没有维护方 release script 安全停止；只完成 npm ci，没有产物或远端写入。后续从 Workflow 维护仓调用同一官方工具。
+- 官方 prepare 已从 clean `b47dc7c...` 生成并签名 1.2.10：tarball SHA-256 `4a27ce99ff2d1892920f64a9a49be0256256264125a75307833d053bab8e576b`，payload SHA-256 `3db5f1f55c186b02c368502ee5c1da3e842b0de71bbb91a5a4d3f0440e369432`，signed manifest SHA-256 `79746e94c92801650a993fb6f8c98d369e5a5f8ba328af9d2d3db917abcb1ae6`；source dirty=false。
+- 签名候选已用正式公钥验证，latest 1.2.10、minimum 1.2.0、11 个历史版本、revoked 空；tarball 166 entries，禁止路径 0、必需入口齐全。全新隔离安装识别版本 1.2.10、三个公开 API 可加载，包内 function-local-init tests 9/9。
+- 官方 publisher 已按 Draft→资产核验→公开→stable last 发布 immutable/latest Converter v1.2.10；tag 直接指向 `b47dc7c...`，release-channel 普通快进到 `9298ddc51b3c9ec901e6ba6c66f0d58e80af66e0`。
+- 独立公开回读确认 Release 非 draft/prerelease 且 immutable；两个资产 GitHub digest、公开下载 SHA、候选计划和 protected release-channel manifest 字节摘要全部一致。
+- VxEditor41 已新增同一受限 function-local wrapper helper，并在 `convertEvents→convertRoot` 传递 prelude；reset 在根条件/参数/业务动作之前，随机循环变量仍位于其后。非法 wrapper 与独立 Converter 一样不部分物化，编辑器宿主不额外持久化 diagnostics。
+- VxEditor41 生产 webpack 构建成功（exit 0、34 个仓库既有 warning）；目标两个转换器文件 ESLint 为 0 error/0 warning。首次 helper 内存探针因 shell 展开 `$refs` 造成 fixture 失真，改用非展开构造后通过，精确得到 `get(ref(var,v), method(setValue,[val(seed)]))`。
+- VxEditor41 精确提交 `e406122e464ed3413d0fbbe1b22af02b89a1668b fix: restore function-group local initialization` 已普通快进推送；仅含转换器 index 与新 helper，local/origin/ls-remote 一致，原有 `.gitignore`、event store、`.claude` 与 UI 目录改动仍未暂存。
+- 本机正式 Launcher 已从签名 stable 通道处于 Converter 1.2.10 CURRENT，artifact SHA 精确为 `4a27ce99...e576b`；Workflow 0.12.4、Knowledge 0.1.6 和 Agent protocol 9 均保持 current。
+- 最终独立复核闭合：tov5parser main/tag 均为 `b47dc7c...`，stable 为 `9298ddc...`；VxEditor41 master 为 `e406122e4...`；Lambda `prod→43` 无 routing weights且版本 Active/Successful；Release 签名与 11 版本历史有效。全部发布/安装临时 worktree 和临时副本已按精确路径清理。

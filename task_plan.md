@@ -5,20 +5,20 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 173（发布函数组生命周期修复）— in progress
+Phase 173（发布函数组生命周期修复）— complete
 
 ## Phases
 
 ### Phase 173：发布函数组生命周期修复（2026-08-28）
 
-- [ ] 复核 tov5parser/VxEditor41 工作区、远端基线、发布规范、Lambda 回滚点与 Release 安全门禁
-- [ ] 重跑完整测试和 corpus gate，仅提交本轮 Converter 产品/测试/规划文件并普通快进推送
-- [ ] 从精确已推送提交部署新 Lambda 不可变版本，原子切换 `prod` 并独立回读/冒烟
-- [ ] 将版本提升为 1.2.10，从 clean source 生成验签候选并发布 immutable GitHub Release，最后快进 stable channel
-- [ ] 将 Converter 生命周期修复同步至 VxEditor41，运行定向检查/可行构建，仅提交并推送相关转换器文件
-- [ ] 独立复核两仓远端、Lambda `prod`、Release/tag/签名/stable 与本机可更新性，汇总交付
+- [x] 复核 tov5parser/VxEditor41 工作区、远端基线、发布规范、Lambda 回滚点与 Release 安全门禁
+- [x] 重跑完整测试和 corpus gate，仅提交本轮 Converter 产品/测试/规划文件并普通快进推送
+- [x] 从精确已推送提交部署新 Lambda 不可变版本，原子切换 `prod` 并独立回读/冒烟
+- [x] 将版本提升为 1.2.10，从 clean source 生成验签候选并发布 immutable GitHub Release，最后快进 stable channel
+- [x] 将 Converter 生命周期修复同步至 VxEditor41，运行定向检查/可行构建，仅提交并推送相关转换器文件
+- [x] 独立复核两仓远端、Lambda `prod`、Release/tag/签名/stable 与本机可更新性，汇总交付
 
-**Status:** in progress
+**Status:** complete
 
 **授权与范围：** 用户明确授权提交、推送、生产 Lambda 部署、Converter Release 发布，以及同步 VxEditor41 后提交推送。禁止变基、强推、改写 tag/历史或混入用户无关改动；不修改平台案例、Workflow/Knowledge 或已安装 runtime。原有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 必须排除。
 
@@ -26,6 +26,10 @@ Phase 173（发布函数组生命周期修复）— in progress
 
 | Error | Attempt | Resolution |
 |-------|---------|------------|
+| 首次创建 Lambda detached worktree 时把尚未挂载的临时目录误设为命令 cwd，`git worktree add` 因当前目录不是仓库而终止 | 1 | 无 worktree/依赖/AWS 写入；改为先从 tov5parser 主仓显式创建 detached worktree，再以新目录为 cwd 单独安装 |
+| Lambda 独立回读首次未显式载入项目约定的中国区 AWS profile，CLI 返回 `NoCredentials` | 1 | 无 AWS 写入；按部署脚本固定的 `vl-case-json-converter-cn` profile 和 `cn-northwest-1` 区域重试，独立回读闭合 |
+| 首次 Release prepare 被误从 Converter clean worktree 调用，因该包没有维护方 `release:prepare` script 而停止 | 1 | 仅完成该 worktree 的 lockfile 安装，未生成发布计划或发生远端 mutation；改为从 Workflow 维护仓调用 publisher，并继续把 clean Converter worktree 作为 `--package-dir` |
+| VxEditor helper 的首次内存探针把含 `$refs` 的 JavaScript 放入双引号 shell 参数，变量展开使 fixture 失真并断言失败 | 1 | 没有产品或平台写入；改用字符码构造美元符号后，同一 helper 探针通过并生成预期 canonical `setValue` AST |
 
 ### Phase 172：修复函数组直接子变量生命周期语义（2026-08-27）
 
