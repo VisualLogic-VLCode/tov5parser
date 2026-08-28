@@ -27,6 +27,7 @@
   ],
   "scripts": {
     "test": "node --test $(find . -path ./node_modules -prune -o -name \"*.test.js\" -print)",
+    "test:function-local-init-corpus": "node scripts/check-function-local-init-corpus.mjs",
     "convert:local": "node scripts/convert-local-cases.mjs",
     "package:runtime": "node scripts/package-runtime.mjs",
     "deploy:lambda:prod": "node scripts/deploy-lambda-prod.mjs"

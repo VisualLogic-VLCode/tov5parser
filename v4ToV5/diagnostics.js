@@ -9,6 +9,28 @@ function boundedText(value, maxLength = MAX_TEXT_LENGTH) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text
 }
 
+function boundedDetails(value, depth = 0) {
+  if (value == null || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'string') return boundedText(value)
+  if (depth >= 4) return boundedText(JSON.stringify(value))
+  if (Array.isArray(value)) {
+    return value.slice(0, 1024).map(item => boundedDetails(item, depth + 1))
+  }
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 256)
+        .map(([key, item]) => [
+          boundedText(key, 256),
+          boundedDetails(item, depth + 1)
+        ])
+    )
+  }
+  return boundedText(value)
+}
+
 function collectNodeIndex(v4CaseJson) {
   const map = new Map()
   const walkNode = node => {
@@ -82,7 +104,17 @@ function normalizeRecord(record, nodeIndex, blockIndex) {
     actionName: block.actionName ?? null,
     blockType: block.blockType ?? null,
     scope: boundedText(record.scope, 128),
-    code: boundedText(record.code)
+    code: boundedText(record.code),
+    eventName: boundedText(record.eventName, 512),
+    affectedNodeIds: Array.isArray(record.affectedNodeIds)
+      ? record.affectedNodeIds
+          .slice(0, 1024)
+          .map(nodeId => boundedText(nodeId, 256))
+      : undefined,
+    lifecycleDetails:
+      record.lifecycleDetails && typeof record.lifecycleDetails === 'object'
+        ? boundedDetails(record.lifecycleDetails)
+        : undefined
   }
 }
 

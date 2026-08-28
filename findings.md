@@ -3116,3 +3116,31 @@
 - GitHub 公开面已闭合：Release v1.2.9 immutable，两个 asset digest 与本地计划一致；受保护 tag 直指 `3be995fd…`，stable channel commit `751159ce…` 是上一 stable `aa4af927…` 的普通快进，没有历史重写。
 - Launcher 的安装、回滚和重应用均消费真实签名 stable 通道；1.2.9 激活不需要重启，也不改变 Workflow、Knowledge 或 Agent 适配器。现有 1.2.8 仍可作为即时本地回滚点。
 - 最终交付链为 source/tag `3be995fd…`、审计文档 `237c175`、release-channel `751159ce…`；Release 与 stable 已公开且本机已消费。临时签名计划副本已清理，权威副本是 immutable GitHub Release 资产与受保护 stable branch。
+# Phase 172：函数组直接子变量生命周期语义
+
+- 已知缺口位于 V4 `event.code/_code` 树外 `_localVarInit` wrapper 与 Converter `convertEvents→convertRoot` 仅消费 `event.tree` 之间。修复边界必须由 clothingToVL 完整证据和 V4/V5 代码契约再次确认后落地，不能从 `props.value` 猜测。
+- 已完整读取 `/Users/lianghuang/Desktop/clothingToVL/findings.md`。72 个本地 V4 案例共有 3,949 个有效 wrapper、11,052 条入口 reset；所有 owner 都是 `data-funcGroup/callFuncGroup`，目标集合与直接子变量集合及顺序完全一致。FRP-PAD 子集为 356 个 wrapper、1,244 条 reset，代表 owner `ccswm582ntpg000kxgk0`。
+- 语料 RHS 分布为 `undefined=827`、数组 5,745、对象 2,456、布尔 303、数字 1,304、字符串 417；FRP-PAD 有 15 个历史 wrapper 初值为 `undefined`、而当前 `props.value` 已是空字符串。全语料另有 575 条 wrapper 值与 `props.value` 不同，因此 wrapper 是唯一可保留历史运行语义的权威来源。
+- 3,949 个 wrapper 的 `owner.props.code/_code` 与 `event.code/_code` 四份载体全部一致。实现应抽取所有存在载体并比较 wrapper 片段；任何缺失、分歧、动态表达式、重复/跨 owner/嵌套目标、缺项或乱序均整组 fail closed，禁止部分注入或从当前 props 猜测。
+- 受限 parser 仅允许 `$refs.<direct-child-id>.p_value=<JSON literal 或 undefined>;`，需要正确处理 Unicode、字符串内分号和转义、嵌套数组/对象；禁止 `eval`/`Function`。成功项应生成 V5 canonical `get(ref(['var', id]), method('setValue',[valueAst]))`，其中 `undefined` 是无 `val` 字段的 `{op:'val'}`。
+- 生命周期位置必须是转换后根事件最外层 `ast.args` 的开头，早于 root condition switch、函数组参数赋值和业务动作；不得置于条件 true 分支。loop 等已有合成辅助声明不能通过互相 `unshift` 形成不稳定顺序，最终组装顺序需显式管理。
+- 范围不可泛化：service、transaction、trigger 不按调用重置；`data-funcPipeline` 的入口为 `callFuncPipeline`；嵌套 function group 不是 owner 的直接变量子节点。V4 生成器规则理论上也覆盖 `obj-funcGroup/callFuncGroup`，尽管当前 72 案例没有实例。
+- 结构化诊断应复用现有 `appendDiagRecords/checkpoint` 通道，并明确 owner、event/root block 与受影响直接子变量；校验失败不得静默生成不完整 prelude。成功物化不应记为 unsupported/fallback。
+- V5 `setValue` 会进入 `_sys.set/coneSet` 触发依赖传播，而 V4 `p_value` setter 的精确副作用仍缺静态源码证据；除 parser、顺序、fresh-state 和 V5↔VL round-trip 外，必须补一个依赖/值变化触发次数测试，并把无法证明完全同构的差异列为残余风险。
+- 实施时发现历史生成器还可能持久化裸 `$refs.<id>.p_value;`：72 例共 75 条，FRP-PAD 3 条，均为 runtime no-op，不能错转成 `setValue(undefined)`。受限 parser 将其纳入目标集合/顺序校验，但不产生 reset AST，因此精确保留 V4 行为。
+- 实现仅识别 `data-funcGroup/obj-funcGroup + callFuncGroup + V4 root tree`，并以明确 18 类 V4 data/object variable allowlist 校验直接子节点。service、transaction、trigger、funcPipeline 以及嵌套 function group 均不被外层重置。
+- 四份载体按 event `_code`、event `code`、owner `_code`、owner `code` 收集；字符串空载体也视为已持久化副本并触发 `WRAPPER_MISSING`，不会被忽略。任意校验错误均返回空 prelude，Converter detailed API 产生一条结构化 lifecycle diagnostic。
+- `convertRoot` 现在在唯一最终组装点合并 function reset 与 shuffle helper；reset 位于最外层并严格早于 root `switch`、参数赋值和业务动作。禁用/空事件仍保留 reset prelude 和 `skip`。
+- 72 例受限 parser/materializer 门禁达到 3,949 wrapper / 11,052 reset / 0 validation failure；此外 6 个具有 V4 root tree 但缺失 wrapper 的混合/AST-only 历史函数组按设计 fail closed 并单独报告，不从 props 推断。FRP-PAD 为 356/1,244/0，真实整案转换后目标 CaseJSON 亦精确包含 1,244 条 prelude，0 lifecycle diagnostic。
+- 全语料 76 条、FRP-PAD 15 条 wrapper `undefined` 与当前 props `""` 差异已用机器断言保留为无 `val` 字段的 `{op:'val'}`。数组/对象在连续调用中每次重新构造，实际 FRP owner 重放不再累积条件行。
+- V5→VL→CaseJSON 实测表明空集合会规范化为 `clearValue`，`undefined` 仍为 `setValue({op:'val'})`；两条 round-trip 均 0 错误。V5 `setValue` 的 `_sys.set -> coneSet` 链路已从玩家源码确认，但 V4 `p_value` setter 实现在现有仓库中不可见；因此值和触发次数已验证，依赖/事件传播的精确副作用同构仍是唯一残余风险。
+- 完整 `npm test` 为 128/128；新 helper/corpus 脚本语法检查与 `git diff --check` 均通过。本阶段没有 commit、push、Lambda/Release/VxEditor41 或平台写入。
+
+# Phase 173：函数组生命周期修复发布
+
+- 发布起点为 tov5parser `main/origin-main=a3d780f`、package 1.2.9；下一个语义化补丁版本应为 1.2.10。
+- 用户指定顺序为 Converter 提交推送→Lambda→Release→VxEditor41 同步提交推送；任一测试、构建、推送、部署或发布门禁失败时必须停止后续 mutation，不得变基/强推绕过。
+- VxEditor41 基线为 `master/origin-master=75a2ba26b`，其转换器目录当前无差异；仓库仍有用户原有 `.gitignore`、`src/stores/event.js` 和多个 UI/.claude 未跟踪改动，同步提交必须精确排除。编辑器宿主以 `src/utils/convertV4ToV5/index.js` 对应 standalone `converter.js`，目前没有 standalone diagnostics 模块，因此同步时需保留宿主差异，不能整目录覆盖。
+- 正式 Converter Release 仍由 `ivx-v4-v5-migration` 的 `release:prepare/release:publish` 实现；prepare 需指向 independent package checkout、传入上一份已验签 raw payload 以保留历史，publish 在任何 mutation 前检查 clean/exact source、public repo、immutable Releases 与 main/release-channel/v* 无 bypass 保护，并以 Draft→上传核验→公开→stable channel last 顺序发布。
+- 发布前远端检查通过：`tov5parser main` 与 `VxEditor41 master` 均为 0 ahead/0 behind；GitHub 仓公开、未归档，immutable Releases enabled。v1.2.9 为 immutable latest，v1.2.10 tag/Release 不存在；release-channel 当前为 `751159ce...`。branch ruleset `20699647` 和 tag ruleset `20699656` 均 active、bypass 为空；签名私钥权限 0600。
+- AWS 身份为授权中国区账号 `587849590304`；生产函数 Active/Successful，nodejs20.x / 2048 MB / 120s，回滚点 `prod→42`，无 routing weights，当前 CodeSha256 `p3Ffw39...LSkc=`。

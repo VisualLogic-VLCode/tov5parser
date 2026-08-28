@@ -158,6 +158,172 @@ function collectAstNodes(root, predicate) {
   return found;
 }
 
+function buildFunctionLocalInitCase({ divergent = false } = {}) {
+  const v4CaseJson = buildV4CaseJson();
+  const ownerId = 'functionlocalowner';
+  const wrapper =
+    `var _${ownerId}_localVarInit=false;` +
+    '$refs.function-local-array.p_value=[{"source":"wrapper"}];' +
+    '$refs.function-local-value.p_value=undefined;' +
+    `_${ownerId}_localVarInit=true;`;
+  const divergentWrapper = wrapper.replace(
+    '[{"source":"wrapper"}]',
+    '[{"source":"divergent"}]',
+  );
+  const nestedWrapper =
+    'var _nested-function-group_localVarInit=false;' +
+    '$refs.nested-function-value.p_value="nested";' +
+    '_nested-function-group_localVarInit=true;';
+  const nestedFunctionGroup = {
+    id: 'nested-function-group',
+    type: 'data-funcGroup',
+    rootId: 'stage1',
+    uis: {},
+    props: { code: nestedWrapper, _code: nestedWrapper },
+    children: [
+      {
+        id: 'nested-function-value',
+        type: 'data-var',
+        rootId: 'stage1',
+        uis: {},
+        props: { value: 'current nested props' },
+        children: [],
+      },
+    ],
+    events: {
+      list: [
+        {
+          name: 'callFuncGroup',
+          code: nestedWrapper,
+          _code: nestedWrapper,
+          tree: {
+            bid: 'nested-function-root',
+            type: 'root',
+            trigger: { name: 'callFuncGroup' },
+            children: [],
+          },
+        },
+      ],
+    },
+  };
+  const owner = {
+    id: ownerId,
+    type: 'data-funcGroup',
+    rootId: 'stage1',
+    uis: {},
+    props: {
+      inParams: ['input'],
+      code: wrapper,
+      _code: wrapper,
+    },
+    children: [
+      {
+        id: 'function-local-array',
+        type: 'data-obj-arr',
+        rootId: 'stage1',
+        uis: {},
+        props: { value: [{ source: 'current props' }] },
+        children: [],
+      },
+      {
+        id: 'function-local-value',
+        type: 'data-var',
+        rootId: 'stage1',
+        uis: {},
+        props: { value: '' },
+        children: [],
+      },
+      nestedFunctionGroup,
+      {
+        id: 'function-local-service',
+        type: 'data-service',
+        rootId: 'stage1',
+        uis: {},
+        props: {},
+        children: [
+          {
+            id: 'service-nested-value',
+            type: 'data-var',
+            rootId: 'stage1',
+            uis: {},
+            props: { value: 'service' },
+            children: [],
+          },
+        ],
+      },
+      {
+        id: 'function-local-transaction',
+        type: 'data-transaction',
+        rootId: 'stage1',
+        uis: {},
+        props: {},
+        children: [
+          {
+            id: 'transaction-nested-value',
+            type: 'data-var',
+            rootId: 'stage1',
+            uis: {},
+            props: { value: 'transaction' },
+            children: [],
+          },
+        ],
+      },
+    ],
+    events: {
+      list: [
+        {
+          name: 'callFuncGroup',
+          code: wrapper,
+          _code: divergent ? divergentWrapper : wrapper,
+          tree: {
+            bid: 'function-local-root',
+            type: 'root',
+            trigger: { name: 'callFuncGroup' },
+            cons: [
+              {
+                enable: true,
+                flag: 'and',
+                operator: 'equal',
+                value1: { code: '1' },
+                value2: { code: '1' },
+              },
+            ],
+            children: [
+              {
+                bid: 'function-param-assignment',
+                type: 'action',
+                object: 'function-local-value',
+                action: {
+                  name: 'setValue',
+                  params: [
+                    {
+                      name: 'value',
+                      type: 'Formula',
+                      value: {
+                        code: `fParam${ownerId}.input`,
+                        str: [
+                          {
+                            type: 'param',
+                            obj: 'input',
+                            extra: { type: 'funcGroupParam' },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                },
+                children: [],
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+  v4CaseJson.stage.children.push(owner);
+  return { v4CaseJson, ownerId };
+}
+
 test('createV4ConvertEnv indexes nodes across main and class scopes', () => {
   const env = createV4ConvertEnv({ v4CaseJson: buildV4CaseJson() });
 
@@ -318,6 +484,240 @@ test('detailed conversion returns invocation-scoped structured diagnostics', () 
     v4CaseJson: buildV4CaseJson(),
   });
   assert.equal(cleanResult.diagnostics.summary.total, 0);
+});
+
+test('function-group local resets precede root conditions and parameter assignment', () => {
+  ensureIvxMapNodeEnv();
+  const { v4CaseJson, ownerId } = buildFunctionLocalInitCase();
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const owner = v5CaseJson.stage.children.find(node => node.id === ownerId);
+  const rootArgs = owner.events.list[0].ast.args;
+
+  assert.deepEqual(
+    rootArgs.slice(0, 2).map(item => item.args?.[0]?.val),
+    [
+      ['var', 'function-local-array'],
+      ['var', 'function-local-value'],
+    ],
+  );
+  assert.equal(rootArgs[0].args[1].val, 'setValue');
+  assert.deepEqual(rootArgs[0].args[1].args[0], {
+    op: 'val',
+    val: [{ source: 'wrapper' }],
+  });
+  assert.deepEqual(rootArgs[1].args[1].args[0], { op: 'val' });
+  assert.equal(rootArgs[2].op, 'switch');
+  assert.equal(
+    rootArgs[2].args[1].args[0].ln,
+    'function-param-assignment',
+    'the existing parameter assignment remains inside the true branch after resets',
+  );
+
+  const ownerResetTargets = rootArgs
+    .slice(0, 2)
+    .map(item => item.args[0].val[1]);
+  assert.deepEqual(ownerResetTargets, [
+    'function-local-array',
+    'function-local-value',
+  ]);
+  assert.equal(ownerResetTargets.includes('nested-function-value'), false);
+  assert.equal(ownerResetTargets.includes('service-nested-value'), false);
+  assert.equal(ownerResetTargets.includes('transaction-nested-value'), false);
+
+  const nested = owner.children.find(node => node.id === 'nested-function-group');
+  assert.deepEqual(nested.events.list[0].ast.args[0].args[0].val, [
+    'var',
+    'nested-function-value',
+  ]);
+});
+
+test('function-local resets remain part of a disabled or empty root event', () => {
+  ensureIvxMapNodeEnv();
+  const { v4CaseJson, ownerId } = buildFunctionLocalInitCase();
+  const sourceOwner = v4CaseJson.stage.children.find(
+    node => node.id === ownerId,
+  );
+  sourceOwner.events.list[0].tree.enable = false;
+  sourceOwner.events.list[0].tree.cons = [];
+  sourceOwner.events.list[0].tree.children = [];
+
+  const v5CaseJson = convertV4CaseJsonToV5CaseJson({ v4CaseJson });
+  const event = v5CaseJson.stage.children.find(node => node.id === ownerId)
+    .events.list[0];
+  assert.equal(event.skip, true);
+  assert.equal(event.ast.args.length, 2);
+  assert.deepEqual(
+    event.ast.args.map(item => item.args[0].val[1]),
+    ['function-local-array', 'function-local-value'],
+  );
+});
+
+test('invalid function-local wrappers emit one lifecycle diagnostic and no partial reset', () => {
+  ensureIvxMapNodeEnv();
+  const { v4CaseJson, ownerId } = buildFunctionLocalInitCase({
+    divergent: true,
+  });
+  const result = convertV4CaseJsonToV5CaseJsonDetailed({ v4CaseJson });
+  const owner = result.v5CaseJson.stage.children.find(
+    node => node.id === ownerId,
+  );
+
+  assert.equal(owner.events.list[0].ast.args[0].op, 'switch');
+  assert.equal(
+    collectAstNodes(
+      owner.events.list[0].ast,
+      node =>
+        node?.op === 'ref' &&
+        ['function-local-array', 'function-local-value'].includes(node.val?.[1]),
+    ).length,
+    1,
+    'only the original parameter assignment remains; no partial reset is materialized',
+  );
+  assert.equal(result.diagnostics.summary.droppedTotal, 1);
+  const diagnostic = result.diagnostics.records[0];
+  assert.equal(diagnostic.phase, 'function-local-init');
+  assert.equal(diagnostic.errorType, 'WRAPPER_DIVERGENCE');
+  assert.equal(diagnostic.nodeId, ownerId);
+  assert.equal(diagnostic.bid, 'function-local-root');
+  assert.equal(diagnostic.eventName, 'callFuncGroup');
+  assert.deepEqual(diagnostic.affectedNodeIds, [
+    'function-local-array',
+    'function-local-value',
+  ]);
+  assert.equal(diagnostic.lifecycleDetails.ownerId, ownerId);
+  assert.equal(
+    diagnostic.lifecycleDetails.authoritativeSource,
+    'event._code',
+  );
+  assert.equal(diagnostic.lifecycleDetails.divergentSource, 'event.code');
+});
+
+test('function-local array and object literals are fresh on every invocation', () => {
+  const ast = {
+    op: 'block',
+    args: [
+      {
+        op: 'get',
+        args: [
+          { op: 'ref', val: ['var', 'array-value'] },
+          {
+            op: 'method',
+            val: 'setValue',
+            args: [{ op: 'val', val: [{ nested: { count: 1 } }] }],
+          },
+        ],
+      },
+      {
+        op: 'get',
+        args: [
+          { op: 'ref', val: ['var', 'object-value'] },
+          {
+            op: 'method',
+            val: 'setValue',
+            args: [{ op: 'val', val: { nested: { count: 2 } } }],
+          },
+        ],
+      },
+    ],
+  };
+  const runtime = ast2js({
+    ast,
+    getNodeByIdFunc: id => ({
+      id,
+      type: id === 'array-value' ? 'data-obj-arr' : 'data-obj-json',
+    }),
+  });
+  const observed = new Map([
+    ['array-value', []],
+    ['object-value', []],
+  ]);
+  const execute = new Function('$sys', '$self', runtime);
+  const runtimeApi = {
+    func(type, self, id, method, value) {
+      assert.equal(method, 'setValue');
+      assert.equal(
+        type,
+        id === 'array-value' ? 'data-obj-arr' : 'data-obj-json',
+      );
+      observed.get(id).push(value);
+    },
+  };
+
+  execute(runtimeApi, {});
+  observed.get('array-value')[0][0].nested.count = 9;
+  observed.get('object-value')[0].nested.count = 9;
+  execute(runtimeApi, {});
+  assert.equal(observed.get('array-value').length, 2);
+  assert.equal(observed.get('object-value').length, 2);
+  assert.equal(observed.get('array-value')[1][0].nested.count, 1);
+  assert.equal(observed.get('object-value')[1].nested.count, 2);
+  assert.notEqual(
+    observed.get('array-value')[0],
+    observed.get('array-value')[1],
+  );
+  assert.notEqual(
+    observed.get('object-value')[0],
+    observed.get('object-value')[1],
+  );
+});
+
+test('V4 wrapper and V5 prelude invoke one value setter per reset per call', () => {
+  const v4Values = [];
+  const v4Ref = {};
+  Object.defineProperty(v4Ref, 'p_value', {
+    set(value) {
+      v4Values.push(value);
+    },
+  });
+  const executeV4 = new Function(
+    '$refs',
+    'var _owner_localVarInit=false;' +
+      '$refs.value.p_value=[{"count":1}];' +
+      '_owner_localVarInit=true;',
+  );
+
+  const v5Ast = {
+    op: 'block',
+    args: [
+      {
+        op: 'get',
+        args: [
+          { op: 'ref', val: ['var', 'value'] },
+          {
+            op: 'method',
+            val: 'setValue',
+            args: [{ op: 'val', val: [{ count: 1 }] }],
+          },
+        ],
+      },
+    ],
+  };
+  const v5Values = [];
+  const executeV5 = new Function(
+    '$sys',
+    '$self',
+    ast2js({
+      ast: v5Ast,
+      getNodeByIdFunc: () => ({ id: 'value', type: 'data-obj-arr' }),
+    }),
+  );
+  const runtimeApi = {
+    func(type, self, id, method, value) {
+      assert.equal(method, 'setValue');
+      v5Values.push(value);
+    },
+  };
+
+  executeV4({ value: v4Ref });
+  executeV4({ value: v4Ref });
+  executeV5(runtimeApi, {});
+  executeV5(runtimeApi, {});
+
+  assert.equal(v4Values.length, 2);
+  assert.equal(v5Values.length, 2);
+  assert.deepEqual(v5Values, v4Values);
+  assert.notEqual(v4Values[0], v4Values[1]);
+  assert.notEqual(v5Values[0], v5Values[1]);
 });
 
 test('data-if keeps the V5 condition AST without the legacy value bind', () => {

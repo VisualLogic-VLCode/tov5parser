@@ -3752,3 +3752,22 @@
 - 开发嵌入指南已更新为 1.2.9 的不可变 Release、tgz URL 和正式 SHA；不修改 Workflow/Agent 协议或平台案例。下一步提交最终文档与审计记录。
 - 发布审计提交 `237c175 docs: record converter 1.2.9 release` 已普通快进推送 origin/main，精确包含集成指南与三份规划记录；用户未跟踪 VxServer 文档未进入提交。
 - detached release worktree 已通过 Git 安全移除；私有 previous-payload、离线安装、公开下载和 release-out 临时副本均已按精确白名单删除。Phase 171 完成，最终本机 Converter 1.2.9 CURRENT。
+# 2026-08-27 Phase 172：函数组直接子变量生命周期语义
+
+- 用户委派要求修复 function group `callFuncGroup` 入口遗漏的直接子变量重置语义，并提供完整测试与 72 案例 corpus gate。使用 planning-with-files 管理实现和验收。
+- 当前 main/origin 一致，起点为 `a3d780f`；仅用户未跟踪 VxServer 文档存在。用户明确要求本轮完成代码与测试后先汇报，禁止自动 commit/push/deploy/release/VxEditor41 同步。
+- clothingToVL 的完整调查已读完并固化：corpus 权威计数 3,949 wrapper / 11,052 reset，FRP-PAD 为 356 / 1,244；575 条 reset 与当前 props 不同，故实现只能消费生成 wrapper。下一步核对 V4 生成器、当前 Converter 根事件组装与 V5 canonical/round-trip 代码后，先写失败回归。
+- V4 `dealEventCode`、真实四载体 wrapper、Converter `convertEvents/convertRoot` 和 V5 `setValue`/ast2js 规范均已复核。新增 parser/校验/边界单测修复前因 helper 缺失稳定失败，helper 实现后 6/6 通过；新增根条件前置与 lifecycle diagnostic 集成测试修复前按预期失败，证明当前转换链尚未注入 prelude 或诊断。
+- 新增受限非执行式 wrapper parser，仅接受匹配 owner 的直接变量 `p_value` JSON literal/`undefined` 赋值；四载体任一缺失、分歧、动态表达式、重复/外部/嵌套目标、缺项或乱序均整组 fail closed。历史上生成的裸 `p_value;` 语句按 V4 runtime no-op 校验但不物化。
+- 合法赋值生成 canonical `get(ref(var,id), method(setValue,[valueAst]))`，在 `convertRoot` 最终组装点置于 root condition、参数赋值、业务动作及随机循环 helper 之前；非法 wrapper 记录一条带 owner/root/affected IDs 的 `function-local-init` 诊断，不部分注入。
+- parser/structure/integration/runtime 回归全部通过；`npm test` 为 128/128，新文件语法检查与 `git diff --check` 通过。数组与对象连续调用均获得新引用，V4/V5 每次调用的 setter 触发次数一致。
+- 72 例 corpus gate 通过：3,949 wrapper / 11,052 materialized reset / 0 validation failure；76 条 wrapper `undefined` 与当前 props 空字符串的差异被保留。FRP-PAD 为 356 / 1,244 / 0，真实整案 Converter 目标 AST 再核对为 1,244，生命周期诊断 0，15 条 `undefined` 历史值全保留。
+- 通过本地 `vlparser` 完成 V5→VL→CaseJSON 实测：空集合按规范归一为 `clearValue`，`undefined` 保持 `setValue({op:'val'})`，两者均 0 解析/回建错误。实际 FRP owner `ccswm582ntpg000kxgk0` 重复调用后条件行不累积，service/transaction sentinel 不变。
+- 未创建 Git commit，未 push/部署/发布，未修改 VxEditor41 或平台案例；未跟踪的 `VxServer-saveAs-same-gid-group-db-fix.md` 保持未触碰。
+
+# 2026-08-28 Phase 173：发布函数组生命周期修复
+
+- 用户已明确授权完成 tov5parser 提交/推送、生产 Lambda 部署、Converter Release，随后同步 VxEditor41 转换器并提交推送。
+- session catchup 确认 Phase 172 已完整记录；`tov5parser main/origin` 同为 `a3d780f`，生命周期修复仍仅在工作区，包版本仍为 1.2.9。原有未跟踪 VxServer 文档继续排除。
+- 两仓 fetch 后均 0 ahead/0 behind；VxEditor41 原有 tracked/untracked 用户改动已记录并排除。GitHub immutable/rulesets/tag/Release 与私钥权限门禁通过；AWS 账号匹配，生产回滚点为 `prod→42`。
+- 提交前门禁通过：`npm test` 128/128，corpus 为 3,949/11,052/0 且 FRP 真实整案 356/1,244/0，production audit 0 vulnerabilities，`git diff --check` 和变更敏感字段扫描通过。当前只将精确产品/测试/规划文件纳入提交，未跟踪 VxServer 文档排除。

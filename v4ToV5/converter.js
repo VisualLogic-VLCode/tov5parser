@@ -6,7 +6,12 @@ import {
 } from './env.js'
 import { convertBlockCons, genForEachConObj, convertIfCons } from './utils/con.js'
 import { convertEditorValue } from './utils/formula.js'
-import { setDiagExtra, clearDiagExtra } from './utils/convertDiag.js'
+import {
+  appendDiagRecords,
+  setDiagExtra,
+  clearDiagExtra
+} from './utils/convertDiag.js'
+import { resolveFunctionLocalInit } from './utils/functionLocalInit.js'
 import {
   convertActionParamValue,
   checkIsGlobalFunc,
@@ -227,7 +232,37 @@ export default class ConvertV4ToV5 {
             ? event?._code || event?.code
             : undefined
         try {
-          let _event = this.convertBlock({ block: event?.tree, node, scope })
+          const functionLocalInit = resolveFunctionLocalInit({
+            owner: node,
+            event,
+            genId: genXid
+          })
+          if (functionLocalInit.applicable && !functionLocalInit.ok) {
+            appendDiagRecords([
+              {
+                phase: 'function-local-init',
+                errorName: functionLocalInit.error.name,
+                errorType: functionLocalInit.error.code,
+                message: functionLocalInit.error.message,
+                nodeId: node.id,
+                blockId: event?.tree?.bid,
+                scope,
+                eventName: event?.name,
+                affectedNodeIds: functionLocalInit.directChildIds,
+                lifecycleDetails: functionLocalInit.error.details
+              }
+            ])
+          }
+          let _event = this.convertBlock({
+            block: event?.tree,
+            node,
+            scope,
+            extra: {
+              functionLocalInitPrelude: functionLocalInit.ok
+                ? functionLocalInit.prelude
+                : []
+            }
+          })
           if (_event) {
             _list.push(..._event)
           }
@@ -248,7 +283,7 @@ export default class ConvertV4ToV5 {
 
     switch (block.type) {
       case 'root':
-        return this.convertRoot({ block, node, scope })
+        return this.convertRoot({ block, node, scope, extra })
 
       case 'loop':
         return this.convertLoop({ block, node, scope })
@@ -290,7 +325,7 @@ export default class ConvertV4ToV5 {
     return children
   }
 
-  convertRoot({ block, node, scope }) {
+  convertRoot({ block, node, scope, extra }) {
     let _block = { eventId: block.bid, ast: { op: 'block' } }
     if (block.trigger?.name) {
       _block.name = block.trigger.name
@@ -609,48 +644,56 @@ export default class ConvertV4ToV5 {
       } else {
         _block.ast.args = _children
       }
+    }
 
-      // 事件块下添加画布随机对象循环需要的随机变量
-      if (this.hasShuffleForEach) {
-        _block.ast.args.unshift(
-          {
-            op: 'let',
-            val: ['candidateIndexes', 'JsonVal'],
-            args: [
-              {
-                op: 'val',
-                val: null
-              }
-            ],
-            ln: genXid(),
-            isLocalVar: true
-          },
-          {
-            op: 'let',
-            val: ['randomArr', 'JsonVal'],
-            args: [
-              {
-                op: 'val',
-                val: null
-              }
-            ],
-            ln: genXid(),
-            isLocalVar: true
-          },
-          {
-            op: 'let',
-            val: ['randomNum', 'long'],
-            args: [
-              {
-                op: 'val',
-                val: 0
-              }
-            ],
-            ln: genXid(),
-            isLocalVar: true
-          }
-        )
-      }
+    const rootPrelude = Array.isArray(extra?.functionLocalInitPrelude)
+      ? [...extra.functionLocalInitPrelude]
+      : []
+
+    // 事件块下添加画布随机对象循环需要的随机变量。把所有树外前缀在
+    // convertRoot 的最终组装点一次性合并，避免多个 unshift 形成隐式顺序。
+    if (_children.length > 0 && this.hasShuffleForEach) {
+      rootPrelude.push(
+        {
+          op: 'let',
+          val: ['candidateIndexes', 'JsonVal'],
+          args: [
+            {
+              op: 'val',
+              val: null
+            }
+          ],
+          ln: genXid(),
+          isLocalVar: true
+        },
+        {
+          op: 'let',
+          val: ['randomArr', 'JsonVal'],
+          args: [
+            {
+              op: 'val',
+              val: null
+            }
+          ],
+          ln: genXid(),
+          isLocalVar: true
+        },
+        {
+          op: 'let',
+          val: ['randomNum', 'long'],
+          args: [
+            {
+              op: 'val',
+              val: 0
+            }
+          ],
+          ln: genXid(),
+          isLocalVar: true
+        }
+      )
+    }
+    if (rootPrelude.length > 0) {
+      _block.ast.args = [...rootPrelude, ...(_block.ast.args || [])]
     }
 
     return [_block]

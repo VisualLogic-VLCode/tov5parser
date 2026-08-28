@@ -5,9 +5,47 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 171（发布 Converter 1.2.9）— complete
+Phase 173（发布函数组生命周期修复）— in progress
 
 ## Phases
+
+### Phase 173：发布函数组生命周期修复（2026-08-28）
+
+- [ ] 复核 tov5parser/VxEditor41 工作区、远端基线、发布规范、Lambda 回滚点与 Release 安全门禁
+- [ ] 重跑完整测试和 corpus gate，仅提交本轮 Converter 产品/测试/规划文件并普通快进推送
+- [ ] 从精确已推送提交部署新 Lambda 不可变版本，原子切换 `prod` 并独立回读/冒烟
+- [ ] 将版本提升为 1.2.10，从 clean source 生成验签候选并发布 immutable GitHub Release，最后快进 stable channel
+- [ ] 将 Converter 生命周期修复同步至 VxEditor41，运行定向检查/可行构建，仅提交并推送相关转换器文件
+- [ ] 独立复核两仓远端、Lambda `prod`、Release/tag/签名/stable 与本机可更新性，汇总交付
+
+**Status:** in progress
+
+**授权与范围：** 用户明确授权提交、推送、生产 Lambda 部署、Converter Release 发布，以及同步 VxEditor41 后提交推送。禁止变基、强推、改写 tag/历史或混入用户无关改动；不修改平台案例、Workflow/Knowledge 或已安装 runtime。原有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 必须排除。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+
+### Phase 172：修复函数组直接子变量生命周期语义（2026-08-27）
+
+- [x] 完整读取 clothingToVL 的 function local init 结论，并复核 V4 生成器、Converter 事件入口和 V5 canonical AST 契约
+- [x] 设计并先建立受限 wrapper parser、校验失败与生命周期顺序的失败回归
+- [x] 实现共享 function-local-init helper、结构化诊断与根事件 prelude 注入
+- [x] 完成 parser/语义/变量类型/round-trip/触发次数测试，并运行完整 `npm test`
+- [x] 对 72 个本地 V4 案例执行 corpus gate，核对 3,949/11,052 与 FRP-PAD 356/1,244
+- [x] 汇总修改文件、设计、测试、corpus 统计与残余风险，等待用户确认是否提交
+
+**Status:** complete
+
+**授权与范围：** 用户明确授权修改 `/Users/lianghuang/Desktop/ivx_repos/tov5parser` 并执行本地测试，只修复 function group `callFuncGroup` 的直接子变量入口重置语义。必须使用 V4 已生成 wrapper 初值，受限非执行式解析并 fail closed；不得扩展到 service/transaction/trigger/funcPipeline。用户明确要求本轮不得未经确认创建 Git commit、push、部署 Lambda、发布 Release 或同步 VxEditor41，该指示覆盖项目 CLAUDE 的自动发布默认流程。保留并排除用户未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md`。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 首版 corpus 门禁尝试对 72 份混合历史产物逐份整案转换，一份已含 V5 AST 的记录在旧条件转换路径触发 `conList.forEach is not a function` | 1 | 不修改无关条件转换器；将 72 例门禁改为对每个历史 wrapper 运行受限解析/物化校验，并对纯 V4 FRP-PAD 另做真实整案 Converter 转换与 1,244 条目标 AST 核对 |
+| 一次对 V4/V5 runtime 的广域 `rg` 搜索输出超过保留上限 | 1 | 废弃截断结果，按仓库和目标变量组件分次精确搜索，确认 V5 `setValue -> _sys.set -> coneSet` 链路，同时保留 V4 setter 未开源的风险结论 |
 
 ### Phase 171：发布 Converter 1.2.9（2026-08-26）
 
