@@ -3144,3 +3144,22 @@
 - 正式 Converter Release 仍由 `ivx-v4-v5-migration` 的 `release:prepare/release:publish` 实现；prepare 需指向 independent package checkout、传入上一份已验签 raw payload 以保留历史，publish 在任何 mutation 前检查 clean/exact source、public repo、immutable Releases 与 main/release-channel/v* 无 bypass 保护，并以 Draft→上传核验→公开→stable channel last 顺序发布。
 - 发布前远端检查通过：`tov5parser main` 与 `VxEditor41 master` 均为 0 ahead/0 behind；GitHub 仓公开、未归档，immutable Releases enabled。v1.2.9 为 immutable latest，v1.2.10 tag/Release 不存在；release-channel 当前为 `751159ce...`。branch ruleset `20699647` 和 tag ruleset `20699656` 均 active、bypass 为空；签名私钥权限 0600。
 - AWS 身份为授权中国区账号 `587849590304`；生产函数 Active/Successful，nodejs20.x / 2048 MB / 120s，回滚点 `prod→42`，无 routing weights，当前 CodeSha256 `p3Ffw39...LSkc=`。
+
+# Phase 174：最新 Converter 提交重新部署
+
+- 最新本地、`origin/main` 与远端 main 三方均为 `786e65ecc4ff023d632a6a686b972cef6ba04cf9`，ahead/behind 为 0/0；部署目标是已推送提交，不需要 Git 写入。
+- 相对上次 Lambda 44 的 Release source `b47dc7c`，实际新增产品提交只有 `786e65e fix: preserve callable variable value expressions`；另有两条此前部署审计文档提交。产品提交仅修改公式转换器和回归测试，新增 callable component `p_value(...)` 的 canonical `jsfn` 物化，并保留普通 `p_value` 读取语义。
+- 工作区 tracked 差异仅为本轮 planning 文件；用户原有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 继续排除。部署必须从 `786e65e` detached clean worktree，不从当前脏工作区打包。
+- AWS 预检账号为授权中国区账号 `587849590304`；当前生产回滚点 `prod→44`、无 routing weights，版本 Active/Successful，CodeSha256 `u9iPEY7...a0pQ=`，运行包版本基线 1.2.10。
+- 已从精确提交 `786e65e...` 建立 detached clean worktree；lockfile 安装 36 个包，完整测试 131/131、production audit 0 vulnerabilities。新增的 3 个 callable-value 回归已包含在完整套件中。
+- 最终生产状态为 `prod→45`、无 routing weights；版本 45 Active/Successful，描述精确绑定 `1.2.10 786e65e`，CodeSha256 `xLwEtNHynmz6AaiIq6uVIJDqJRuvQWD42wyMk8akMdU=`。独立 invoke 返回 ExecutedVersion 45、FunctionError null、packageVersion 1.2.10。
+
+# Phase 175：Converter 1.2.11 Release
+
+- 当前产品源码 local/origin/remote main 均为 `786e65ecc4ff023d632a6a686b972cef6ba04cf9`，0 ahead/0 behind；新增 callable `p_value(...)` 修复尚未包含在公开 v1.2.10，因此必须发布新补丁版本 1.2.11，不能覆盖不可变旧 Release。
+- GitHub 仓库公开且未归档，immutable Releases 已启用；branch ruleset `20699647` 与 tag ruleset `20699656` 均 active、bypass 为空并禁止删除/非快进。v1.2.11 tag 与 Release 均不存在。
+- 当前 v1.2.10 是 immutable Latest，目标为 `b47dc7c...`；tarball SHA-256 为 `4a27ce99...e576b`。签名 stable channel 验签通过，latest=1.2.10、minimumSupported=1.2.0、11 个完整历史版本、revoked 为空、compatibleWorkflow=`>=0.3.1 <1.0.0`。
+- Ed25519 发布私钥存在且权限为 0600。1.2.11 必须从新的已推送 clean source commit 生成，并继承上一 stable 的 raw payload；发布顺序保持 Draft、资产摘要复核、公开 immutable Release、stable channel 最后提升。
+- 1.2.11 的 source/tag 为 `5bb5c8234ca021265e8f0d9370ac932e4b56a06c`；正式 tarball SHA-256 `25cd12b3a28757706ed93cd2006a6aaf41ea312e0217d2224a6809f87685936a`，raw payload SHA-256 `a50d6299ccd836f07ede743d0a277265233d1011ad172f122f2c3903fe0003ef`，signed manifest SHA-256 `8297b25a441998d36a3b5e82119b59ee3d6f5c2541d81bd7d5868748dc5cde6f`。
+- GitHub Release v1.2.11 已公开且 immutable，两个远端 asset 摘要与候选逐字节一致。release-channel 从 `9298ddc` 普通快进到 `d805937f02a726d8c2dcbd0ec1494d84a63a9e7c`，其 manifest 与 Release asset 相同并通过内置 Ed25519 公钥验签。
+- GitHub Raw 缓存自然刷新后，标准 Launcher 成功识别并安装 1.2.11；受管 artifact SHA 与 Release 相同，3 条本次 callable-value 回归均通过。Workflow 0.12.4、Knowledge 0.1.6 与 Agent protocol 9 均保持 current，不需要联动发布。

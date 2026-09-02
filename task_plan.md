@@ -5,9 +5,45 @@
 以自包含独立项目 + AWS Lambda 服务的形态供平台程序通过 HTTP 调用。
 
 ## Current Phase
-Phase 173（发布函数组生命周期修复）— complete
+Phase 175（发布 Converter 1.2.11）— complete
 
 ## Phases
+
+### Phase 175：发布 Converter 1.2.11（2026-09-02）
+
+- [x] 复核当前源码、远端、Latest Release、stable 签名通道和 GitHub 发布安全门禁
+- [x] 将包版本提升至 1.2.11，执行完整测试、生产依赖审计、pack 清单与差异检查
+- [x] 精确提交并普通快进推送版本元数据，从该提交生成并验收签名发布资产
+- [x] 发布 immutable GitHub Release，最后提升 stable release-channel 并独立回读验证
+- [x] 验证 Launcher 可识别/安装 1.2.11，更新集成文档和发布审计并提交推送
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求发布当前 Converter 修复。允许使用下一补丁版本 1.2.11，提交并推送必要版本元数据和发布审计，创建不可变签名 GitHub Release、提升 stable channel，并通过 Launcher 验证正式更新路径。不修改 Converter 业务逻辑、VxEditor41、Workflow/Knowledge、平台案例或已部署 Lambda；用户未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 必须排除。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| 首次离线测试命令把尚未创建的目录设为进程工作目录，进程在执行 `mkdir` 前即无法启动 | 1 | 从已存在的发布根目录先创建精确离线目录，再进入该目录安装；没有影响候选资产或远端状态 |
+| 离线安装后的 Node 测试使用相对路径时在 macOS `/tmp`→`/private/tmp` 解析中报告文件不存在 | 1 | 先确认文件实际存在，再使用解析后的绝对路径运行同一 3 条回归，全部通过；没有修改发布资产 |
+
+### Phase 174：将最新 Converter 提交重新部署至 Lambda（2026-09-02）
+
+- [x] 核对本地/远端最新提交、工作区边界、新提交内容和当前 Lambda 回滚点
+- [x] 从精确已推送提交建立 detached clean worktree，安装 lockfile 依赖并运行完整测试
+- [x] 发布新的 Lambda 不可变版本，原子切换 `prod` 并执行版本冒烟
+- [x] 独立回读别名、版本状态、代码摘要和包版本，清理临时 worktree
+- [x] 更新部署审计并汇报；不提交/推送规划文件，除非用户另行授权
+
+**Status:** complete
+
+**授权与范围：** 用户明确要求把 tov5parser 的新提交重新部署至生产 Lambda。允许从最新已推送 Converter 提交执行测试、打包、发布 Lambda 不可变版本并切换 `prod`；不授权新增代码修改、Git commit/push、GitHub Release、VxEditor41 同步或平台案例写入。原有未跟踪 `VxServer-saveAs-same-gid-group-db-fix.md` 必须排除。
+
+#### Errors Encountered
+
+| Error | Attempt | Resolution |
+|-------|---------|------------|
 
 ### Phase 173：发布函数组生命周期修复（2026-08-28）
 

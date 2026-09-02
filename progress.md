@@ -3792,3 +3792,30 @@
 - 最后一致性探针发现 Lambda 43 虽包含同一代码修复，但因部署早于版本元数据提交，其只读 `action=version` 仍报告 packageVersion 1.2.9。为避免与签名 Release 1.2.10 标识不一致，将从 Release tag 精确 source `b47dc7c` 再发布并切换别名。
 - 已从 Release 精确 source `b47dc7c` 重新执行 128/128 tests、打包和生产部署，发布 Lambda 不可变版本 `44` 并切换 `prod→44`；脚本冒烟返回 ExecutedVersion 44、FunctionError null、packageVersion 1.2.10。
 - 独立回读确认版本 44 为 Active/Successful、无 routing weights，描述绑定 `1.2.10 b47dc7c`，CodeSha256 `u9iPEY7FpMoVknxSjHc8ulyjASuJX03TCJ2Gd2Wa0pQ=`。最终 Lambda/Release/Launcher 三处版本标识均为 1.2.10，临时部署 worktree 已清理。
+
+# 2026-09-02 Phase 174：重新部署最新 Converter 提交
+
+- 用户要求将 tov5parser 的新增提交重新部署至生产 Lambda；本轮仅授权部署，不创建 Git commit/push、Release、VxEditor41 同步或平台写入。
+- session catchup 已完成。开始核对最新 main/origin、相对 Lambda 44 的提交差异、工作区边界和 AWS 回滚点；部署只从精确已推送的 detached clean worktree执行。
+- 预检完成：local/origin/remote main 均为 `786e65e...`，0/0；新增产品提交只修改 `V4FormulaCodeConverter.js` 与 `jsepWrap.test.js`，包版本仍为 1.2.10。当前 tracked dirty 仅为部署审计，用户未跟踪 VxServer 文档排除。
+- AWS 身份正确；当前 `prod→44` 且无分流，版本 Active/Successful，作为本次部署回滚点。
+- detached clean worktree `/tmp/tov5parser-lambda-1.2.10-786e65e.mVbnWF/source` 已建立；`npm ci` 成功，完整测试 131/131、0 fail，production audit 0 vulnerabilities。准备执行部署脚本内置的二次测试、不可变版本发布、别名切换和冒烟。
+- 生产部署脚本再次通过 131/131 tests，打包后发布 Lambda 不可变版本 `45`，并原子切换 `prod→45`；脚本冒烟返回 StatusCode 200、ExecutedVersion 45、FunctionError null、packageVersion 1.2.10。部署输出 CodeSha256 为 `xLwEtNHynmz6AaiIq6uVIJDqJRuvQWD42wyMk8akMdU=`。
+- 独立回读闭合：`prod→45`、无 routing weights；版本 45 Active/Successful，描述绑定 `786e65e`，CodeSha256 与部署输出一致；再次 invoke 为 HTTP 200 / ExecutedVersion 45 / packageVersion 1.2.10。临时 worktree 和构建产物已按精确路径清理。
+- Phase 174 完成。本轮没有创建 Git commit/push、Release、VxEditor41 同步或平台写入；三份 planning 审计文件保持未提交，等待用户另行授权时再提交。
+
+# 2026-09-02 Phase 175：发布 Converter 1.2.11
+
+- 用户明确要求发布 Release。当前公开 Latest 为 1.2.10，而新增修复已在 main 的 `786e65e`，因此计划发布下一补丁版本 1.2.11。
+- 本轮只执行 Converter 的正式签名发布链及必要的版本/审计提交；不修改业务逻辑、VxEditor41、Workflow/Knowledge、平台案例或现有 Lambda。用户未跟踪 VxServer 文档继续排除。
+- 已运行 session catchup 并恢复 Phase 174 的部署证据；下一步复核远端、Release、stable、签名密钥、规则保护与发布手册。
+- 发布预检通过：local/origin/remote main=`786e65e`、0/0；仓库 PUBLIC、immutable Releases enabled，两套 main/release-channel 与 v* ruleset active 且无 bypass；v1.2.11 tag/Release 不存在。
+- 当前 v1.2.10 为 immutable Latest；签名 stable 通道已用内置公钥验签，历史为 1.2.0–1.2.10、minimumSupported=1.2.0、revoked=[]。发布私钥权限 0600，下一步提升版本并执行发布级回归。
+- package/package-lock 已仅提升到 1.2.11。发布级门禁通过：完整测试 131/131、production audit 0 vulnerabilities、`git diff --check` 通过；dry-run 包为 166 项、1,802,638 bytes，9 个预期 bundled 运行依赖齐全。
+- 版本准备提交 `5bb5c8234ca021265e8f0d9370ac932e4b56a06c` 已普通快进推送；从该提交建立 detached clean worktree 后再次通过 131/131 tests 和 audit 0。
+- 签名候选验收通过：tarball SHA-256 `25cd12b3...5936a`，raw payload `a50d6299...003ef`，manifest `8297b25...cde6f`；12 个历史版本完整、minimumSupported=1.2.0、revoked=[]，包路径安全且离线安装可导入，本次 3 条 callable-value 回归全部通过。
+- v1.2.11 已由发布器按 Draft→资产验证→公开→stable-last 顺序发布。Release immutable，tag→`5bb5c82`；stable channel `9298ddc→d805937` 为普通快进，公开下载资产与签名候选逐字节一致，Ed25519 验签成功。
+- 固定 GitHub Raw 通道的首次 Launcher 检查仍命中约 300 秒缓存并显示 1.2.10；不绕过真实用户路径，等待缓存自然刷新后再安装验收。
+- 第三次标准 Launcher 检查已自然刷新到 1.2.11；`update apply --kind converter` 从签名 stable 通道成功安装并激活，无需重启。最终 Workflow/Converter/Knowledge 为 0.12.4/1.2.11/0.1.6，均 CURRENT，Agent 适配器 current。
+- 受管 1.2.11 的 descriptor/artifact SHA 与公开 Release 一致，安装包内 3 条 callable-value 回归 3/3 通过；GitHub latest 再次确认 v1.2.11 immutable、非 draft/prerelease、目标提交 `5bb5c82`。
+- 集成指南已更新为 v1.2.11 的固定 Release URL、tarball URL 和 SHA-256。Phase 175 完成，准备仅提交指南与 Phase 174/175 审计记录，继续排除用户未跟踪文档。
