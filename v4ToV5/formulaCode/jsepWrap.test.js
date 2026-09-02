@@ -1919,3 +1919,95 @@ test('$constSys application environment method preserves userAgent argument', ()
     'base'
   ])
 })
+
+test('callable component value property becomes a canonical jsfn invocation', () => {
+  const componentId = 'cdfqn85a3j50000jn1v0'
+  const ast = new V4FormulaCodeConverter({
+    str: `$refs.${componentId}.p_value("row", "field")`,
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+
+  assert.deepEqual(ast, {
+    op: 'var',
+    args: [
+      {
+        op: 'jsfn',
+        val: ['$v1($v2,$v3)', '$v1', '$v2', '$v3'],
+        args: [
+          {
+            op: 'var',
+            args: [
+              {
+                op: 'get',
+                args: [
+                  { op: 'ref', val: ['var', componentId] },
+                  { op: 'field', val: 'value' }
+                ],
+                _blockType: '$refs'
+              }
+            ]
+          },
+          { op: 'val', val: 'row' },
+          { op: 'val', val: 'field' }
+        ]
+      }
+    ]
+  })
+  assert.equal(
+    collectAst(ast, item => item.op === 'field' && item.args?.length > 0)
+      .length,
+    0
+  )
+})
+
+test('ordinary component value property reads remain property access ASTs', () => {
+  const componentId = 'cdfqn85a3j50000jn1v0'
+  const ast = new V4FormulaCodeConverter({
+    str: `$refs.${componentId}.p_value`,
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+
+  assert.equal(findAst(ast, item => item.op === 'jsfn'), undefined)
+  assert.deepEqual(
+    findAst(ast, item => item.op === 'get')?.args,
+    [
+      { op: 'ref', val: ['var', componentId] },
+      { op: 'field', val: 'value' }
+    ]
+  )
+})
+
+test('FRP callable value keeps loop item and split path as jsfn arguments', () => {
+  loadRuntimeMaps()
+  const ast = new V4FormulaCodeConverter({
+    str:
+      '$refs.cdfqn85a3j50000jn1v0.p_value(' +
+      '$refs.I_camsbeda3j50000z2rdg.$SF_getSelf(),' +
+      "$refs.camsbvfa3j50000z2rg0.p_value.$SF_var_split($P_mark: '.').$SF_getSelf())",
+    getCtx() {},
+    scope: 'stage'
+  }).exec()
+  const jsfn = findAst(ast, item => item.op === 'jsfn')
+
+  assert.deepEqual(jsfn?.val, [
+    '$v1($v2,$v3)',
+    '$v1',
+    '$v2',
+    '$v3'
+  ])
+  assert.deepEqual(findAst(jsfn?.args?.[0], item => item.op === 'ref')?.val, [
+    'var',
+    'cdfqn85a3j50000jn1v0'
+  ])
+  assert.deepEqual(findAst(jsfn?.args?.[1], item => item.op === 'ref')?.val, [
+    'item',
+    'camsbeda3j50000z2rdg'
+  ])
+  assert.equal(
+    findAst(jsfn?.args?.[2], item => item.op === 'sysutil')?.val,
+    'var_split'
+  )
+  assert.equal(jsfn?.args?.length, 3)
+})

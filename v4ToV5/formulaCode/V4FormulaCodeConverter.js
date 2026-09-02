@@ -1232,6 +1232,16 @@ export default class V4FormulaCodeConverter {
         // eg: $refs.cs63nyfa3j500002r1y0.m__currentWidth()
         ast = this.processParsedTree({ parsed: object })
         propertyAST = this.genRefsCompPropertyAST({ property, compAst: ast })
+        if (
+          identity === 'callee' &&
+          property?.name === 'p_value' &&
+          propertyAST?.op === 'field'
+        ) {
+          return this.genCallableValuePropertyAST({
+            valueAst: ast,
+            funcArgs: args
+          })
+        }
         break
       case 'Object': // 对象方法，eg: Object.parse(_item.distance)
         return this.genObjectMethodPropertyAST({ property, args })
@@ -2450,6 +2460,26 @@ export default class V4FormulaCodeConverter {
       getArgs.push(pAst)
     }
     return pAst
+  }
+
+  genCallableValuePropertyAST = ({ valueAst, funcArgs = [] }) => {
+    const convertedArgs = funcArgs.map(parsed => {
+      return this.processParsedTree({ parsed })
+    })
+    const params = Array.from(
+      { length: convertedArgs.length + 1 },
+      (_, index) => `$v${index + 1}`
+    )
+    return {
+      op: 'var',
+      args: [
+        {
+          op: 'jsfn',
+          val: [`${params[0]}(${params.slice(1).join(',')})`, ...params],
+          args: [valueAst, ...convertedArgs]
+        }
+      ]
+    }
   }
 
   genObjectMethodPropertyAST = ({ property, args }) => {
