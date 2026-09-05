@@ -45,9 +45,8 @@ const { v5CaseJson, diagnostics } =
 
 详细接口只管理一次同步转换的诊断生命周期，不接收用户 token，也不改变转换规则。
 
-需要把 Converter 作为独立包嵌入其他系统时，请参阅
-[V4 转 V5 转换器开发嵌入指南](https://github.com/VisualLogic-VLCode/tov5parser/blob/main/docs/V4-to-V5-Converter-Developer-Integration-Guide.md)。该指南包含固定版本安装、
-诊断处理、浏览器与 HTTP 接入、升级策略和 `UNLICENSED` 授权边界。
+需要集成 V4 → V5 JSON 转换，或继续将 V5 JSON 转为 VL 时，请参阅
+[iVX V4 → V5 JSON → VL 开发集成指南](https://github.com/VisualLogic-VLCode/tov5parser/blob/main/docs/V4-to-V5-JSON-to-VL-Developer-Integration-Guide.md)。该指南说明两段转换的 Node.js 包调用方式、输入输出、DB 元数据准备和结果检查。
 
 ## Lambda
 
